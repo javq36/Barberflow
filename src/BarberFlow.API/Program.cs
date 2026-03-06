@@ -1,5 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using BarberFlow.Infrastructure;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,38 +13,52 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<BarberFlowDbContext>(options =>
     options.UseNpgsql(connectionString));
 
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var issuer = jwtSection["Issuer"];
+var audience = jwtSection["Audience"];
+var key = jwtSection["Key"];
+
+if (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience) || string.IsNullOrWhiteSpace(key))
+{
+    throw new InvalidOperationException("JWT configuration is missing. Set Jwt:Issuer, Jwt:Audience and Jwt:Key.");
+}
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ValidIssuer = issuer,
+            ValidAudience = audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+            ClockSkew = TimeSpan.FromMinutes(2)
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/health/db", async (BarberFlowDbContext db, CancellationToken ct) =>
 {
@@ -71,9 +89,15 @@ app.MapGet("/health/db", async (BarberFlowDbContext db, CancellationToken ct) =>
     }
 });
 
-app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+app.MapGet("/health/auth", (ClaimsPrincipal user) =>
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
+    return Results.Ok(new
+    {
+        status = "ok",
+        message = "JWT token is valid",
+        userId
+    });
+}).RequireAuthorization();
+
+app.Run();
