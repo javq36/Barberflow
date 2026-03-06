@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<ItemGroup>
+		<ProjectReference Include="..\BarberFlow.Application\BarberFlow.Application.csproj" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0-preview.3.24172.4" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0-preview.3" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Keep a single active DbContext for MVP learning flow.
+		     The scaffolded Supabase model is preserved on disk but excluded from build. -->
+		<Compile Remove="Contexts\**\*.cs" />
+		<Compile Remove="Entities\**\*.cs" />
+	</ItemGroup>
+
+
+	<PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

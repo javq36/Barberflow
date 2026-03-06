@@ -1,0 +1,39 @@
+# Build outputs
+bin/
+obj/
+out/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+
+# Test and coverage artifacts
+TestResults/
+*.coverage
+*.coveragexml
+
+# Logs and temporary files
+*.log
+*.tmp
+*.cache
+
+# Node artifacts (future frontend)
+node_modules/
+dist/
+build/
+
+# Local environment and secrets
+.env
+.env.*
+
+# Keep development secrets local only
+src/BarberFlow.API/appsettings.Development.json
+
+# Supabase local temp artifacts
+supabase/.temp/
