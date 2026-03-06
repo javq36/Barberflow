@@ -2,6 +2,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\BarberFlow.Application\BarberFlow.Application.csproj" />
+		<ProjectReference Include="..\BarberFlow.Domain\BarberFlow.Domain.csproj" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0-preview.3.24172.4" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0-preview.3" />
 	</ItemGroup>
