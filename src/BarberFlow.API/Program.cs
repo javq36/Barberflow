@@ -4,6 +4,9 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using BarberFlow.API.Constants;
+using BarberFlow.API.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,7 +23,7 @@ var key = jwtSection["Key"];
 
 if (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience) || string.IsNullOrWhiteSpace(key))
 {
-    throw new InvalidOperationException("JWT configuration is missing. Set Jwt:Issuer, Jwt:Audience and Jwt:Key.");
+    throw new InvalidOperationException(ApiConstants.Messages.JwtConfigMissing);
 }
 
 builder.Services
@@ -41,6 +44,8 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database");
 
 // Add services to the container.
 builder.Services.AddEndpointsApiExplorer();
@@ -60,42 +65,15 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/health/db", async (BarberFlowDbContext db, CancellationToken ct) =>
-{
-    try
-    {
-        var canConnect = await db.Database.CanConnectAsync(ct);
-        if (!canConnect)
-        {
-            return Results.Problem(
-                title: "Database unavailable",
-                detail: "The API reached the database provider, but it could not establish a connection.",
-                statusCode: StatusCodes.Status503ServiceUnavailable);
-        }
+app.MapHealthChecks(ApiConstants.Routes.HealthReady);
 
-        return Results.Ok(new
-        {
-            status = "ok",
-            database = "reachable",
-            provider = db.Database.ProviderName
-        });
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(
-            title: "Database connection failed",
-            detail: ex.Message,
-            statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
-});
-
-app.MapGet("/health/auth", (ClaimsPrincipal user) =>
+app.MapGet(ApiConstants.Routes.HealthAuth, (ClaimsPrincipal user) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
     return Results.Ok(new
     {
-        status = "ok",
-        message = "JWT token is valid",
+        status = ApiConstants.Messages.StatusOk,
+        message = ApiConstants.Messages.JwtTokenValid,
         userId
     });
 }).RequireAuthorization();
