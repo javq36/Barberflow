@@ -1,3 +1,5 @@
+using BarberFlow.Domain.Domain.Enums;
+
 namespace BarberFlow.Domain.Domain.Entities;
 
 /// <summary>
@@ -14,6 +16,9 @@ public class Barber
     public string? Phone { get; set; }
 
     public string? Email { get; set; }
+
+    // In DB this is stored in users.role; default keeps barber rows consistent.
+    public UserRole Role { get; set; } = UserRole.Barber;
 
     public bool IsActive { get; set; } = true;
 
