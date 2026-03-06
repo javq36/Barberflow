@@ -37,3 +37,6 @@ src/BarberFlow.API/appsettings.Development.json
 
 # Supabase local temp artifacts
 supabase/.temp/
+
+# Local planning board (not committed)
+ROADMAP.local.md
