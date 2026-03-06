@@ -30,11 +30,11 @@ tests/
 - `main`: stable production-ready baseline
 - `stage`: code that already passed tests/validation
 - `dev`: integration branch for active development
-- `feature/*`: task branches created from `dev`
+- `feature/*` or task branches (`BBF-XX`): created from `stage`
 
-Current feature branch used for setup work:
+Current convention in use:
 
-- `feature/day1-remaining-setup`
+- `BBF-01`, `BBF-02`, etc.
 
 ## Prerequisites
 
@@ -98,8 +98,18 @@ Swagger URL (development):
 
 ## Current Implemented Endpoints
 
-- `GET /health/db` (checks DB connectivity)
+- `GET /health/ready` (formal health check, includes DB reachability)
 - `GET /health/auth` (requires valid JWT)
+
+## Database Workflow (Official)
+
+- Strategy: SQL-first with Supabase migrations
+- Source of truth: `supabase/migrations/*.sql`
+- EF Core is used as runtime mapping layer (`BarberFlowDbContext`)
+
+Detailed guide:
+
+- `docs/DB_WORKFLOW.md`
 
 ## Notes
 
