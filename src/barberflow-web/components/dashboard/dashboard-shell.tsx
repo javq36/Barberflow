@@ -20,11 +20,12 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLogoutMutation } from "@/lib/api/authApi";
 import { useGetDashboardSummaryQuery } from "@/lib/api/dashboard-api";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Texts } from "@/lib/content/texts";
-import { clearAuthSession } from "@/lib/auth/session";
-import { APP_ROUTES, APP_STORAGE_KEYS } from "@/lib/config/app";
+import { APP_ROUTES } from "@/lib/config/app";
+import { AUTH_COOKIE_NAME } from "@/lib/config/auth";
 import { useAppToast } from "@/lib/toast/toast-provider";
 
 function formatDate(value?: string) {
@@ -41,11 +42,17 @@ function formatDate(value?: string) {
 export function DashboardShell() {
   const router = useRouter();
   const { data, isLoading, isFetching, error } = useGetDashboardSummaryQuery();
+  const [logout] = useLogoutMutation();
   const { Dashboard, Common, Admin } = Texts;
   const { showToast } = useAppToast();
 
-  function onLogout() {
-    clearAuthSession();
+  async function onLogout() {
+    try {
+      await logout().unwrap();
+    } catch {
+      // Route transition should still happen even if logout request fails.
+    }
+
     showToast({
       title: Common.Toasts.LoggedOutTitle,
       description: Common.Toasts.LoggedOutDescription,
@@ -78,11 +85,21 @@ export function DashboardShell() {
                   ? Dashboard.Header.Refreshing
                   : Dashboard.Header.Realtime}
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={onLogout}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onLogout}
+              >
                 <LogOut className="h-4 w-4" />
                 {Common.Actions.Logout}
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={() => router.push(APP_ROUTES.Admin)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(APP_ROUTES.Admin)}
+              >
                 {Admin.Actions.OpenAdmin}
               </Button>
             </div>
@@ -201,7 +218,7 @@ export function DashboardShell() {
                 <p className="text-xs leading-relaxed">
                   {Dashboard.System.SecurityNotePrefix}
                   <code className="dashboard-inline-code">
-                    {APP_STORAGE_KEYS.AccessToken}
+                    {AUTH_COOKIE_NAME}
                   </code>
                   .
                 </p>

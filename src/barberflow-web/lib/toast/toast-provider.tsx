@@ -29,6 +29,24 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
+function createToastId() {
+  const cryptoApi = globalThis.crypto;
+
+  if (typeof cryptoApi?.randomUUID === "function") {
+    return cryptoApi.randomUUID();
+  }
+
+  if (typeof cryptoApi?.getRandomValues === "function") {
+    const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+    const hex = Array.from(bytes, (value) =>
+      value.toString(16).padStart(2, "0"),
+    );
+    return `toast-${hex.join("")}`;
+  }
+
+  return `toast-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export function AppToastProvider({ children }: PropsWithChildren) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
@@ -43,7 +61,7 @@ export function AppToastProvider({ children }: PropsWithChildren) {
       variant = "info",
       durationMs = 3200,
     }: ToastInput) => {
-      const id = crypto.randomUUID();
+      const id = createToastId();
       setToasts((current) => [
         ...current,
         { id, title, description, variant, durationMs },
