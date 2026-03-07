@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/components/providers/store-provider";
+import { Texts } from "@/lib/content/texts";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -14,8 +15,8 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BarberFlow Dashboard",
-  description: "Panel operativo inicial para la gestion de la barberia.",
+  title: Texts.Layout.Metadata.Title,
+  description: Texts.Layout.Metadata.Description,
 };
 
 export default function RootLayout({
@@ -24,8 +25,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body className={`${outfit.variable} ${jetBrainsMono.variable} antialiased`}>
+    <html lang="es" data-theme="premium-dark">
+      <body
+        className={`${outfit.variable} ${jetBrainsMono.variable} antialiased`}
+      >
         <StoreProvider>{children}</StoreProvider>
       </body>
     </html>

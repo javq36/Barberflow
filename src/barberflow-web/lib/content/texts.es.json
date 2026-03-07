@@ -1,0 +1,59 @@
+{
+  "Layout": {
+    "Metadata": {
+      "Title": "BarberFlow Dashboard",
+      "Description": "Panel operativo inicial para la gestion de la barberia."
+    }
+  },
+  "Common": {
+    "Status": {
+      "NoData": "Sin datos",
+      "Ok": "OK",
+      "Error": "Error"
+    }
+  },
+  "Dashboard": {
+    "Header": {
+      "Badge": "BarberFlow · Panel Owner",
+      "Title": "Dashboard operativo",
+      "Description": "Vista inicial para controlar salud del sistema, agenda de hoy y actividad base del negocio.",
+      "Refreshing": "Actualizando metricas...",
+      "Realtime": "Datos en tiempo real del backend"
+    },
+    "Stats": {
+      "AppointmentsToday": {
+        "Title": "Citas de hoy",
+        "Hint": "Agendadas para la fecha actual"
+      },
+      "ActiveBarbers": {
+        "Title": "Barberos activos",
+        "Hint": "Disponibles para atender"
+      },
+      "Customers": {
+        "Title": "Clientes",
+        "Hint": "Base de clientes registrada"
+      },
+      "ActiveServices": {
+        "Title": "Servicios activos",
+        "Hint": "Servicios publicados"
+      }
+    },
+    "Upcoming": {
+      "Title": "Proxima cita",
+      "Description": "La siguiente atencion programada en agenda.",
+      "Empty": "No hay citas futuras por ahora.",
+      "Customer": "Cliente:",
+      "Service": "Servicio:",
+      "Barber": "Barbero:",
+      "Date": "Fecha:"
+    },
+    "System": {
+      "Title": "Estado del sistema",
+      "Description": "Chequeo rapido para soporte operativo.",
+      "ApiAvailable": "API disponible",
+      "SecurityNoteTitle": "Nota de seguridad",
+      "SecurityNotePrefix": "Para consumir endpoints privados, guarda el JWT en localStorage con la clave",
+      "ProtectedDataError": "No se pudieron cargar algunos datos protegidos. Verifica login/token y que la API este corriendo."
+    }
+  }
+}
