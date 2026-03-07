@@ -5,6 +5,13 @@ export const baseApi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: "/api/protected",
   }),
-  tagTypes: ["Dashboard"],
+  tagTypes: [
+    "Services",
+    "Barbers",
+    "Customers",
+    "Appointments",
+    "DashboardSummary",
+    "Barbershop",
+  ],
   endpoints: () => ({}),
 });

@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AUTH_COOKIE_NAME, parseJwtExpMs } from "@/lib/config/auth";
+import {
+  AUTH_COOKIE_NAME,
+  AuthRole,
+  parseJwtBarbershopId,
+  parseJwtExpMs,
+  parseJwtRole,
+} from "@/lib/config/auth";
 
 type SessionResponse = {
   authenticated: boolean;
   expiresAtMs: number | null;
+  role: AuthRole | null;
+  barbershopId: string | null;
 };
 
 export async function GET(request: NextRequest) {
@@ -11,7 +19,12 @@ export async function GET(request: NextRequest) {
 
   if (!token) {
     return NextResponse.json<SessionResponse>(
-      { authenticated: false, expiresAtMs: null },
+      {
+        authenticated: false,
+        expiresAtMs: null,
+        role: null,
+        barbershopId: null,
+      },
       {
         status: 401,
         headers: {
@@ -24,7 +37,12 @@ export async function GET(request: NextRequest) {
   const expiresAtMs = parseJwtExpMs(token);
   if (expiresAtMs !== null && expiresAtMs <= Date.now()) {
     const response = NextResponse.json<SessionResponse>(
-      { authenticated: false, expiresAtMs },
+      {
+        authenticated: false,
+        expiresAtMs,
+        role: null,
+        barbershopId: null,
+      },
       {
         status: 401,
         headers: {
@@ -37,10 +55,15 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
+  const role = parseJwtRole(token);
+  const barbershopId = parseJwtBarbershopId(token);
+
   return NextResponse.json<SessionResponse>(
     {
       authenticated: true,
       expiresAtMs,
+      role,
+      barbershopId,
     },
     {
       status: 200,

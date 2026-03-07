@@ -34,6 +34,8 @@ export type LoginResponse = {
 export type SessionResponse = {
   authenticated: boolean;
   expiresAtMs: number | null;
+  role: "SuperAdmin" | "Owner" | "Barber" | "Customer" | "Unknown" | null;
+  barbershopId: string | null;
 };
 
 export const authApi = createApi({

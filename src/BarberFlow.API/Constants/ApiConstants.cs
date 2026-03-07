@@ -10,6 +10,7 @@ public static class ApiConstants
         public const string AuthLogin = "/auth/login";
         public const string AuthMe = "/auth/me";
         public const string Barbershops = "/barbershops";
+        public const string BarbershopsMe = "/barbershops/me";
         public const string Services = "/services";
         public const string Barbers = "/barbers";
         public const string Customers = "/customers";
