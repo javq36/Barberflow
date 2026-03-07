@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRegisterOwnerMutation } from "@/lib/api/auth-api";
+import {
+  useGetSessionQuery,
+  useRegisterOwnerMutation,
+} from "@/lib/api/authApi";
 import { APP_ROUTES } from "@/lib/config/app";
-import { getAuthSession } from "@/lib/auth/session";
 import { Texts } from "@/lib/content/texts";
 import { useAppToast } from "@/lib/toast/toast-provider";
 
@@ -13,9 +15,8 @@ export default function RegisterPage() {
   const router = useRouter();
   const { Auth, Common } = Texts;
   const { showToast } = useAppToast();
-  const [shouldRedirectToDashboard] = useState(
-    () => typeof window !== "undefined" && getAuthSession().isAuthenticated,
-  );
+  const { data: session, isLoading: isSessionLoading } = useGetSessionQuery();
+  const isAuthenticated = session?.authenticated ?? false;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -26,10 +27,10 @@ export default function RegisterPage() {
   const [registerOwner, { isLoading }] = useRegisterOwnerMutation();
 
   useEffect(() => {
-    if (shouldRedirectToDashboard) {
+    if (!isSessionLoading && isAuthenticated) {
       router.replace(APP_ROUTES.Dashboard);
     }
-  }, [router, shouldRedirectToDashboard]);
+  }, [isAuthenticated, isSessionLoading, router]);
 
   function getApiErrorMessage(error: unknown) {
     if (
@@ -97,7 +98,7 @@ export default function RegisterPage() {
     }
   }
 
-  if (shouldRedirectToDashboard) {
+  if (isSessionLoading || isAuthenticated) {
     return null;
   }
 
