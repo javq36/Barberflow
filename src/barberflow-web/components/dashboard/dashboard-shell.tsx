@@ -89,15 +89,15 @@ export function DashboardShell({ role }: DashboardShellProps) {
             </div>
             <div className="flex w-fit self-start gap-2 md:self-end">
               <div className="dashboard-pill">
-                {isFetching
-                  ? (
-                    <LoadingIndicator
-                      label={Dashboard.Header.Refreshing}
-                      className="text-xs"
-                      spinnerClassName="h-3 w-3"
-                    />
-                  )
-                  : Dashboard.Header.Realtime}
+                {isFetching ? (
+                  <LoadingIndicator
+                    label={Dashboard.Header.Refreshing}
+                    className="text-xs"
+                    spinnerClassName="h-3 w-3"
+                  />
+                ) : (
+                  Dashboard.Header.Realtime
+                )}
               </div>
               <LoadingButton
                 type="button"

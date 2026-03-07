@@ -170,7 +170,10 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         result
           ? [
               { type: "Services", id: "LIST" },
-              ...result.map((service) => ({ type: "Services" as const, id: service.id })),
+              ...result.map((service) => ({
+                type: "Services" as const,
+                id: service.id,
+              })),
             ]
           : [{ type: "Services", id: "LIST" }],
     }),
@@ -180,7 +183,10 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         result
           ? [
               { type: "Barbers", id: "LIST" },
-              ...result.map((barber) => ({ type: "Barbers" as const, id: barber.id })),
+              ...result.map((barber) => ({
+                type: "Barbers" as const,
+                id: barber.id,
+              })),
             ]
           : [{ type: "Barbers", id: "LIST" }],
     }),
@@ -190,7 +196,10 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         result
           ? [
               { type: "Customers", id: "LIST" },
-              ...result.map((customer) => ({ type: "Customers" as const, id: customer.id })),
+              ...result.map((customer) => ({
+                type: "Customers" as const,
+                id: customer.id,
+              })),
             ]
           : [{ type: "Customers", id: "LIST" }],
     }),
@@ -203,7 +212,10 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         result
           ? [
               { type: "Appointments", id: "LIST" },
-              ...result.map((appointment) => ({ type: "Appointments" as const, id: appointment.id })),
+              ...result.map((appointment) => ({
+                type: "Appointments" as const,
+                id: appointment.id,
+              })),
             ]
           : [{ type: "Appointments", id: "LIST" }],
     }),

@@ -1,6 +1,11 @@
 export const AUTH_COOKIE_NAME = "bf_access_token";
 
-export type AuthRole = "SuperAdmin" | "Owner" | "Barber" | "Customer" | "Unknown";
+export type AuthRole =
+  | "SuperAdmin"
+  | "Owner"
+  | "Barber"
+  | "Customer"
+  | "Unknown";
 
 type JwtPayload = {
   exp?: number;
@@ -48,9 +53,15 @@ export function parseJwtPayload(accessToken: string): JwtPayload | null {
 export function parseJwtRole(accessToken: string): AuthRole {
   const payload = parseJwtPayload(accessToken);
   const rawRole =
-    payload?.role ?? payload?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+    payload?.role ??
+    payload?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
 
-  if (rawRole === "SuperAdmin" || rawRole === "Owner" || rawRole === "Barber" || rawRole === "Customer") {
+  if (
+    rawRole === "SuperAdmin" ||
+    rawRole === "Owner" ||
+    rawRole === "Barber" ||
+    rawRole === "Customer"
+  ) {
     return rawRole;
   }
 

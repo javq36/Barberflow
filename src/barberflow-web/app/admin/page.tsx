@@ -40,7 +40,8 @@ export default function AdminPage() {
       hasHandledGuard.current = true;
       showToast({
         title: Common.Toasts.ErrorTitle,
-        description: "No tienes permisos para acceder al panel de administracion.",
+        description:
+          "No tienes permisos para acceder al panel de administracion.",
         variant: "error",
       });
       router.replace(APP_ROUTES.Dashboard);

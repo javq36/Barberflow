@@ -1,4 +1,10 @@
-export type AppRole = "SuperAdmin" | "Owner" | "Barber" | "Customer" | "Unknown" | null;
+export type AppRole =
+  | "SuperAdmin"
+  | "Owner"
+  | "Barber"
+  | "Customer"
+  | "Unknown"
+  | null;
 
 export type AppPermission =
   | "admin.access"
@@ -44,9 +50,7 @@ const rolePermissions: Record<Exclude<AppRole, null>, AppPermission[]> = {
     "appointments.view",
     "appointments.manage",
   ],
-  Barber: [
-    "appointments.view",
-  ],
+  Barber: ["appointments.view"],
   Customer: [],
   Unknown: [],
 };
