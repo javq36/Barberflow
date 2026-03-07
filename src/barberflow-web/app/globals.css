@@ -148,7 +148,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0.00 0);
+  --primary: oklch(0.87 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
@@ -191,9 +191,21 @@
   .dashboard-atmosphere {
     @apply pointer-events-none absolute inset-0 -z-10;
     background:
-      radial-gradient(circle at 50% -6%, color-mix(in srgb, var(--bf-brand-copper) 48%, white) 0%, transparent 34%),
-      radial-gradient(circle at 10% 18%, color-mix(in srgb, var(--bf-brand-gold) 72%, white) 0%, transparent 30%),
-      radial-gradient(circle at 92% 22%, color-mix(in srgb, var(--bf-brand-aqua) 70%, white) 0%, transparent 30%),
+      radial-gradient(
+        circle at 50% -6%,
+        color-mix(in srgb, var(--bf-brand-copper) 48%, white) 0%,
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at 10% 18%,
+        color-mix(in srgb, var(--bf-brand-gold) 72%, white) 0%,
+        transparent 30%
+      ),
+      radial-gradient(
+        circle at 92% 22%,
+        color-mix(in srgb, var(--bf-brand-aqua) 70%, white) 0%,
+        transparent 30%
+      ),
       linear-gradient(
         155deg,
         color-mix(in srgb, var(--bf-brand-gold) 28%, #f8f0e5) 0%,
@@ -204,9 +216,21 @@
 
   :root[data-theme="premium-dark"] .dashboard-atmosphere {
     background:
-      radial-gradient(circle at 52% -12%, color-mix(in srgb, var(--bf-brand-copper) 40%, transparent) 0%, transparent 36%),
-      radial-gradient(circle at 10% 14%, color-mix(in srgb, var(--bf-brand-burgundy) 58%, #0f0b12) 0%, transparent 34%),
-      radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--bf-brand-aqua) 30%, transparent) 0%, transparent 30%),
+      radial-gradient(
+        circle at 52% -12%,
+        color-mix(in srgb, var(--bf-brand-copper) 40%, transparent) 0%,
+        transparent 36%
+      ),
+      radial-gradient(
+        circle at 10% 14%,
+        color-mix(in srgb, var(--bf-brand-burgundy) 58%, #0f0b12) 0%,
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at 88% 18%,
+        color-mix(in srgb, var(--bf-brand-aqua) 30%, transparent) 0%,
+        transparent 30%
+      ),
       linear-gradient(155deg, #130d17 0%, #1d1320 46%, #141b18 100%);
   }
 
@@ -275,7 +299,11 @@
 
   .dashboard-inline-code {
     @apply ml-1 rounded px-1 py-0.5;
-    background-color: color-mix(in srgb, var(--bf-brand-gold) 25%, rgba(255, 255, 255, 0.12));
+    background-color: color-mix(
+      in srgb,
+      var(--bf-brand-gold) 25%,
+      rgba(255, 255, 255, 0.12)
+    );
     color: var(--bf-text-strong);
   }
 
@@ -293,11 +321,19 @@
     @apply rounded-xl border p-2;
     border-color: var(--bf-border-soft);
     background-color: color-mix(in srgb, var(--bf-brand-gold) 24%, white);
-    color: color-mix(in srgb, var(--bf-brand-burgundy) 70%, var(--bf-brand-ink));
+    color: color-mix(
+      in srgb,
+      var(--bf-brand-burgundy) 70%,
+      var(--bf-brand-ink)
+    );
   }
 
   :root[data-theme="premium-dark"] .dashboard-icon-box {
-    background-color: color-mix(in srgb, var(--bf-brand-copper) 34%, rgba(18, 13, 17, 0.78));
+    background-color: color-mix(
+      in srgb,
+      var(--bf-brand-copper) 34%,
+      rgba(18, 13, 17, 0.78)
+    );
     border-color: color-mix(in srgb, var(--bf-brand-gold) 44%, transparent);
     color: #ffffff;
     box-shadow:
@@ -344,6 +380,56 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  .app-toast-viewport {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 90;
+    display: flex;
+    max-width: min(92vw, 26rem);
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .app-toast {
+    border-radius: 1rem;
+    border: 1px solid var(--bf-border-soft);
+    background-color: var(--bf-surface-panel-strong);
+    padding: 0.75rem 0.9rem;
+    box-shadow: 0 16px 34px -26px rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(10px);
+  }
+
+  .app-toast-title {
+    color: var(--bf-text-strong);
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .app-toast-description {
+    margin-top: 0.24rem;
+    color: var(--bf-text-soft);
+    font-size: 0.78rem;
+    line-height: 1.4;
+  }
+
+  .app-toast-success {
+    border-color: color-mix(in srgb, var(--bf-status-ok-fg) 36%, transparent);
+  }
+
+  .app-toast-error {
+    border-color: color-mix(
+      in srgb,
+      var(--bf-status-error-fg) 44%,
+      transparent
+    );
+  }
+
+  .app-toast-info {
+    border-color: color-mix(in srgb, var(--bf-brand-copper) 35%, transparent);
   }
 
   @media (min-width: 640px) {

@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { APP_ROUTES } from "@/lib/config/app";
 import { clearAuthSession, getAuthSession } from "@/lib/auth/session";
 import { useAppToast } from "@/lib/toast/toast-provider";
 import { Texts } from "@/lib/content/texts";
 
-export default function DashboardPage() {
+export default function AdminPage() {
   const router = useRouter();
   const [session] = useState(() => getAuthSession());
   const { showToast } = useAppToast();
@@ -62,5 +62,5 @@ export default function DashboardPage() {
     return null;
   }
 
-  return <DashboardShell />;
+  return <AdminShell />;
 }

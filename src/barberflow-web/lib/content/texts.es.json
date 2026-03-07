@@ -10,6 +10,120 @@
       "NoData": "Sin datos",
       "Ok": "OK",
       "Error": "Error"
+    },
+    "Toasts": {
+      "SuccessTitle": "Operacion completada",
+      "ErrorTitle": "Operacion fallida",
+      "SessionExpiredTitle": "Sesion expirada",
+      "SessionExpiredDescription": "Tu acceso vencio. Inicia sesion de nuevo.",
+      "LoggedOutTitle": "Sesion cerrada",
+      "LoggedOutDescription": "Tu sesion se cerro correctamente.",
+      "LoggedInTitle": "Bienvenido",
+      "RegisteredTitle": "Cuenta creada"
+    },
+    "Actions": {
+      "BackToDashboard": "Volver al dashboard",
+      "Logout": "Cerrar sesion"
+    }
+  },
+  "Auth": {
+    "Login": {
+      "Title": "Iniciar sesion",
+      "Description": "Accede con tu cuenta Owner para gestionar tu barberia.",
+      "EmailLabel": "Correo",
+      "PasswordLabel": "Contrasena",
+      "Submit": "Entrar",
+      "Submitting": "Ingresando...",
+      "RegisterCta": "Crear cuenta",
+      "RegisterPrompt": "Aun no tienes cuenta?",
+      "Success": "Inicio de sesion exitoso.",
+      "Error": "No fue posible iniciar sesion. Verifica tus credenciales."
+    },
+    "Register": {
+      "Title": "Crear cuenta Owner",
+      "Description": "Registra tu cuenta inicial para comenzar con BarberFlow.",
+      "NameLabel": "Nombre",
+      "EmailLabel": "Correo",
+      "PhoneLabel": "Telefono",
+      "PasswordLabel": "Contrasena",
+      "Submit": "Crear cuenta",
+      "Submitting": "Creando cuenta...",
+      "LoginCta": "Ya tengo cuenta",
+      "LoginPrompt": "Ya tienes usuario?",
+      "Success": "Cuenta creada. Ahora inicia sesion.",
+      "Error": "No fue posible crear la cuenta."
+    },
+    "Validation": {
+      "NameRequired": "El nombre es obligatorio.",
+      "EmailRequired": "El correo es obligatorio.",
+      "PasswordRequired": "La contrasena es obligatoria.",
+      "PhoneRequired": "El telefono es obligatorio."
+    }
+  },
+  "Admin": {
+    "Title": "Panel de administracion",
+    "Description": "Vista operativa para consumir visualmente APIs de owner.",
+    "Stats": {
+      "Services": "Servicios",
+      "Barbers": "Barberos",
+      "Customers": "Clientes",
+      "Appointments": "Citas"
+    },
+    "Sections": {
+      "CreateService": "Crear servicio",
+      "CreateBarber": "Crear barbero",
+      "CreateCustomer": "Crear cliente",
+      "ManageServices": "Gestionar servicios",
+      "ManageBarbers": "Gestionar barberos",
+      "ManageCustomers": "Gestionar clientes",
+      "RecentAppointments": "Citas proximas"
+    },
+    "Fields": {
+      "Name": "Nombre",
+      "Price": "Precio",
+      "DurationMinutes": "Duracion (min)",
+      "Email": "Correo",
+      "Phone": "Telefono",
+      "Notes": "Notas"
+    },
+    "Actions": {
+      "GoDashboard": "Ir a dashboard",
+      "OpenAdmin": "Panel admin",
+      "CreateService": "Guardar servicio",
+      "CreateBarber": "Guardar barbero",
+      "CreateCustomer": "Guardar cliente",
+      "Edit": "Editar",
+      "Save": "Guardar cambios",
+      "Cancel": "Cancelar",
+      "Delete": "Eliminar",
+      "Deactivate": "Desactivar",
+      "Activate": "Activar"
+    },
+    "Api": {
+      "CreateService": "POST /services",
+      "CreateBarber": "POST /barbers",
+      "CreateCustomer": "POST /customers",
+      "GetAppointments": "GET /appointments"
+    },
+    "Format": {
+      "Locale": "es-CO"
+    },
+    "Messages": {
+      "ServiceUpdated": "Servicio actualizado.",
+      "ServiceDeleted": "Servicio eliminado.",
+      "BarberUpdated": "Barbero actualizado.",
+      "BarberDeleted": "Barbero desactivado.",
+      "CustomerUpdated": "Cliente actualizado.",
+      "CustomerDeleted": "Cliente eliminado.",
+      "ConfirmDeleteService": "Vas a eliminar este servicio. Continuar?",
+      "ConfirmDeleteBarber": "Vas a desactivar este barbero. Continuar?",
+      "ConfirmDeleteCustomer": "Vas a eliminar este cliente. Continuar?"
+    },
+    "Empty": {
+      "Appointments": "Aun no hay citas en el rango consultado.",
+      "Services": "Aun no hay servicios.",
+      "Barbers": "Aun no hay barberos.",
+      "Customers": "Aun no hay clientes."
     }
   },
   "Dashboard": {

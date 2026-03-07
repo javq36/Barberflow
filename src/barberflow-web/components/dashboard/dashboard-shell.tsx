@@ -3,11 +3,14 @@
 import {
   Activity,
   CalendarClock,
+  LogOut,
   Scissors,
   ShieldCheck,
   Users,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,7 +23,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGetDashboardSummaryQuery } from "@/lib/api/dashboard-api";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { Texts } from "@/lib/content/texts";
-import { APP_STORAGE_KEYS } from "@/lib/config/app";
+import { clearAuthSession } from "@/lib/auth/session";
+import { APP_ROUTES, APP_STORAGE_KEYS } from "@/lib/config/app";
+import { useAppToast } from "@/lib/toast/toast-provider";
 
 function formatDate(value?: string) {
   if (!value) {
@@ -34,8 +39,20 @@ function formatDate(value?: string) {
 }
 
 export function DashboardShell() {
+  const router = useRouter();
   const { data, isLoading, isFetching, error } = useGetDashboardSummaryQuery();
-  const { Dashboard, Common } = Texts;
+  const { Dashboard, Common, Admin } = Texts;
+  const { showToast } = useAppToast();
+
+  function onLogout() {
+    clearAuthSession();
+    showToast({
+      title: Common.Toasts.LoggedOutTitle,
+      description: Common.Toasts.LoggedOutDescription,
+      variant: "info",
+    });
+    router.replace(APP_ROUTES.Login);
+  }
 
   return (
     <main className="relative min-h-screen overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8">
@@ -55,10 +72,19 @@ export function DashboardShell() {
                 {Dashboard.Header.Description}
               </p>
             </div>
-            <div className="dashboard-pill w-fit self-start md:self-end">
-              {isFetching
-                ? Dashboard.Header.Refreshing
-                : Dashboard.Header.Realtime}
+            <div className="flex w-fit self-start gap-2 md:self-end">
+              <div className="dashboard-pill">
+                {isFetching
+                  ? Dashboard.Header.Refreshing
+                  : Dashboard.Header.Realtime}
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={onLogout}>
+                <LogOut className="h-4 w-4" />
+                {Common.Actions.Logout}
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => router.push(APP_ROUTES.Admin)}>
+                {Admin.Actions.OpenAdmin}
+              </Button>
             </div>
           </div>
         </header>
