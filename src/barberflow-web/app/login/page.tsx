@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useGetSessionQuery, useLoginMutation } from "@/lib/api/authApi";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
 import { useAppToast } from "@/lib/toast/toast-provider";
@@ -119,13 +120,14 @@ export default function LoginPage() {
               />
             </label>
 
-            <button
+            <LoadingButton
               type="submit"
-              className="w-full rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isLoading}
+              className="w-full"
+              isLoading={isLoading}
+              loadingText={Auth.Login.Submitting}
             >
-              {isLoading ? Auth.Login.Submitting : Auth.Login.Submit}
-            </button>
+              {Auth.Login.Submit}
+            </LoadingButton>
 
             {feedback ? (
               <p className="dashboard-microtext">{feedback}</p>

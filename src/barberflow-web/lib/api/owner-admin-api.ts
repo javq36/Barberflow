@@ -23,6 +23,7 @@ export type CustomerItem = {
   phone?: string;
   email?: string;
   notes?: string;
+  isActive: boolean;
   createdAt: string;
 };
 
@@ -59,6 +60,7 @@ export type CreateCustomerRequest = {
   phone?: string;
   email?: string;
   notes?: string;
+  isActive: boolean;
 };
 
 export type UpdateServiceRequest = {
@@ -83,6 +85,38 @@ export type UpdateCustomerRequest = {
   phone?: string;
   email?: string;
   notes?: string;
+  isActive: boolean;
+};
+
+export type CreateBarbershopRequest = {
+  name: string;
+  phone?: string;
+  address?: string;
+  timezone?: string;
+};
+
+export type CreateBarbershopResponse = {
+  id: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  timezone: string;
+};
+
+export type BarbershopProfile = {
+  id: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  timezone: string;
+  createdAt?: string;
+};
+
+export type UpdateBarbershopRequest = {
+  name: string;
+  phone?: string;
+  address?: string;
+  timezone?: string;
 };
 
 function makeDateRangeQuery() {
@@ -98,24 +132,92 @@ function makeDateRangeQuery() {
 
 export const ownerAdminApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    createBarbershop: builder.mutation<
+      CreateBarbershopResponse,
+      CreateBarbershopRequest
+    >({
+      query: (body) => ({
+        url: "/barbershops",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: [
+        { type: "Barbershop", id: "CURRENT" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
+    }),
+    getBarbershopProfile: builder.query<BarbershopProfile, void>({
+      query: () => ({
+        url: "/barbershops/me",
+        method: "GET",
+      }),
+      providesTags: [{ type: "Barbershop", id: "CURRENT" }],
+    }),
+    updateBarbershopProfile: builder.mutation<
+      BarbershopProfile,
+      UpdateBarbershopRequest
+    >({
+      query: (body) => ({
+        url: "/barbershops/me",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: [{ type: "Barbershop", id: "CURRENT" }],
+    }),
     getServices: builder.query<ServiceItem[], void>({
       query: () => ({ url: "/services", method: "GET" }),
-      providesTags: ["Dashboard"],
+      providesTags: (result) =>
+        result
+          ? [
+              { type: "Services", id: "LIST" },
+              ...result.map((service) => ({
+                type: "Services" as const,
+                id: service.id,
+              })),
+            ]
+          : [{ type: "Services", id: "LIST" }],
     }),
     getBarbers: builder.query<BarberItem[], void>({
       query: () => ({ url: "/barbers", method: "GET" }),
-      providesTags: ["Dashboard"],
+      providesTags: (result) =>
+        result
+          ? [
+              { type: "Barbers", id: "LIST" },
+              ...result.map((barber) => ({
+                type: "Barbers" as const,
+                id: barber.id,
+              })),
+            ]
+          : [{ type: "Barbers", id: "LIST" }],
     }),
     getCustomers: builder.query<CustomerItem[], void>({
       query: () => ({ url: "/customers", method: "GET" }),
-      providesTags: ["Dashboard"],
+      providesTags: (result) =>
+        result
+          ? [
+              { type: "Customers", id: "LIST" },
+              ...result.map((customer) => ({
+                type: "Customers" as const,
+                id: customer.id,
+              })),
+            ]
+          : [{ type: "Customers", id: "LIST" }],
     }),
     getAppointments: builder.query<AppointmentItem[], void>({
       query: () => ({
         url: `/appointments?${makeDateRangeQuery()}`,
         method: "GET",
       }),
-      providesTags: ["Dashboard"],
+      providesTags: (result) =>
+        result
+          ? [
+              { type: "Appointments", id: "LIST" },
+              ...result.map((appointment) => ({
+                type: "Appointments" as const,
+                id: appointment.id,
+              })),
+            ]
+          : [{ type: "Appointments", id: "LIST" }],
     }),
     createService: builder.mutation<void, CreateServiceRequest>({
       query: (body) => ({
@@ -123,7 +225,10 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: [
+        { type: "Services", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
     }),
     updateService: builder.mutation<void, UpdateServiceRequest>({
       query: ({ id, ...body }) => ({
@@ -131,14 +236,22 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         method: "PUT",
         body,
       }),
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: (_result, _error, arg) => [
+        { type: "Services", id: arg.id },
+        { type: "Services", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
     }),
     deleteService: builder.mutation<void, string>({
       query: (id) => ({
         url: `/services/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: (_result, _error, id) => [
+        { type: "Services", id },
+        { type: "Services", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
     }),
     createBarber: builder.mutation<void, CreateBarberRequest>({
       query: (body) => ({
@@ -146,7 +259,10 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: [
+        { type: "Barbers", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
     }),
     updateBarber: builder.mutation<void, UpdateBarberRequest>({
       query: ({ id, ...body }) => ({
@@ -154,14 +270,24 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         method: "PUT",
         body,
       }),
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: (_result, _error, arg) => [
+        { type: "Barbers", id: arg.id },
+        { type: "Barbers", id: "LIST" },
+        { type: "Appointments", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
     }),
     deleteBarber: builder.mutation<void, string>({
       query: (id) => ({
         url: `/barbers/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: (_result, _error, id) => [
+        { type: "Barbers", id },
+        { type: "Barbers", id: "LIST" },
+        { type: "Appointments", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
     }),
     createCustomer: builder.mutation<void, CreateCustomerRequest>({
       query: (body) => ({
@@ -169,7 +295,10 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: [
+        { type: "Customers", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
     }),
     updateCustomer: builder.mutation<void, UpdateCustomerRequest>({
       query: ({ id, ...body }) => ({
@@ -177,19 +306,28 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         method: "PUT",
         body,
       }),
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: (_result, _error, arg) => [
+        { type: "Customers", id: arg.id },
+        { type: "Customers", id: "LIST" },
+      ],
     }),
     deleteCustomer: builder.mutation<void, string>({
       query: (id) => ({
         url: `/customers/${id}`,
         method: "DELETE",
       }),
-      invalidatesTags: ["Dashboard"],
+      invalidatesTags: (_result, _error, id) => [
+        { type: "Customers", id },
+        { type: "Customers", id: "LIST" },
+      ],
     }),
   }),
 });
 
 export const {
+  useCreateBarbershopMutation,
+  useGetBarbershopProfileQuery,
+  useUpdateBarbershopProfileMutation,
   useGetServicesQuery,
   useGetBarbersQuery,
   useGetCustomersQuery,

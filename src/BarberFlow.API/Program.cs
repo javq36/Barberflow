@@ -91,6 +91,8 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+await EnsureSchemaCompatibilityAsync(connectionString, app.Logger);
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -110,6 +112,11 @@ app.UseAuthorization();
 
 bool IsOwner(ClaimsPrincipal user) =>
     string.Equals(user.FindFirstValue(ClaimTypes.Role), "Owner", StringComparison.OrdinalIgnoreCase);
+
+bool IsSuperAdmin(ClaimsPrincipal user) =>
+    string.Equals(user.FindFirstValue(ClaimTypes.Role), "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+
+bool CanManageBarbershopProfile(ClaimsPrincipal user) => IsOwner(user) || IsSuperAdmin(user);
 
 bool IsLocalNetworkFrontendOrigin(string? origin)
 {
@@ -167,6 +174,26 @@ bool TryGetBarbershopId(ClaimsPrincipal user, out Guid barbershopId, out IResult
     }
 
     return true;
+}
+
+static async Task EnsureSchemaCompatibilityAsync(string? connectionString, ILogger logger)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        logger.LogWarning("Schema compatibility check skipped: missing DB connection string.");
+        return;
+    }
+
+    await using var conn = new NpgsqlConnection(connectionString);
+    await conn.OpenAsync();
+
+    // Dev-safe compatibility patch: older databases may not yet include customers.active.
+    const string ensureCustomersActiveColumnSql = @"
+        ALTER TABLE customers
+        ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;";
+
+    await using var cmd = new NpgsqlCommand(ensureCustomersActiveColumnSql, conn);
+    await cmd.ExecuteNonQueryAsync();
 }
 
 app.MapHealthChecks(ApiConstants.Routes.HealthReady);
@@ -412,6 +439,100 @@ app.MapPost(ApiConstants.Routes.Barbershops, async (CreateBarbershopRequest requ
         phone = request.Phone,
         address = request.Address,
         timezone = string.IsNullOrWhiteSpace(request.Timezone) ? "UTC" : request.Timezone.Trim()
+    });
+}).RequireAuthorization();
+
+app.MapGet(ApiConstants.Routes.BarbershopsMe, async (ClaimsPrincipal user, CancellationToken ct) =>
+{
+    if (!CanManageBarbershopProfile(user))
+    {
+        return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    if (!TryGetBarbershopId(user, out var barbershopId, out var error))
+    {
+        return error!;
+    }
+
+    await using var conn = new NpgsqlConnection(connectionString);
+    await conn.OpenAsync(ct);
+
+    await using var cmd = new NpgsqlCommand(@"
+        SELECT id, name, phone, address, timezone, created_at
+        FROM barbershops
+        WHERE id = @id
+        LIMIT 1", conn);
+    cmd.Parameters.AddWithValue("id", barbershopId);
+
+    await using var reader = await cmd.ExecuteReaderAsync(ct);
+    if (!await reader.ReadAsync(ct))
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(new
+    {
+        id = reader.GetGuid(0),
+        name = reader.GetString(1),
+        phone = reader.IsDBNull(2) ? null : reader.GetString(2),
+        address = reader.IsDBNull(3) ? null : reader.GetString(3),
+        timezone = reader.IsDBNull(4) ? "UTC" : reader.GetString(4),
+        createdAt = reader.GetDateTime(5)
+    });
+}).RequireAuthorization();
+
+app.MapPut(ApiConstants.Routes.BarbershopsMe, async (UpdateBarbershopRequest request, ClaimsPrincipal user, CancellationToken ct) =>
+{
+    if (!CanManageBarbershopProfile(user))
+    {
+        return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    if (!TryGetBarbershopId(user, out var barbershopId, out var error))
+    {
+        return error!;
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+    {
+        return Results.BadRequest(new { message = "Barbershop name is required." });
+    }
+
+    var normalizedName = request.Name.Trim();
+    var normalizedPhone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
+    var normalizedAddress = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+    var normalizedTimezone = string.IsNullOrWhiteSpace(request.Timezone) ? "UTC" : request.Timezone.Trim();
+
+    await using var conn = new NpgsqlConnection(connectionString);
+    await conn.OpenAsync(ct);
+
+    await using var cmd = new NpgsqlCommand(@"
+        UPDATE barbershops
+        SET name = @name,
+            phone = @phone,
+            address = @address,
+            timezone = @timezone
+        WHERE id = @id", conn);
+
+    cmd.Parameters.AddWithValue("id", barbershopId);
+    cmd.Parameters.AddWithValue("name", normalizedName);
+    cmd.Parameters.AddWithValue("phone", (object?)normalizedPhone ?? DBNull.Value);
+    cmd.Parameters.AddWithValue("address", (object?)normalizedAddress ?? DBNull.Value);
+    cmd.Parameters.AddWithValue("timezone", normalizedTimezone);
+
+    var affected = await cmd.ExecuteNonQueryAsync(ct);
+    if (affected == 0)
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(new
+    {
+        id = barbershopId,
+        name = normalizedName,
+        phone = normalizedPhone,
+        address = normalizedAddress,
+        timezone = normalizedTimezone
     });
 }).RequireAuthorization();
 
@@ -758,8 +879,8 @@ app.MapPost(ApiConstants.Routes.Customers, async (CreateCustomerRequest request,
     await conn.OpenAsync(ct);
 
     await using var cmd = new NpgsqlCommand(@"
-        INSERT INTO customers (id, barbershop_id, name, phone, email, notes, created_at)
-        VALUES (@id, @barbershopId, @name, @phone, @email, @notes, NOW())", conn);
+        INSERT INTO customers (id, barbershop_id, name, phone, email, notes, active, created_at)
+        VALUES (@id, @barbershopId, @name, @phone, @email, @notes, @active, NOW())", conn);
 
     cmd.Parameters.AddWithValue("id", customerId);
     cmd.Parameters.AddWithValue("barbershopId", barbershopId);
@@ -767,6 +888,7 @@ app.MapPost(ApiConstants.Routes.Customers, async (CreateCustomerRequest request,
     cmd.Parameters.AddWithValue("phone", (object?)request.Phone?.Trim() ?? DBNull.Value);
     cmd.Parameters.AddWithValue("email", (object?)request.Email?.Trim().ToLowerInvariant() ?? DBNull.Value);
     cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
+    cmd.Parameters.AddWithValue("active", request.IsActive);
 
     await cmd.ExecuteNonQueryAsync(ct);
 
@@ -777,7 +899,8 @@ app.MapPost(ApiConstants.Routes.Customers, async (CreateCustomerRequest request,
         name = request.Name.Trim(),
         request.Phone,
         request.Email,
-        request.Notes
+        request.Notes,
+        isActive = request.IsActive
     });
 }).RequireAuthorization();
 
@@ -794,7 +917,7 @@ app.MapGet(ApiConstants.Routes.Customers, async (ClaimsPrincipal user, Cancellat
     await conn.OpenAsync(ct);
 
     await using var cmd = new NpgsqlCommand(@"
-        SELECT id, name, phone, email, notes, created_at
+        SELECT id, name, phone, email, notes, active, created_at
         FROM customers
         WHERE barbershop_id = @barbershopId
         ORDER BY name", conn);
@@ -810,7 +933,8 @@ app.MapGet(ApiConstants.Routes.Customers, async (ClaimsPrincipal user, Cancellat
             phone = reader.IsDBNull(2) ? null : reader.GetString(2),
             email = reader.IsDBNull(3) ? null : reader.GetString(3),
             notes = reader.IsDBNull(4) ? null : reader.GetString(4),
-            createdAt = reader.GetDateTime(5)
+            isActive = reader.GetBoolean(5),
+            createdAt = reader.GetDateTime(6)
         });
     }
 
@@ -842,7 +966,8 @@ app.MapPut($"{ApiConstants.Routes.Customers}/{{id:guid}}", async (Guid id, Updat
         SET name = @name,
             phone = @phone,
             email = @email,
-            notes = @notes
+            notes = @notes,
+            active = @active
         WHERE id = @id AND barbershop_id = @barbershopId", conn);
 
     cmd.Parameters.AddWithValue("id", id);
@@ -851,6 +976,7 @@ app.MapPut($"{ApiConstants.Routes.Customers}/{{id:guid}}", async (Guid id, Updat
     cmd.Parameters.AddWithValue("phone", (object?)request.Phone?.Trim() ?? DBNull.Value);
     cmd.Parameters.AddWithValue("email", (object?)request.Email?.Trim().ToLowerInvariant() ?? DBNull.Value);
     cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
+    cmd.Parameters.AddWithValue("active", request.IsActive);
 
     var affected = await cmd.ExecuteNonQueryAsync(ct);
     return affected == 0 ? Results.NotFound() : Results.NoContent();
@@ -871,7 +997,10 @@ app.MapDelete($"{ApiConstants.Routes.Customers}/{{id:guid}}", async (Guid id, Cl
     await using var conn = new NpgsqlConnection(connectionString);
     await conn.OpenAsync(ct);
 
-    await using var cmd = new NpgsqlCommand("DELETE FROM customers WHERE id = @id AND barbershop_id = @barbershopId", conn);
+    await using var cmd = new NpgsqlCommand(@"
+        UPDATE customers
+        SET active = FALSE
+        WHERE id = @id AND barbershop_id = @barbershopId", conn);
     cmd.Parameters.AddWithValue("id", id);
     cmd.Parameters.AddWithValue("barbershopId", barbershopId);
 
@@ -1067,6 +1196,289 @@ app.MapGet(ApiConstants.Routes.Appointments, async (ClaimsPrincipal user, DateTi
     }
 
     return Results.Ok(rows);
+}).RequireAuthorization();
+
+app.MapPatch($"{ApiConstants.Routes.Appointments}/{{id:guid}}{ApiConstants.Routes.AppointmentsStatusSuffix}", async (
+    Guid id,
+    UpdateAppointmentStatusRequest request,
+    ClaimsPrincipal user,
+    CancellationToken ct) =>
+{
+    if (!IsOwner(user))
+    {
+        return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    if (!TryGetBarbershopId(user, out var barbershopId, out var error))
+    {
+        return error!;
+    }
+
+    var validStatuses = new[] { 1, 2, 3, 4 };
+    if (!validStatuses.Contains(request.Status))
+    {
+        return Results.BadRequest(new { message = ApiConstants.Messages.InvalidAppointmentStatus });
+    }
+
+    await using var conn = new NpgsqlConnection(connectionString);
+    await conn.OpenAsync(ct);
+
+    int currentStatus;
+    await using (var getStatusCmd = new NpgsqlCommand(@"
+        SELECT status
+        FROM appointments
+        WHERE id = @id AND barbershop_id = @barbershopId
+        LIMIT 1", conn))
+    {
+        getStatusCmd.Parameters.AddWithValue("id", id);
+        getStatusCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+
+        var result = await getStatusCmd.ExecuteScalarAsync(ct);
+        if (result is null)
+        {
+            return Results.NotFound();
+        }
+
+        currentStatus = Convert.ToInt32(result);
+    }
+
+    if ((currentStatus == 3 || currentStatus == 4) && request.Status != currentStatus)
+    {
+        return Results.BadRequest(new { message = ApiConstants.Messages.AppointmentCannotBeUpdated });
+    }
+
+    await using (var updateCmd = new NpgsqlCommand(@"
+        UPDATE appointments
+        SET status = @status,
+            notes = @notes
+        WHERE id = @id AND barbershop_id = @barbershopId", conn))
+    {
+        updateCmd.Parameters.AddWithValue("id", id);
+        updateCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        updateCmd.Parameters.AddWithValue("status", request.Status);
+        updateCmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
+
+        await updateCmd.ExecuteNonQueryAsync(ct);
+    }
+
+    return Results.Ok(new
+    {
+        id,
+        status = request.Status,
+        notes = request.Notes
+    });
+}).RequireAuthorization();
+
+app.MapPatch($"{ApiConstants.Routes.Appointments}/{{id:guid}}{ApiConstants.Routes.AppointmentsRescheduleSuffix}", async (
+    Guid id,
+    RescheduleAppointmentRequest request,
+    ClaimsPrincipal user,
+    CancellationToken ct) =>
+{
+    if (!IsOwner(user))
+    {
+        return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    if (!TryGetBarbershopId(user, out var barbershopId, out var error))
+    {
+        return error!;
+    }
+
+    if (request.AppointmentTime == default)
+    {
+        return Results.BadRequest(new { message = ApiConstants.Messages.InvalidAppointmentPayload });
+    }
+
+    await using var conn = new NpgsqlConnection(connectionString);
+    await conn.OpenAsync(ct);
+
+    Guid currentBarberId;
+    Guid currentServiceId;
+    int currentStatus;
+
+    await using (var getCurrentCmd = new NpgsqlCommand(@"
+        SELECT barber_id, service_id, status
+        FROM appointments
+        WHERE id = @id AND barbershop_id = @barbershopId
+        LIMIT 1", conn))
+    {
+        getCurrentCmd.Parameters.AddWithValue("id", id);
+        getCurrentCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+
+        await using var reader = await getCurrentCmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            return Results.NotFound();
+        }
+
+        currentBarberId = reader.GetGuid(0);
+        currentServiceId = reader.GetGuid(1);
+        currentStatus = reader.GetInt32(2);
+    }
+
+    if (currentStatus == 3 || currentStatus == 4)
+    {
+        return Results.BadRequest(new { message = ApiConstants.Messages.AppointmentCannotBeUpdated });
+    }
+
+    var nextBarberId = request.BarberId ?? currentBarberId;
+    var nextServiceId = request.ServiceId ?? currentServiceId;
+
+    int durationMinutes;
+    await using (var serviceCmd = new NpgsqlCommand(@"
+        SELECT duration_minutes
+        FROM services
+        WHERE id = @serviceId AND barbershop_id = @barbershopId AND active = TRUE
+        LIMIT 1", conn))
+    {
+        serviceCmd.Parameters.AddWithValue("serviceId", nextServiceId);
+        serviceCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+
+        var durationResult = await serviceCmd.ExecuteScalarAsync(ct);
+        if (durationResult is null)
+        {
+            return Results.BadRequest(new { message = ApiConstants.Messages.ResourceOutOfTenantScope, resource = "service" });
+        }
+
+        durationMinutes = Convert.ToInt32(durationResult);
+    }
+
+    await using (var barberCmd = new NpgsqlCommand(@"
+        SELECT 1
+        FROM users
+        WHERE id = @barberId AND barbershop_id = @barbershopId AND role = 3 AND active = TRUE
+        LIMIT 1", conn))
+    {
+        barberCmd.Parameters.AddWithValue("barberId", nextBarberId);
+        barberCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+
+        var barberExists = await barberCmd.ExecuteScalarAsync(ct);
+        if (barberExists is null)
+        {
+            return Results.BadRequest(new { message = ApiConstants.Messages.ResourceOutOfTenantScope, resource = "barber" });
+        }
+    }
+
+    var nextStart = request.AppointmentTime;
+    var nextEnd = nextStart.AddMinutes(durationMinutes);
+
+    await using (var overlapCmd = new NpgsqlCommand(@"
+        SELECT 1
+        FROM appointments
+        WHERE barbershop_id = @barbershopId
+          AND barber_id = @barberId
+          AND id <> @appointmentId
+          AND status IN (1, 2)
+          AND appointment_time < @endTime
+          AND end_time > @startTime
+        LIMIT 1", conn))
+    {
+        overlapCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        overlapCmd.Parameters.AddWithValue("barberId", nextBarberId);
+        overlapCmd.Parameters.AddWithValue("appointmentId", id);
+        overlapCmd.Parameters.AddWithValue("startTime", nextStart);
+        overlapCmd.Parameters.AddWithValue("endTime", nextEnd);
+
+        var overlap = await overlapCmd.ExecuteScalarAsync(ct);
+        if (overlap is not null)
+        {
+            return Results.Conflict(new { message = ApiConstants.Messages.AppointmentRescheduleCollision });
+        }
+    }
+
+    await using (var updateCmd = new NpgsqlCommand(@"
+        UPDATE appointments
+        SET barber_id = @barberId,
+            service_id = @serviceId,
+            appointment_time = @appointmentTime,
+            end_time = @endTime,
+            notes = @notes
+        WHERE id = @id AND barbershop_id = @barbershopId", conn))
+    {
+        updateCmd.Parameters.AddWithValue("id", id);
+        updateCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        updateCmd.Parameters.AddWithValue("barberId", nextBarberId);
+        updateCmd.Parameters.AddWithValue("serviceId", nextServiceId);
+        updateCmd.Parameters.AddWithValue("appointmentTime", nextStart);
+        updateCmd.Parameters.AddWithValue("endTime", nextEnd);
+        updateCmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
+
+        await updateCmd.ExecuteNonQueryAsync(ct);
+    }
+
+    return Results.Ok(new
+    {
+        id,
+        barberId = nextBarberId,
+        serviceId = nextServiceId,
+        appointmentTime = nextStart,
+        endTime = nextEnd,
+        notes = request.Notes
+    });
+}).RequireAuthorization();
+
+app.MapPatch($"{ApiConstants.Routes.Appointments}/{{id:guid}}{ApiConstants.Routes.AppointmentsCancelSuffix}", async (
+    Guid id,
+    CancelAppointmentRequest request,
+    ClaimsPrincipal user,
+    CancellationToken ct) =>
+{
+    if (!IsOwner(user))
+    {
+        return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    if (!TryGetBarbershopId(user, out var barbershopId, out var error))
+    {
+        return error!;
+    }
+
+    await using var conn = new NpgsqlConnection(connectionString);
+    await conn.OpenAsync(ct);
+
+    int currentStatus;
+    await using (var getStatusCmd = new NpgsqlCommand(@"
+        SELECT status
+        FROM appointments
+        WHERE id = @id AND barbershop_id = @barbershopId
+        LIMIT 1", conn))
+    {
+        getStatusCmd.Parameters.AddWithValue("id", id);
+        getStatusCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+
+        var result = await getStatusCmd.ExecuteScalarAsync(ct);
+        if (result is null)
+        {
+            return Results.NotFound();
+        }
+
+        currentStatus = Convert.ToInt32(result);
+    }
+
+    if (currentStatus == 4)
+    {
+        return Results.BadRequest(new { message = ApiConstants.Messages.AppointmentCannotBeCancelled });
+    }
+
+    await using (var updateCmd = new NpgsqlCommand(@"
+        UPDATE appointments
+        SET status = 3,
+            notes = @notes
+        WHERE id = @id AND barbershop_id = @barbershopId", conn))
+    {
+        updateCmd.Parameters.AddWithValue("id", id);
+        updateCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        updateCmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
+        await updateCmd.ExecuteNonQueryAsync(ct);
+    }
+
+    return Results.Ok(new
+    {
+        id,
+        status = 3,
+        notes = request.Notes
+    });
 }).RequireAuthorization();
 
 app.MapGet(ApiConstants.Routes.AvailabilitySlots, async (Guid barberId, Guid serviceId, DateOnly date, ClaimsPrincipal user, CancellationToken ct) =>

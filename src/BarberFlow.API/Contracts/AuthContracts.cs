@@ -15,3 +15,9 @@ public sealed record CreateBarbershopRequest(
     string? Phone,
     string? Address,
     string? Timezone);
+
+public sealed record UpdateBarbershopRequest(
+    string Name,
+    string? Phone,
+    string? Address,
+    string? Timezone);

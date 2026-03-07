@@ -11,6 +11,8 @@ import {
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { LoadingIndicator } from "@/components/ui/loading-indicator";
 import {
   Card,
   CardContent,
@@ -27,6 +29,7 @@ import { Texts } from "@/lib/content/texts";
 import { APP_ROUTES } from "@/lib/config/app";
 import { AUTH_COOKIE_NAME } from "@/lib/config/auth";
 import { useAppToast } from "@/lib/toast/toast-provider";
+import { AppRole, hasPermission } from "@/lib/auth/permissions";
 
 function formatDate(value?: string) {
   if (!value) {
@@ -39,12 +42,17 @@ function formatDate(value?: string) {
   }).format(new Date(value));
 }
 
-export function DashboardShell() {
+type DashboardShellProps = {
+  role: AppRole;
+};
+
+export function DashboardShell({ role }: DashboardShellProps) {
   const router = useRouter();
   const { data, isLoading, isFetching, error } = useGetDashboardSummaryQuery();
-  const [logout] = useLogoutMutation();
+  const [logout, logoutState] = useLogoutMutation();
   const { Dashboard, Common, Admin } = Texts;
   const { showToast } = useAppToast();
+  const canAccessAdmin = hasPermission(role, "admin.access");
 
   async function onLogout() {
     try {
@@ -81,27 +89,39 @@ export function DashboardShell() {
             </div>
             <div className="flex w-fit self-start gap-2 md:self-end">
               <div className="dashboard-pill">
-                {isFetching
-                  ? Dashboard.Header.Refreshing
-                  : Dashboard.Header.Realtime}
+                {isFetching ? (
+                  <LoadingIndicator
+                    label={Dashboard.Header.Refreshing}
+                    className="text-xs"
+                    spinnerClassName="h-3 w-3"
+                  />
+                ) : (
+                  Dashboard.Header.Realtime
+                )}
               </div>
-              <Button
+              <LoadingButton
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={onLogout}
+                isLoading={logoutState.isLoading}
+                loadingText={Common.Actions.Loading}
               >
-                <LogOut className="h-4 w-4" />
-                {Common.Actions.Logout}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(APP_ROUTES.Admin)}
-              >
-                {Admin.Actions.OpenAdmin}
-              </Button>
+                <>
+                  <LogOut className="h-4 w-4" />
+                  {Common.Actions.Logout}
+                </>
+              </LoadingButton>
+              {canAccessAdmin ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(APP_ROUTES.Admin)}
+                >
+                  {Admin.Actions.OpenAdmin}
+                </Button>
+              ) : null}
             </div>
           </div>
         </header>

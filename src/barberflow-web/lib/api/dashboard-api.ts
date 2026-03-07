@@ -89,7 +89,7 @@ export const dashboardApi = baseApi.injectEndpoints({
           },
         };
       },
-      providesTags: ["Dashboard"],
+      providesTags: ["DashboardSummary"],
     }),
   }),
 });

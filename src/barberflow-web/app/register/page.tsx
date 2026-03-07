@@ -7,6 +7,7 @@ import {
   useGetSessionQuery,
   useRegisterOwnerMutation,
 } from "@/lib/api/authApi";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
 import { useAppToast } from "@/lib/toast/toast-provider";
@@ -168,13 +169,14 @@ export default function RegisterPage() {
               />
             </label>
 
-            <button
+            <LoadingButton
               type="submit"
-              className="w-full rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={isLoading}
+              className="w-full"
+              isLoading={isLoading}
+              loadingText={Auth.Register.Submitting}
             >
-              {isLoading ? Auth.Register.Submitting : Auth.Register.Submit}
-            </button>
+              {Auth.Register.Submit}
+            </LoadingButton>
 
             {feedback ? (
               <p className="dashboard-microtext">{feedback}</p>
