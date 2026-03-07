@@ -1,6 +1,6 @@
 # BarberFlow
 
-BarberFlow is a SaaS platform for barbershop appointment automation, with a .NET backend and future WhatsApp + web dashboard flows.
+BarberFlow is a SaaS platform for barbershop appointment automation with a .NET backend, a Next.js web app for owners, and planned WhatsApp booking flows.
 
 ## Current Stack
 
@@ -8,18 +8,21 @@ BarberFlow is a SaaS platform for barbershop appointment automation, with a .NET
 - Data access: Entity Framework Core + Npgsql
 - Database: PostgreSQL (Supabase)
 - Architecture: API + Application + Domain + Infrastructure projects
+- Frontend: Next.js 16 + Tailwind + shadcn/ui + Redux Toolkit + RTK Query
 - API docs: Swagger (Swashbuckle)
-- Auth base: JWT bearer configured
+- Auth: JWT bearer + HttpOnly cookie session flow (via web proxy routes)
 
 ## Solution Structure
 
 ```text
 BarberFlow.sln
+package.json
 src/
   BarberFlow.API/
   BarberFlow.Application/
   BarberFlow.Domain/
   BarberFlow.Infrastructure/
+  barberflow-web/
 supabase/
   migrations/
 tests/
@@ -86,6 +89,12 @@ Run API:
 dotnet run --project src/BarberFlow.API
 ```
 
+Run API in watch mode only:
+
+```bash
+npm run dev:api
+```
+
 Run API + frontend together (single command):
 
 ```bash
@@ -99,20 +108,43 @@ This starts:
 - API on `https://localhost:7095` (and `http://localhost:5164`)
 - Web on `http://localhost:3000`
 
-Run with auto-reload:
+Run API watch manually (alternative):
 
 ```bash
-dotnet watch --project src/BarberFlow.API run
+dotnet watch --project src/BarberFlow.API run --launch-profile https
 ```
+
+Important local rule:
+
+- Do not run `npm run dev` and `dotnet watch` for API at the same time.
+- Both start the API and can cause `address already in use` on ports `5164/7095`.
 
 Swagger URL (development):
 
 - `http://localhost:5164/swagger`
 
-## Current Implemented Endpoints
+## Current Status
 
-- `GET /health/ready` (formal health check, includes DB reachability)
-- `GET /health/auth` (requires valid JWT)
+Backend:
+
+- Owner auth flow implemented (`/auth/register-owner`, `/auth/login`, `/auth/me`)
+- Barbershop onboarding and profile implemented (`POST /barbershops`, `GET/PUT /barbershops/me`)
+- Owner CRUD implemented for services, barbers, customers
+- Soft delete by status implemented for barbers and customers (`active` flag)
+- Appointments API implemented:
+  - `POST /appointments`
+  - `GET /appointments`
+  - `PATCH /appointments/{id}/status`
+  - `PATCH /appointments/{id}/reschedule`
+  - `PATCH /appointments/{id}/cancel`
+- Availability slots implemented (`GET /availability/slots`)
+
+Frontend (Owner dashboard/admin):
+
+- Login/register + session guards
+- Admin module with quick-create and full-width management tables
+- Barbershop view/update flow and owner onboarding without initial barbershop
+- Loading UX standardized (`LoadingIndicator` + `LoadingButton`)
 
 ## Database Workflow (Official)
 
@@ -129,9 +161,11 @@ Detailed guide:
 - The default `weatherforecast` template endpoint was removed.
 - Swagger UI is enabled in development.
 - If `dotnet build` fails with locked files, stop running API/watch process first.
+- If you get `column "active" does not exist` for customers, apply latest SQL migrations in `supabase/migrations`.
 
-## Next MVP Focus (Day 1 pending)
+## Next MVP Focus
 
-- Finalize JWT flow with token issuance endpoint for testing
-- Add first real app endpoints and application services
-- Keep all business logic in Application layer
+- Build visual appointment flow in `/admin` using availability slots
+- Connect admin UI to appointment management endpoints (`status/reschedule/cancel`)
+- Add consistent confirmation dialogs and table filters/search
+- Define multi-branch owner model (multiple barbershops per owner) as next architecture increment
