@@ -86,6 +86,19 @@ Run API:
 dotnet run --project src/BarberFlow.API
 ```
 
+Run API + frontend together (single command):
+
+```bash
+npm run dev
+```
+
+`npm run dev` automatically cleans stale local locks/ports before starting both services.
+
+This starts:
+
+- API on `https://localhost:7095` (and `http://localhost:5164`)
+- Web on `http://localhost:3000`
+
 Run with auto-reload:
 
 ```bash

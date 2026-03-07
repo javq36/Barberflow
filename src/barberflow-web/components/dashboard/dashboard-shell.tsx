@@ -1,16 +1,35 @@
 "use client";
 
-import { Activity, CalendarClock, Scissors, ShieldCheck, Users } from "lucide-react";
+import {
+  Activity,
+  CalendarClock,
+  LogOut,
+  Scissors,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetDashboardSummaryQuery } from "@/lib/api/dashboard-api";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { Texts } from "@/lib/content/texts";
+import { clearAuthSession } from "@/lib/auth/session";
+import { APP_ROUTES, APP_STORAGE_KEYS } from "@/lib/config/app";
+import { useAppToast } from "@/lib/toast/toast-provider";
 
 function formatDate(value?: string) {
   if (!value) {
-    return "Sin datos";
+    return Texts.Common.Status.NoData;
   }
 
   return new Intl.DateTimeFormat("es-CO", {
@@ -20,130 +39,177 @@ function formatDate(value?: string) {
 }
 
 export function DashboardShell() {
+  const router = useRouter();
   const { data, isLoading, isFetching, error } = useGetDashboardSummaryQuery();
+  const { Dashboard, Common, Admin } = Texts;
+  const { showToast } = useAppToast();
+
+  function onLogout() {
+    clearAuthSession();
+    showToast({
+      title: Common.Toasts.LoggedOutTitle,
+      description: Common.Toasts.LoggedOutDescription,
+      variant: "info",
+    });
+    router.replace(APP_ROUTES.Login);
+  }
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden px-4 py-6 md:px-8 md:py-10">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_10%_10%,#f9cf58_0%,transparent_30%),radial-gradient(circle_at_90%_20%,#8fd3c6_0%,transparent_28%),linear-gradient(145deg,#f8fafc_0%,#eef2ff_55%,#ecfeff_100%)]" />
+    <main className="relative min-h-screen overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8">
+      <div className="dashboard-atmosphere" />
 
-      <section className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-        <header className="rounded-3xl border border-white/40 bg-white/65 p-6 shadow-[0_18px_60px_-30px_rgba(15,23,42,0.35)] backdrop-blur md:p-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <section className="dashboard-container">
+        <header className="dashboard-hero p-4 sm:p-6 md:p-8">
+          <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">
-              <Badge className="rounded-full bg-slate-900 px-3 py-1 text-xs tracking-wide text-white hover:bg-slate-900">
-                BarberFlow · Panel Owner
+              <Badge className="dashboard-badge-brand">
+                {Dashboard.Header.Badge}
               </Badge>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-                Dashboard operativo
+              <h1 className="dashboard-heading text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+                {Dashboard.Header.Title}
               </h1>
-              <p className="max-w-2xl text-sm text-slate-600 md:text-base">
-                Vista inicial para controlar salud del sistema, agenda de hoy y actividad base del negocio.
+              <p className="dashboard-body-muted max-w-2xl text-sm leading-relaxed sm:text-base">
+                {Dashboard.Header.Description}
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-              {isFetching ? "Actualizando metricas..." : "Datos en tiempo real del backend"}
+            <div className="flex w-fit self-start gap-2 md:self-end">
+              <div className="dashboard-pill">
+                {isFetching
+                  ? Dashboard.Header.Refreshing
+                  : Dashboard.Header.Realtime}
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={onLogout}>
+                <LogOut className="h-4 w-4" />
+                {Common.Actions.Logout}
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => router.push(APP_ROUTES.Admin)}>
+                {Admin.Actions.OpenAdmin}
+              </Button>
             </div>
           </div>
         </header>
 
         {isLoading ? (
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="dashboard-grid-stats">
             {Array.from({ length: 4 }).map((_, index) => (
-              <Skeleton key={index} className="h-36 rounded-2xl" />
+              <Skeleton key={index} className="h-32 rounded-2xl sm:h-36" />
             ))}
           </section>
         ) : (
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="dashboard-grid-stats">
             <StatCard
-              title="Citas de hoy"
+              title={Dashboard.Stats.AppointmentsToday.Title}
               value={`${data?.citasHoy ?? 0}`}
-              hint="Agendadas para la fecha actual"
+              hint={Dashboard.Stats.AppointmentsToday.Hint}
               icon={<CalendarClock className="h-4 w-4" />}
             />
             <StatCard
-              title="Barberos activos"
+              title={Dashboard.Stats.ActiveBarbers.Title}
               value={`${data?.barberosActivos ?? 0}`}
-              hint="Disponibles para atender"
+              hint={Dashboard.Stats.ActiveBarbers.Hint}
               icon={<Users className="h-4 w-4" />}
             />
             <StatCard
-              title="Clientes"
+              title={Dashboard.Stats.Customers.Title}
               value={`${data?.clientesRegistrados ?? 0}`}
-              hint="Base de clientes registrada"
+              hint={Dashboard.Stats.Customers.Hint}
               icon={<Activity className="h-4 w-4" />}
             />
             <StatCard
-              title="Servicios activos"
+              title={Dashboard.Stats.ActiveServices.Title}
               value={`${data?.serviciosActivos ?? 0}`}
-              hint="Servicios publicados"
+              hint={Dashboard.Stats.ActiveServices.Hint}
               icon={<Scissors className="h-4 w-4" />}
             />
           </section>
         )}
 
-        <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <Card className="border-white/20 bg-white/80 backdrop-blur-sm shadow-[0_12px_30px_-20px_rgba(16,24,40,0.55)]">
+        <section className="dashboard-grid-panels">
+          <Card className="dashboard-panel">
             <CardHeader>
-              <CardTitle className="text-lg text-slate-900">Proxima cita</CardTitle>
-              <CardDescription>La siguiente atencion programada en agenda.</CardDescription>
+              <CardTitle className="dashboard-heading text-base sm:text-lg">
+                {Dashboard.Upcoming.Title}
+              </CardTitle>
+              <CardDescription className="dashboard-description">
+                {Dashboard.Upcoming.Description}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-slate-700">
+            <CardContent className="dashboard-body-muted space-y-2.5 text-sm sm:space-y-3">
               {!data?.proximaCita ? (
-                <p>No hay citas futuras por ahora.</p>
+                <p>{Dashboard.Upcoming.Empty}</p>
               ) : (
                 <>
                   <p>
-                    <span className="font-medium text-slate-900">Cliente:</span> {data.proximaCita.customerName}
+                    <span className="dashboard-heading font-medium">
+                      {Dashboard.Upcoming.Customer}
+                    </span>{" "}
+                    {data.proximaCita.customerName}
                   </p>
                   <p>
-                    <span className="font-medium text-slate-900">Servicio:</span> {data.proximaCita.serviceName}
+                    <span className="dashboard-heading font-medium">
+                      {Dashboard.Upcoming.Service}
+                    </span>{" "}
+                    {data.proximaCita.serviceName}
                   </p>
                   <p>
-                    <span className="font-medium text-slate-900">Barbero:</span> {data.proximaCita.barberName}
+                    <span className="dashboard-heading font-medium">
+                      {Dashboard.Upcoming.Barber}
+                    </span>{" "}
+                    {data.proximaCita.barberName}
                   </p>
                   <p>
-                    <span className="font-medium text-slate-900">Fecha:</span> {formatDate(data.proximaCita.appointmentTime)}
+                    <span className="dashboard-heading font-medium">
+                      {Dashboard.Upcoming.Date}
+                    </span>{" "}
+                    {formatDate(data.proximaCita.appointmentTime)}
                   </p>
                 </>
               )}
             </CardContent>
           </Card>
 
-          <Card className="border-white/20 bg-white/80 backdrop-blur-sm shadow-[0_12px_30px_-20px_rgba(16,24,40,0.55)]">
+          <Card className="dashboard-panel">
             <CardHeader>
-              <CardTitle className="text-lg text-slate-900">Estado del sistema</CardTitle>
-              <CardDescription>Chequeo rapido para soporte operativo.</CardDescription>
+              <CardTitle className="dashboard-heading text-base sm:text-lg">
+                {Dashboard.System.Title}
+              </CardTitle>
+              <CardDescription className="dashboard-description">
+                {Dashboard.System.Description}
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-slate-700">
+            <CardContent className="dashboard-body-muted space-y-2.5 text-sm sm:space-y-3">
               <div className="flex items-center justify-between">
-                <span>API disponible</span>
+                <span>{Dashboard.System.ApiAvailable}</span>
                 <Badge
                   className={
                     data?.apiOk
-                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
-                      : "bg-rose-100 text-rose-800 hover:bg-rose-100"
+                      ? "dashboard-status-ok"
+                      : "dashboard-status-error"
                   }
                 >
-                  {data?.apiOk ? "OK" : "Error"}
+                  {data?.apiOk ? Common.Status.Ok : Common.Status.Error}
                 </Badge>
               </div>
 
               <Separator />
 
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
+              <div className="dashboard-security-box">
                 <div className="mb-1 flex items-center gap-2 font-medium">
                   <ShieldCheck className="h-4 w-4" />
-                  Nota de seguridad
+                  {Dashboard.System.SecurityNoteTitle}
                 </div>
                 <p className="text-xs leading-relaxed">
-                  Para consumir endpoints privados, guarda el JWT en localStorage con la clave
-                  <code className="ml-1 rounded bg-amber-100 px-1 py-0.5">bf_access_token</code>.
+                  {Dashboard.System.SecurityNotePrefix}
+                  <code className="dashboard-inline-code">
+                    {APP_STORAGE_KEYS.AccessToken}
+                  </code>
+                  .
                 </p>
               </div>
 
               {error ? (
-                <p className="text-xs text-rose-700">
-                  No se pudieron cargar algunos datos protegidos. Verifica login/token y que la API este corriendo.
+                <p className="dashboard-status-error dashboard-microtext rounded-md px-2 py-1">
+                  {Dashboard.System.ProtectedDataError}
                 </p>
               ) : null}
             </CardContent>
