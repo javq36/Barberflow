@@ -1,7 +1,7 @@
 @host = http://localhost:5164
 @email = owner.test.dev@example.com
 @password = P@ssw0rd123!
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmYTk0MDEzYy04N2MzLTRlNjgtODQ1Ny03YTNkYzBhODZlYTQiLCJlbWFpbCI6Im93bmVyLnRlc3QuZGV2QGV4YW1wbGUuY29tIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbmFtZWlkZW50aWZpZXIiOiJmYTk0MDEzYy04N2MzLTRlNjgtODQ1Ny03YTNkYzBhODZlYTQiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiT3duZXIgVGVzdCIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6Ik93bmVyIiwiZXhwIjoxNzcyODUyOTMzLCJpc3MiOiJCYXJiZXJGbG93LkFQSS5EZXYiLCJhdWQiOiJCYXJiZXJGbG93LkNsaWVudC5EZXYifQ.0nbbGRy9PGtlFU6FTyLMJ4Fnssl3h_24_X823jJqnz4
+@token = REPLACE_WITH_JWT_TOKEN
 @serviceId = REPLACE_WITH_SERVICE_ID
 @barberId = b9806190-681d-4cd1-adc5-6fbba59d59f0
 @customerId = REPLACE_WITH_CUSTOMER_ID
@@ -60,7 +60,7 @@ Content-Type: application/json
 	"name": "Corte Clasico",
 	"durationMinutes": 45,
 	"price": 25000,
-	"isActive": true
+	"active": true
 }
 
 ### List services
@@ -77,7 +77,7 @@ Content-Type: application/json
 	"name": "Corte Clasico Premium",
 	"durationMinutes": 60,
 	"price": 32000,
-	"isActive": true
+	"active": true
 }
 
 ### Delete service (replace serviceId)
