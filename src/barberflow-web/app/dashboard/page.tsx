@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { APP_ROUTES } from "@/lib/config/app";
 import { useAppToast } from "@/lib/toast/toast-provider";
 import { Texts } from "@/lib/content/texts";
-import { useGetSessionQuery, useLogoutMutation } from "@/lib/api/authApi";
+import { useGetSessionQuery } from "@/lib/api/authApi";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { data: session, isLoading: isSessionLoading } = useGetSessionQuery();
-  const [logout] = useLogoutMutation();
+  const hasHandledUnauthenticated = useRef(false);
   const isAuthenticated = session?.authenticated ?? false;
+  const role = session?.role ?? null;
   const { showToast } = useAppToast();
   const { Common } = Texts;
 
@@ -21,8 +22,8 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!isAuthenticated) {
-      void logout();
+    if (!isAuthenticated && !hasHandledUnauthenticated.current) {
+      hasHandledUnauthenticated.current = true;
       showToast({
         title: Common.Toasts.SessionExpiredTitle,
         description: Common.Toasts.SessionExpiredDescription,
@@ -33,7 +34,6 @@ export default function DashboardPage() {
   }, [
     isAuthenticated,
     isSessionLoading,
-    logout,
     router,
     showToast,
     Common.Toasts.SessionExpiredDescription,
@@ -44,5 +44,5 @@ export default function DashboardPage() {
     return null;
   }
 
-  return <DashboardShell />;
+  return <DashboardShell role={role} />;
 }

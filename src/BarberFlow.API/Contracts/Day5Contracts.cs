@@ -28,10 +28,12 @@ public sealed record CreateCustomerRequest(
     string Name,
     string? Phone,
     string? Email,
-    string? Notes);
+    string? Notes,
+    bool IsActive = true);
 
 public sealed record UpdateCustomerRequest(
     string Name,
     string? Phone,
     string? Email,
-    string? Notes);
+    string? Notes,
+    bool IsActive);

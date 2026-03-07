@@ -23,7 +23,8 @@
     },
     "Actions": {
       "BackToDashboard": "Volver al dashboard",
-      "Logout": "Cerrar sesion"
+      "Logout": "Cerrar sesion",
+      "Loading": "Cargando..."
     }
   },
   "Auth": {
@@ -84,7 +85,8 @@
       "DurationMinutes": "Duracion (min)",
       "Email": "Correo",
       "Phone": "Telefono",
-      "Notes": "Notas"
+      "Notes": "Notas",
+      "Status": "Estado"
     },
     "Actions": {
       "GoDashboard": "Ir a dashboard",
@@ -93,7 +95,14 @@
       "CreateBarber": "Guardar barbero",
       "CreateCustomer": "Guardar cliente",
       "Edit": "Editar",
+      "Update": "Actualizar",
+      "ViewAll": "Ver todos",
+      "BackToQuick": "Volver a modo rapido",
       "Save": "Guardar cambios",
+      "Creating": "Creando...",
+      "Saving": "Guardando...",
+      "Updating": "Actualizando...",
+      "Deleting": "Eliminando...",
       "Cancel": "Cancelar",
       "Delete": "Eliminar",
       "Deactivate": "Desactivar",
