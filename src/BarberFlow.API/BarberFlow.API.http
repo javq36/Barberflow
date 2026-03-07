@@ -1,6 +1,186 @@
-@BarberFlow.API_HostAddress = http://localhost:5164
+@host = http://localhost:5164
+@email = owner.test.dev@example.com
+@password = P@ssw0rd123!
+@token = REPLACE_WITH_JWT_TOKEN
+@serviceId = REPLACE_WITH_SERVICE_ID
+@barberId = REPLACE_WITH_BARBER_ID
+@customerId = REPLACE_WITH_CUSTOMER_ID
+@from = 2026-03-01T00:00:00
+@to = 2026-03-31T23:59:59
+@slotDate = 2026-03-10
 
-GET {{BarberFlow.API_HostAddress}}/weatherforecast/
+### Health ready
+GET {{host}}/health/ready
 Accept: application/json
 
-###
+### Register owner
+POST {{host}}/auth/register-owner
+Content-Type: application/json
+
+{
+	"name": "Owner Test",
+	"email": "{{email}}",
+	"phone": "3001234567",
+	"password": "{{password}}"
+}
+
+### Login owner
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+	"email": "{{email}}",
+	"password": "{{password}}"
+}
+
+### Me (replace token variable first)
+GET {{host}}/auth/me
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Create barbershop (replace token variable first)
+POST {{host}}/barbershops
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"name": "Barberflow Downtown",
+	"phone": "3001112233",
+	"address": "Cra 1 # 2-3",
+	"timezone": "America/Bogota"
+}
+
+### -----------------------------
+### Day 5 - Services CRUD
+### -----------------------------
+
+### Create service
+POST {{host}}/services
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"name": "Corte Clasico",
+	"durationMinutes": 45,
+	"price": 25000,
+	"active": true
+}
+
+### List services
+GET {{host}}/services
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Update service (replace serviceId)
+PUT {{host}}/services/{{serviceId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"name": "Corte Clasico Premium",
+	"durationMinutes": 60,
+	"price": 32000,
+	"active": true
+}
+
+### Delete service (replace serviceId)
+DELETE {{host}}/services/{{serviceId}}
+Authorization: Bearer {{token}}
+
+### -----------------------------
+### Day 5 - Barbers CRUD
+### -----------------------------
+
+### Create barber
+POST {{host}}/barbers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"name": "Barber Test",
+	"email": "barber.test.dev@example.com",
+	"phone": "3005551111",
+	"isActive": true
+}
+
+### List barbers
+GET {{host}}/barbers
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Update barber (replace barberId)
+PUT {{host}}/barbers/{{barberId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"name": "Barber Test Updated",
+	"phone": "3005552222",
+	"isActive": true
+}
+
+### Delete barber (soft-delete, replace barberId)
+DELETE {{host}}/barbers/{{barberId}}
+Authorization: Bearer {{token}}
+
+### -----------------------------
+### Day 5 - Customers CRUD
+### -----------------------------
+
+### Create customer
+POST {{host}}/customers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"name": "Customer Test",
+	"email": "customer.test.dev@example.com",
+	"phone": "3008889999"
+}
+
+### List customers
+GET {{host}}/customers
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Update customer (replace customerId)
+PUT {{host}}/customers/{{customerId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"name": "Customer Test Updated",
+	"phone": "3008880000"
+}
+
+### Delete customer (replace customerId)
+DELETE {{host}}/customers/{{customerId}}
+Authorization: Bearer {{token}}
+
+### -----------------------------
+### Day 6 - Appointments Engine
+### -----------------------------
+
+### Create appointment
+POST {{host}}/appointments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"barberId": "{{barberId}}",
+	"serviceId": "{{serviceId}}",
+	"customerId": "{{customerId}}",
+	"appointmentTime": "2026-03-10T10:00:00",
+	"notes": "Primera cita de prueba"
+}
+
+### List appointments by range
+GET {{host}}/appointments?from={{from}}&to={{to}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Get available slots
+GET {{host}}/availability/slots?barberId={{barberId}}&serviceId={{serviceId}}&date={{slotDate}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
