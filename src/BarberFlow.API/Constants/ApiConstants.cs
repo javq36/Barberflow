@@ -13,6 +13,8 @@ public static class ApiConstants
         public const string Services = "/services";
         public const string Barbers = "/barbers";
         public const string Customers = "/customers";
+        public const string Appointments = "/appointments";
+        public const string AvailabilitySlots = "/availability/slots";
     }
 
     public static class Messages
@@ -25,5 +27,8 @@ public static class ApiConstants
         public const string ForbiddenRole = "Only owners can perform this action.";
         public const string BarbershopClaimMissing = "User has no barbershop assigned. Login again after creating a barbershop.";
         public const string OwnerOnlyAction = "Only owners can perform this action.";
+        public const string InvalidAppointmentPayload = "Invalid appointment payload.";
+        public const string ResourceOutOfTenantScope = "Resource does not belong to this barbershop or is inactive.";
+        public const string AppointmentTimeCollision = "Barber is not available at the selected time.";
     }
 }

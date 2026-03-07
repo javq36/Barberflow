@@ -3,8 +3,11 @@
 @password = P@ssw0rd123!
 @token = REPLACE_WITH_JWT_TOKEN
 @serviceId = REPLACE_WITH_SERVICE_ID
-@barberId = b9806190-681d-4cd1-adc5-6fbba59d59f0
+@barberId = REPLACE_WITH_BARBER_ID
 @customerId = REPLACE_WITH_CUSTOMER_ID
+@from = 2026-03-01T00:00:00
+@to = 2026-03-31T23:59:59
+@slotDate = 2026-03-10
 
 ### Health ready
 GET {{host}}/health/ready
@@ -153,4 +156,31 @@ Content-Type: application/json
 ### Delete customer (replace customerId)
 DELETE {{host}}/customers/{{customerId}}
 Authorization: Bearer {{token}}
+
+### -----------------------------
+### Day 6 - Appointments Engine
+### -----------------------------
+
+### Create appointment
+POST {{host}}/appointments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+	"barberId": "{{barberId}}",
+	"serviceId": "{{serviceId}}",
+	"customerId": "{{customerId}}",
+	"appointmentTime": "2026-03-10T10:00:00",
+	"notes": "Primera cita de prueba"
+}
+
+### List appointments by range
+GET {{host}}/appointments?from={{from}}&to={{to}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Get available slots
+GET {{host}}/availability/slots?barberId={{barberId}}&serviceId={{serviceId}}&date={{slotDate}}
+Authorization: Bearer {{token}}
+Accept: application/json
 
