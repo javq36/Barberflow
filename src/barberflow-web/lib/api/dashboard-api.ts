@@ -37,30 +37,45 @@ export const dashboardApi = baseApi.injectEndpoints({
         const end = new Date(now);
         end.setHours(23, 59, 59, 999);
 
-        const [healthRes, appointmentsRes, barbersRes, customersRes, servicesRes] =
-          await Promise.all([
-            fetchWithBQ("/health/ready"),
-            fetchWithBQ(`/appointments?from=${isoDate(start)}&to=${isoDate(end)}`),
-            fetchWithBQ("/barbers"),
-            fetchWithBQ("/customers"),
-            fetchWithBQ("/services"),
-          ]);
+        const [
+          healthRes,
+          appointmentsRes,
+          barbersRes,
+          customersRes,
+          servicesRes,
+        ] = await Promise.all([
+          fetchWithBQ("/health/ready"),
+          fetchWithBQ(
+            `/appointments?from=${isoDate(start)}&to=${isoDate(end)}`,
+          ),
+          fetchWithBQ("/barbers"),
+          fetchWithBQ("/customers"),
+          fetchWithBQ("/services"),
+        ]);
 
         const apiOk = !healthRes.error;
-        const appointments = (appointmentsRes.data as Appointment[] | undefined) ?? [];
+        const appointments =
+          (appointmentsRes.data as Appointment[] | undefined) ?? [];
         const barbers = (barbersRes.data as Countable[] | undefined) ?? [];
         const customers = (customersRes.data as Countable[] | undefined) ?? [];
         const services = (servicesRes.data as Countable[] | undefined) ?? [];
 
-        const serviciosActivos = services.filter((service) => service.active ?? true).length;
-        const barberosActivos = barbers.filter((barber) => barber.isActive ?? true).length;
+        const serviciosActivos = services.filter(
+          (service) => service.active ?? true,
+        ).length;
+        const barberosActivos = barbers.filter(
+          (barber) => barber.isActive ?? true,
+        ).length;
 
         const sortedAppointments = [...appointments].sort(
-          (a, b) => new Date(a.appointmentTime).getTime() - new Date(b.appointmentTime).getTime(),
+          (a, b) =>
+            new Date(a.appointmentTime).getTime() -
+            new Date(b.appointmentTime).getTime(),
         );
 
         const proximaCita = sortedAppointments.find(
-          (appointment) => new Date(appointment.appointmentTime).getTime() >= now.getTime(),
+          (appointment) =>
+            new Date(appointment.appointmentTime).getTime() >= now.getTime(),
         );
 
         return {

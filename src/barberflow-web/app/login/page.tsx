@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useLoginMutation } from "@/lib/api/auth-api";
+import { useGetSessionQuery, useLoginMutation } from "@/lib/api/authApi";
 import { APP_ROUTES } from "@/lib/config/app";
-import { getAuthSession, saveAuthSession } from "@/lib/auth/session";
 import { Texts } from "@/lib/content/texts";
 import { useAppToast } from "@/lib/toast/toast-provider";
 
@@ -13,19 +12,18 @@ export default function LoginPage() {
   const router = useRouter();
   const { Auth, Common } = Texts;
   const { showToast } = useAppToast();
-  const [shouldRedirectToDashboard] = useState(
-    () => typeof window !== "undefined" && getAuthSession().isAuthenticated,
-  );
+  const { data: session, isLoading: isSessionLoading } = useGetSessionQuery();
+  const isAuthenticated = session?.authenticated ?? false;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [login, { isLoading }] = useLoginMutation();
 
   useEffect(() => {
-    if (shouldRedirectToDashboard) {
+    if (!isSessionLoading && isAuthenticated) {
       router.replace(APP_ROUTES.Dashboard);
     }
-  }, [router, shouldRedirectToDashboard]);
+  }, [isAuthenticated, isSessionLoading, router]);
 
   function getApiErrorMessage(error: unknown) {
     if (
@@ -58,8 +56,7 @@ export default function LoginPage() {
     }
 
     try {
-      const result = await login({ email: email.trim(), password }).unwrap();
-      saveAuthSession(result.accessToken, result.expiresAt);
+      await login({ email: email.trim(), password }).unwrap();
       setFeedback(Auth.Login.Success);
       showToast({
         title: Common.Toasts.LoggedInTitle,
@@ -78,7 +75,7 @@ export default function LoginPage() {
     }
   }
 
-  if (shouldRedirectToDashboard) {
+  if (isSessionLoading || isAuthenticated) {
     return null;
   }
 

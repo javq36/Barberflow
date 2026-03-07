@@ -1,4 +1,4 @@
-import { baseApi } from "@/lib/api/base-api";
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 export type RegisterOwnerRequest = {
   name: string;
@@ -19,7 +19,6 @@ export type LoginRequest = {
 };
 
 export type LoginResponse = {
-  accessToken: string;
   tokenType: string;
   expiresAt: string;
   user: {
@@ -32,41 +31,56 @@ export type LoginResponse = {
   };
 };
 
-export type AuthMeResponse = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  barbershopId?: string;
+export type SessionResponse = {
+  authenticated: boolean;
+  expiresAtMs: number | null;
 };
 
-export const authApi = baseApi.injectEndpoints({
+export const authApi = createApi({
+  reducerPath: "authApi",
+  baseQuery: fetchBaseQuery({
+    baseUrl: "/api/auth",
+  }),
+  tagTypes: ["AuthSession"],
   endpoints: (builder) => ({
     registerOwner: builder.mutation<
       RegisterOwnerResponse,
       RegisterOwnerRequest
     >({
       query: (body) => ({
-        url: "/auth/register-owner",
+        url: "/register-owner",
         method: "POST",
         body,
       }),
     }),
     login: builder.mutation<LoginResponse, LoginRequest>({
       query: (body) => ({
-        url: "/auth/login",
+        url: "/login",
         method: "POST",
         body,
       }),
+      invalidatesTags: ["AuthSession"],
     }),
-    getMe: builder.query<AuthMeResponse, void>({
+    logout: builder.mutation<{ ok: boolean }, void>({
       query: () => ({
-        url: "/auth/me",
+        url: "/logout",
+        method: "POST",
+      }),
+      invalidatesTags: ["AuthSession"],
+    }),
+    getSession: builder.query<SessionResponse, void>({
+      query: () => ({
+        url: "/session",
         method: "GET",
       }),
+      providesTags: ["AuthSession"],
     }),
   }),
 });
 
-export const { useRegisterOwnerMutation, useLoginMutation, useGetMeQuery } =
-  authApi;
+export const {
+  useRegisterOwnerMutation,
+  useLoginMutation,
+  useLogoutMutation,
+  useGetSessionQuery,
+} = authApi;

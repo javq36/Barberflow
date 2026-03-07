@@ -11,6 +11,7 @@ using BarberFlow.API.Contracts;
 using System.IdentityModel.Tokens.Jwt;
 using Npgsql;
 using System.Data;
+using System.Net;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -48,16 +49,35 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+var configuredCorsOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()
+    ?.Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => origin.Trim())
+    .ToArray()
+    ?? Array.Empty<string>();
+
+var defaultCorsOrigins = new[]
+{
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://localhost:3000",
+    "https://localhost:3001"
+};
+
+var strictAllowedOrigins = defaultCorsOrigins
+    .Concat(configuredCorsOrigins)
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("WebClient", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:3000",
-                "http://localhost:3001",
-                "https://localhost:3000",
-                "https://localhost:3001")
+            .SetIsOriginAllowed(origin =>
+                strictAllowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase) ||
+                (builder.Environment.IsDevelopment() && IsLocalNetworkFrontendOrigin(origin)))
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -78,7 +98,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors("WebClient");
 
@@ -87,6 +110,49 @@ app.UseAuthorization();
 
 bool IsOwner(ClaimsPrincipal user) =>
     string.Equals(user.FindFirstValue(ClaimTypes.Role), "Owner", StringComparison.OrdinalIgnoreCase);
+
+bool IsLocalNetworkFrontendOrigin(string? origin)
+{
+    if (string.IsNullOrWhiteSpace(origin) || !Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+    {
+        return false;
+    }
+
+    var isHttp = string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase);
+    var isHttps = string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
+
+    if (!isHttp && !isHttps)
+    {
+        return false;
+    }
+
+    if (uri.IsLoopback)
+    {
+        return uri.Port is 3000 or 3001;
+    }
+
+    if (!IPAddress.TryParse(uri.Host, out var ipAddress))
+    {
+        return false;
+    }
+
+    return uri.Port is 3000 or 3001 && IsPrivateIpv4(ipAddress);
+}
+
+bool IsPrivateIpv4(IPAddress ipAddress)
+{
+    if (ipAddress.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+    {
+        return false;
+    }
+
+    var bytes = ipAddress.GetAddressBytes();
+
+    // RFC1918 private ranges.
+    return bytes[0] == 10 ||
+           (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+           (bytes[0] == 192 && bytes[1] == 168);
+}
 
 bool TryGetBarbershopId(ClaimsPrincipal user, out Guid barbershopId, out IResult? error)
 {
