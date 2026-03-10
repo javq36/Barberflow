@@ -177,6 +177,101 @@
       "SecurityNoteTitle": "Nota de seguridad",
       "SecurityNotePrefix": "Para consumir endpoints privados, guarda el JWT en localStorage con la clave",
       "ProtectedDataError": "No se pudieron cargar algunos datos protegidos. Verifica login/token y que la API este corriendo."
+    },
+    "Actions": {
+      "OpenSchedule": "Abrir agenda"
+    }
+  },
+  "Schedule": {
+    "Header": {
+      "Badge": "BarberFlow · Agenda",
+      "Title": "Planificacion del dia",
+      "GridTitle": "Agenda por barbero"
+    },
+    "Filters": {
+      "Today": "Hoy",
+      "SearchPlaceholder": "Buscar cita o cliente...",
+      "AllBarbers": "Todos los barberos",
+      "ViewDay": "Dia",
+      "ViewWeek": "Semana",
+      "ViewMonth": "Mes"
+    },
+    "Grid": {
+      "Timezone": "GMT-5",
+      "Bookings": "citas",
+      "Current": "En curso"
+    },
+    "Actions": {
+      "NewAppointment": "Nueva cita",
+      "CreateAppointment": "Crear cita",
+      "SaveReschedule": "Guardar reprogramacion",
+      "Reschedule": "Reagendar",
+      "CheckIn": "Check in",
+      "Cancel": "Cancelar",
+      "CancelAppointment": "Cancelar cita"
+    },
+    "Details": {
+      "Title": "Detalle de cita",
+      "Service": "Servicio",
+      "Schedule": "Horario",
+      "Barber": "Barbero",
+      "Notes": "Notas",
+      "NoNotes": "Sin notas por ahora"
+    },
+    "Status": {
+      "Pending": "Pendiente",
+      "Confirmed": "Confirmada",
+      "Completed": "Completada",
+      "Canceled": "Cancelada",
+      "Unknown": "Sin estado"
+    },
+    "Messages": {
+      "InvalidTime": "Selecciona una hora valida.",
+      "CompleteRequired": "Completa los campos obligatorios para crear la cita.",
+      "InvalidPhoneLength": "En Colombia el telefono celular debe tener exactamente 10 digitos.",
+      "CustomerSearchPending": "Espera a que termine la busqueda o selecciona un cliente sugerido.",
+      "ComplementaryNameRequired": "Escribe el nombre del cliente para continuar.",
+      "ComplementaryPhoneRequired": "Escribe un telefono valido de 10 digitos para continuar.",
+      "Created": "Cita creada correctamente.",
+      "Rescheduled": "Cita reprogramada correctamente.",
+      "CheckedIn": "La cita quedo confirmada.",
+      "Canceled": "La cita fue cancelada."
+    },
+    "Empty": {
+      "NoData": "No hay citas para el filtro actual.",
+      "NoBarbers": "No hay barberos activos.",
+      "SelectAppointment": "Selecciona una cita para ver detalles."
+    },
+    "Modal": {
+      "Title": "Nueva cita",
+      "RescheduleTitle": "Reagendar cita",
+      "Customer": "Cliente",
+      "Service": "Servicio",
+      "Barber": "Barbero",
+      "Time": "Hora",
+      "Notes": "Notas (opcional)",
+      "NotesPlaceholder": "Agrega instrucciones para el equipo...",
+      "CustomerSearchPlaceholder": "Buscar por nombre o telefono...",
+      "PhoneLengthOk": "Telefono valido (10/10).",
+      "PhoneLengthHint": "Si estas escribiendo un telefono en Colombia, debe tener 10 digitos.",
+      "SelectedCustomerName": "Nombre",
+      "SelectedCustomerPhone": "Telefono",
+      "ComplementaryNameLabel": "Nombre del cliente",
+      "ComplementaryNamePlaceholder": "Ej: Juan Perez",
+      "ComplementaryPhoneLabel": "Telefono del cliente",
+      "ComplementaryPhonePlaceholder": "Ej: 3001234567",
+      "AutoNamePrefix": "Cliente",
+      "SearchingCustomers": "Buscando clientes...",
+      "NoCustomerResults": "Sin coincidencias. Se creara el cliente automaticamente al guardar la cita.",
+      "Unnamed": "Cliente sin nombre"
+    },
+    "Mobile": {
+      "TodaySchedule": "Agenda de hoy",
+      "NextUp": "Siguiente",
+      "Home": "Inicio",
+      "Schedule": "Agenda",
+      "Clients": "Clientes",
+      "Alerts": "Alertas"
     }
   }
 }
