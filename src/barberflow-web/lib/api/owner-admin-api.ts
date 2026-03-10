@@ -41,6 +41,33 @@ export type AppointmentItem = {
   serviceName: string;
 };
 
+export type CreateAppointmentRequest = {
+  barberId: string;
+  serviceId: string;
+  customerId: string;
+  appointmentTime: string;
+  notes?: string;
+};
+
+export type UpdateAppointmentStatusRequest = {
+  id: string;
+  status: number;
+  notes?: string;
+};
+
+export type RescheduleAppointmentRequest = {
+  id: string;
+  appointmentTime: string;
+  barberId?: string;
+  serviceId?: string;
+  notes?: string;
+};
+
+export type CancelAppointmentRequest = {
+  id: string;
+  notes?: string;
+};
+
 export type CreateServiceRequest = {
   name: string;
   durationMinutes: number;
@@ -203,6 +230,12 @@ export const ownerAdminApi = baseApi.injectEndpoints({
             ]
           : [{ type: "Customers", id: "LIST" }],
     }),
+    getCustomersSearch: builder.query<CustomerItem[], string>({
+      query: (query) => ({
+        url: `/customers?query=${encodeURIComponent(query)}`,
+        method: "GET",
+      }),
+    }),
     getAppointments: builder.query<AppointmentItem[], void>({
       query: () => ({
         url: `/appointments?${makeDateRangeQuery()}`,
@@ -218,6 +251,58 @@ export const ownerAdminApi = baseApi.injectEndpoints({
               })),
             ]
           : [{ type: "Appointments", id: "LIST" }],
+    }),
+    createAppointment: builder.mutation<void, CreateAppointmentRequest>({
+      query: (body) => ({
+        url: "/appointments",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: [
+        { type: "Appointments", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
+    }),
+    updateAppointmentStatus: builder.mutation<
+      void,
+      UpdateAppointmentStatusRequest
+    >({
+      query: ({ id, status, notes }) => ({
+        url: `/appointments/${id}/status`,
+        method: "PATCH",
+        body: { status, notes },
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        { type: "Appointments", id: arg.id },
+        { type: "Appointments", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
+    }),
+    rescheduleAppointment: builder.mutation<void, RescheduleAppointmentRequest>(
+      {
+        query: ({ id, appointmentTime, barberId, serviceId, notes }) => ({
+          url: `/appointments/${id}/reschedule`,
+          method: "PATCH",
+          body: { appointmentTime, barberId, serviceId, notes },
+        }),
+        invalidatesTags: (_result, _error, arg) => [
+          { type: "Appointments", id: arg.id },
+          { type: "Appointments", id: "LIST" },
+          { type: "DashboardSummary", id: "CURRENT" },
+        ],
+      },
+    ),
+    cancelAppointment: builder.mutation<void, CancelAppointmentRequest>({
+      query: ({ id, notes }) => ({
+        url: `/appointments/${id}/cancel`,
+        method: "PATCH",
+        body: { notes },
+      }),
+      invalidatesTags: (_result, _error, arg) => [
+        { type: "Appointments", id: arg.id },
+        { type: "Appointments", id: "LIST" },
+        { type: "DashboardSummary", id: "CURRENT" },
+      ],
     }),
     createService: builder.mutation<void, CreateServiceRequest>({
       query: (body) => ({
@@ -331,7 +416,12 @@ export const {
   useGetServicesQuery,
   useGetBarbersQuery,
   useGetCustomersQuery,
+  useGetCustomersSearchQuery,
   useGetAppointmentsQuery,
+  useCreateAppointmentMutation,
+  useUpdateAppointmentStatusMutation,
+  useRescheduleAppointmentMutation,
+  useCancelAppointmentMutation,
   useCreateServiceMutation,
   useUpdateServiceMutation,
   useDeleteServiceMutation,

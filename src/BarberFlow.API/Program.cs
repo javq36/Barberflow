@@ -904,12 +904,19 @@ app.MapPost(ApiConstants.Routes.Customers, async (CreateCustomerRequest request,
     });
 }).RequireAuthorization();
 
-app.MapGet(ApiConstants.Routes.Customers, async (ClaimsPrincipal user, CancellationToken ct) =>
+app.MapGet(ApiConstants.Routes.Customers, async (ClaimsPrincipal user, string? query, CancellationToken ct) =>
 {
     if (!TryGetBarbershopId(user, out var barbershopId, out var error))
     {
         return error!;
     }
+
+    var normalizedQuery = string.IsNullOrWhiteSpace(query)
+        ? null
+        : query.Trim();
+    var queryPattern = normalizedQuery is null
+        ? null
+        : $"%{normalizedQuery}%";
 
     var rows = new List<object>();
 
@@ -920,8 +927,15 @@ app.MapGet(ApiConstants.Routes.Customers, async (ClaimsPrincipal user, Cancellat
         SELECT id, name, phone, email, notes, active, created_at
         FROM customers
         WHERE barbershop_id = @barbershopId
+                    AND (
+                        @query IS NULL
+                        OR COALESCE(name, '') ILIKE @queryPattern
+                        OR COALESCE(phone, '') ILIKE @queryPattern
+                    )
         ORDER BY name", conn);
     cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.AddWithValue("query", (object?)normalizedQuery ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("queryPattern", (object?)queryPattern ?? DBNull.Value);
 
     await using var reader = await cmd.ExecuteReaderAsync(ct);
     while (await reader.ReadAsync(ct))

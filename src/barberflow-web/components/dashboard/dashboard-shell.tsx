@@ -122,6 +122,14 @@ export function DashboardShell({ role }: DashboardShellProps) {
                   {Admin.Actions.OpenAdmin}
                 </Button>
               ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(APP_ROUTES.Schedule)}
+              >
+                {Dashboard.Actions.OpenSchedule}
+              </Button>
             </div>
           </div>
         </header>
