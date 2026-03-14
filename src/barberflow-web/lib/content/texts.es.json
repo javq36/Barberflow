@@ -402,5 +402,74 @@
       "Clients": "Clientes",
       "Alerts": "Alertas"
     }
+  },
+  "ClientsV2": {
+    "DisabledMessage": "Primero crea/asigna una barberia para habilitar operaciones de clientes.",
+    "Sidebar": {
+      "Dashboard": "Dashboard",
+      "Clients": "Clients",
+      "Appointments": "Appointments",
+      "Services": "Services",
+      "Settings": "Settings"
+    },
+    "Header": {
+      "SearchPlaceholder": "Search clients, appointments, or phone numbers...",
+      "Notifications": "Notificaciones"
+    },
+    "Content": {
+      "Title": "Client Directory",
+      "Description": "Efficiently manage your shop's customer base and visit history."
+    },
+    "Stats": {
+      "TotalClients": "Total Clients",
+      "NewThisMonth": "New This Month",
+      "ReturningRate": "Returning Rate",
+      "TopTierClients": "Top Tier Clients"
+    },
+    "Table": {
+      "Name": "Name",
+      "TotalAppointments": "Total Appointments",
+      "LastVisit": "Last Visit",
+      "Actions": "Actions",
+      "Visits": "Visits",
+      "VisitsVip": "Visits (VIP)",
+      "With": "with",
+      "Team": "team",
+      "Appointments": "appointments",
+      "Showing": "Showing 1 to {count} of {total} clients"
+    },
+    "Actions": {
+      "NewClient": "New Client",
+      "View": "Ver cliente",
+      "Edit": "Editar cliente",
+      "Delete": "Borrar",
+      "Back": "Regresar",
+      "Close": "Cerrar"
+    },
+    "Modal": {
+      "NewTitle": "New Client",
+      "EditTitle": "Edit Client",
+      "ViewTitle": "Detalle cliente",
+      "Notes": "Notas",
+      "LabelName": "Nombre",
+      "LabelEmail": "Correo",
+      "LabelPhone": "Telefono",
+      "LabelNotes": "Notas",
+      "DeleteConfirmTitle": "Confirmar eliminacion",
+      "DeleteConfirmMessagePrefix": "Estas seguro de borrar el cliente",
+      "DeleteConfirmCancel": "Cancelar",
+      "DeleteConfirmAccept": "Aceptar"
+    },
+    "Mobile": {
+      "Title": "Clients",
+      "SearchPlaceholder": "Search by name or phone...",
+      "RecentClients": "Recent Clients",
+      "Filter": "Filter",
+      "LastLabel": "Last:",
+      "Schedule": "Schedule",
+      "Clients": "Clients",
+      "Services": "Services",
+      "Settings": "Settings"
+    }
   }
 }
