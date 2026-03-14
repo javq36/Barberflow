@@ -43,7 +43,9 @@ export function DashboardSidebar({
           <Scissors className="h-4 w-4" />
         </div>
         <div>
-          <p className="dashboard-heading text-base font-semibold">BarberFlow</p>
+          <p className="dashboard-heading text-base font-semibold">
+            BarberFlow
+          </p>
           <p className="dashboard-microtext text-xs">Owner Panel</p>
         </div>
       </div>

@@ -11,7 +11,9 @@ type UseOwnerPanelShellModelInput = {
   role: AppRole;
 };
 
-export function useOwnerPanelShellModel({ role }: UseOwnerPanelShellModelInput) {
+export function useOwnerPanelShellModel({
+  role,
+}: UseOwnerPanelShellModelInput) {
   const router = useRouter();
   const { showToast } = useAppToast();
   const [logout, logoutState] = useLogoutMutation();

@@ -616,7 +616,9 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
 
     const draggedDurationMs =
       draggedEvent.endDate.getTime() - draggedEvent.startDate.getTime();
-    const targetEndDate = new Date(nextAppointmentDate.getTime() + draggedDurationMs);
+    const targetEndDate = new Date(
+      nextAppointmentDate.getTime() + draggedDurationMs,
+    );
 
     const hasConflictInTargetBarber = appointmentsForDayGrid.some((event) => {
       if (event.item.id === draggedEvent.item.id) {
@@ -631,7 +633,9 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
         return false;
       }
 
-      return nextAppointmentDate < event.endDate && targetEndDate > event.startDate;
+      return (
+        nextAppointmentDate < event.endDate && targetEndDate > event.startDate
+      );
     });
 
     if (hasConflictInTargetBarber) {
@@ -1199,7 +1203,10 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                                     <button
                                       key={event.item.id}
                                       type="button"
-                                      draggable={event.item.status === 1 || event.item.status === 2}
+                                      draggable={
+                                        event.item.status === 1 ||
+                                        event.item.status === 2
+                                      }
                                       onDragStart={() => {
                                         setDraggingAppointmentId(event.item.id);
                                         setDropTargetSlotKey(null);

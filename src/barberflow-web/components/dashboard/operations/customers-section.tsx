@@ -136,11 +136,16 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {!canOperate ? (
-          <p className="dashboard-microtext">{Dashboard.Operations.DisabledMessage}</p>
+          <p className="dashboard-microtext">
+            {Dashboard.Operations.DisabledMessage}
+          </p>
         ) : null}
 
         {canOperate ? (
-          <form className="grid gap-2 sm:grid-cols-4" onSubmit={onCreateCustomer}>
+          <form
+            className="grid gap-2 sm:grid-cols-4"
+            onSubmit={onCreateCustomer}
+          >
             <input
               className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
               value={customerName}
@@ -190,9 +195,15 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
             <tbody>
               {(customersQuery.data ?? []).map((customer) => (
                 <tr key={customer.id} className="border-b border-border/40">
-                  <td className="px-3 py-2">{customer.name ?? Common.Status.NoData}</td>
-                  <td className="px-3 py-2">{customer.email ?? Common.Status.NoData}</td>
-                  <td className="px-3 py-2">{customer.phone ?? Common.Status.NoData}</td>
+                  <td className="px-3 py-2">
+                    {customer.name ?? Common.Status.NoData}
+                  </td>
+                  <td className="px-3 py-2">
+                    {customer.email ?? Common.Status.NoData}
+                  </td>
+                  <td className="px-3 py-2">
+                    {customer.phone ?? Common.Status.NoData}
+                  </td>
                   <td className="px-3 py-2">
                     {customer.isActive ? Common.Status.Ok : Common.Status.Error}
                   </td>
@@ -230,7 +241,10 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
         </div>
 
         {editingCustomer ? (
-          <form className="grid gap-2 sm:grid-cols-4" onSubmit={onUpdateCustomer}>
+          <form
+            className="grid gap-2 sm:grid-cols-4"
+            onSubmit={onUpdateCustomer}
+          >
             <input
               className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
               value={editingCustomer.name ?? ""}

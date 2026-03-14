@@ -29,7 +29,9 @@ export function ServicesSection({ canOperate }: ServicesSectionProps) {
   const [serviceName, setServiceName] = useState("");
   const [servicePrice, setServicePrice] = useState("");
   const [serviceDuration, setServiceDuration] = useState("");
-  const [editingService, setEditingService] = useState<ServiceItem | null>(null);
+  const [editingService, setEditingService] = useState<ServiceItem | null>(
+    null,
+  );
 
   async function onCreateService(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -123,11 +125,16 @@ export function ServicesSection({ canOperate }: ServicesSectionProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {!canOperate ? (
-          <p className="dashboard-microtext">{Dashboard.Operations.DisabledMessage}</p>
+          <p className="dashboard-microtext">
+            {Dashboard.Operations.DisabledMessage}
+          </p>
         ) : null}
 
         {canOperate ? (
-          <form className="grid gap-2 sm:grid-cols-4" onSubmit={onCreateService}>
+          <form
+            className="grid gap-2 sm:grid-cols-4"
+            onSubmit={onCreateService}
+          >
             <input
               className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
               value={serviceName}
@@ -209,12 +216,18 @@ export function ServicesSection({ canOperate }: ServicesSectionProps) {
         </div>
 
         {editingService ? (
-          <form className="grid gap-2 sm:grid-cols-4" onSubmit={onUpdateService}>
+          <form
+            className="grid gap-2 sm:grid-cols-4"
+            onSubmit={onUpdateService}
+          >
             <input
               className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
               value={editingService.name}
               onChange={(event) =>
-                setEditingService({ ...editingService, name: event.target.value })
+                setEditingService({
+                  ...editingService,
+                  name: event.target.value,
+                })
               }
               placeholder={Admin.Fields.Name}
             />
@@ -250,7 +263,11 @@ export function ServicesSection({ canOperate }: ServicesSectionProps) {
               >
                 {Admin.Actions.Save}
               </LoadingButton>
-              <Button type="button" variant="outline" onClick={() => setEditingService(null)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingService(null)}
+              >
                 {Admin.Actions.Cancel}
               </Button>
             </div>

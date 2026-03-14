@@ -42,7 +42,10 @@ export function selectDashboardNavItems(
     });
   }
 
-  if (hasPermission(role, "services.view") || hasPermission(role, "services.manage")) {
+  if (
+    hasPermission(role, "services.view") ||
+    hasPermission(role, "services.manage")
+  ) {
     items.push({
       id: "services",
       label: labels.Services,
@@ -51,7 +54,10 @@ export function selectDashboardNavItems(
     });
   }
 
-  if (hasPermission(role, "barbers.view") || hasPermission(role, "barbers.manage")) {
+  if (
+    hasPermission(role, "barbers.view") ||
+    hasPermission(role, "barbers.manage")
+  ) {
     items.push({
       id: "barbers",
       label: labels.Barbers,
@@ -60,7 +66,10 @@ export function selectDashboardNavItems(
     });
   }
 
-  if (hasPermission(role, "customers.view") || hasPermission(role, "customers.manage")) {
+  if (
+    hasPermission(role, "customers.view") ||
+    hasPermission(role, "customers.manage")
+  ) {
     items.push({
       id: "customers",
       label: labels.Customers,

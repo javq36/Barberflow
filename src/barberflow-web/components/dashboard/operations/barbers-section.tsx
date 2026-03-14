@@ -129,7 +129,9 @@ export function BarbersSection({ canOperate }: BarbersSectionProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {!canOperate ? (
-          <p className="dashboard-microtext">{Dashboard.Operations.DisabledMessage}</p>
+          <p className="dashboard-microtext">
+            {Dashboard.Operations.DisabledMessage}
+          </p>
         ) : null}
 
         {canOperate ? (
@@ -177,8 +179,12 @@ export function BarbersSection({ canOperate }: BarbersSectionProps) {
               {(barbersQuery.data ?? []).map((barber) => (
                 <tr key={barber.id} className="border-b border-border/40">
                   <td className="px-3 py-2">{barber.name}</td>
-                  <td className="px-3 py-2">{barber.email ?? Common.Status.NoData}</td>
-                  <td className="px-3 py-2">{barber.phone ?? Common.Status.NoData}</td>
+                  <td className="px-3 py-2">
+                    {barber.email ?? Common.Status.NoData}
+                  </td>
+                  <td className="px-3 py-2">
+                    {barber.phone ?? Common.Status.NoData}
+                  </td>
                   <td className="px-3 py-2">
                     {barber.isActive ? Common.Status.Ok : Common.Status.Error}
                   </td>
@@ -198,7 +204,8 @@ export function BarbersSection({ canOperate }: BarbersSectionProps) {
                         variant="outline"
                         onClick={() => onToggleBarberActive(barber)}
                         isLoading={
-                          deleteBarberState.isLoading || updateBarberState.isLoading
+                          deleteBarberState.isLoading ||
+                          updateBarberState.isLoading
                         }
                         loadingText={Admin.Actions.Updating}
                       >
@@ -228,7 +235,10 @@ export function BarbersSection({ canOperate }: BarbersSectionProps) {
               className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
               value={editingBarber.email ?? ""}
               onChange={(event) =>
-                setEditingBarber({ ...editingBarber, email: event.target.value })
+                setEditingBarber({
+                  ...editingBarber,
+                  email: event.target.value,
+                })
               }
               placeholder={Admin.Fields.Email}
             />
@@ -236,7 +246,10 @@ export function BarbersSection({ canOperate }: BarbersSectionProps) {
               className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
               value={editingBarber.phone ?? ""}
               onChange={(event) =>
-                setEditingBarber({ ...editingBarber, phone: event.target.value })
+                setEditingBarber({
+                  ...editingBarber,
+                  phone: event.target.value,
+                })
               }
               placeholder={Admin.Fields.Phone}
             />
@@ -248,7 +261,11 @@ export function BarbersSection({ canOperate }: BarbersSectionProps) {
               >
                 {Admin.Actions.Save}
               </LoadingButton>
-              <Button type="button" variant="outline" onClick={() => setEditingBarber(null)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingBarber(null)}
+              >
                 {Admin.Actions.Cancel}
               </Button>
             </div>
