@@ -2,6 +2,19 @@
 
 import { FormEvent, ReactNode, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Bell,
+  CalendarDays,
+  LayoutDashboard,
+  Menu,
+  Scissors,
+  Search,
+  ShieldUser,
+  Store,
+  Users,
+  Wrench,
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -51,6 +64,7 @@ type AdminShellProps = {
 };
 
 type CatalogView = "quick" | "services" | "barbers" | "customers";
+type AdminSectionId = "overview" | "barbershop" | "operations" | "superadmin";
 
 const COLOMBIA_DEPARTMENT_CITY_MAP: Record<string, string[]> = {
   Antioquia: ["Medellin", "Bello", "Envigado", "Itagui"],
@@ -186,6 +200,7 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
     null,
   );
   const [catalogView, setCatalogView] = useState<CatalogView>("quick");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const stats = useMemo(
     () => ({
@@ -465,6 +480,22 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
     setEditingCustomer(null);
   }
 
+  function onNavigateToSection(
+    sectionId: AdminSectionId,
+    nextCatalogView?: CatalogView,
+  ) {
+    if (nextCatalogView) {
+      setCatalogView(nextCatalogView);
+    }
+
+    setIsSidebarOpen(false);
+
+    requestAnimationFrame(() => {
+      const target = document.getElementById(sectionId);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   async function onToggleBarberActive(barber: BarberItem) {
     if (barber.isActive) {
       await onDeleteBarber(barber.id);
@@ -660,102 +691,354 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
     barbersQuery.isFetching ||
     customersQuery.isFetching ||
     appointmentsQuery.isFetching;
+  const roleLabel = role === "SuperAdmin" ? "SuperAdmin" : "Manager";
 
   return (
     <main className="relative min-h-screen overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8">
       <div className="dashboard-atmosphere" />
 
-      <section className="dashboard-container">
-        <header className="dashboard-hero p-4 sm:p-6 md:p-8">
-          <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-2">
-              <Badge className="dashboard-badge-brand">
-                {Admin.Actions.OpenAdmin}
-              </Badge>
-              <h1 className="dashboard-heading text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-                {Admin.Title}
-              </h1>
-              <p className="dashboard-body-muted max-w-2xl text-sm leading-relaxed sm:text-base">
-                {Admin.Description}
-              </p>
+      <section className="dashboard-container grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside
+          className={`dashboard-panel fixed inset-y-3 left-3 z-40 h-auto w-[260px] overflow-y-auto p-3 transition-transform duration-200 lg:sticky lg:top-4 lg:z-auto lg:block lg:h-fit lg:w-auto lg:translate-x-0 ${
+            isSidebarOpen ? "translate-x-0" : "-translate-x-[110%]"
+          }`}
+        >
+          <div className="mb-4 flex items-center gap-2 px-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/20 text-orange-300">
+              <Scissors className="h-4 w-4" />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.push(APP_ROUTES.Dashboard)}
-            >
-              {Admin.Actions.GoDashboard}
-            </Button>
+            <div>
+              <p className="dashboard-heading text-base font-semibold">
+                BarberFlow
+              </p>
+              <p className="dashboard-microtext text-xs">Admin Panel</p>
+            </div>
           </div>
-        </header>
+          <nav className="space-y-1">
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("overview")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              {Admin.Navigation.Overview}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("barbershop")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <Store className="h-4 w-4" />
+              {Admin.Navigation.Barbershop}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("operations", "quick")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <Wrench className="h-4 w-4" />
+              {Admin.Navigation.Operations}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("operations", "services")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <Scissors className="h-4 w-4" />
+              {Admin.Navigation.Services}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("operations", "barbers")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <Users className="h-4 w-4" />
+              {Admin.Navigation.Barbers}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("operations", "customers")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <CalendarDays className="h-4 w-4" />
+              {Admin.Navigation.Customers}
+            </button>
+            {isSuperAdmin ? (
+              <button
+                type="button"
+                onClick={() => onNavigateToSection("superadmin")}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+              >
+                <ShieldUser className="h-4 w-4" />
+                {Admin.Navigation.SuperAdmin}
+              </button>
+            ) : null}
+          </nav>
+        </aside>
 
-        <section className="dashboard-grid-stats">
-          <Card className="dashboard-panel">
-            <CardHeader>
-              <CardTitle className="dashboard-heading text-base">
-                {Admin.Stats.Services}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="dashboard-heading text-3xl font-semibold">
-              {stats.services}
-            </CardContent>
-          </Card>
-          <Card className="dashboard-panel">
-            <CardHeader>
-              <CardTitle className="dashboard-heading text-base">
-                {Admin.Stats.Barbers}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="dashboard-heading text-3xl font-semibold">
-              {stats.barbers}
-            </CardContent>
-          </Card>
-          <Card className="dashboard-panel">
-            <CardHeader>
-              <CardTitle className="dashboard-heading text-base">
-                {Admin.Stats.Customers}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="dashboard-heading text-3xl font-semibold">
-              {stats.customers}
-            </CardContent>
-          </Card>
-          <Card className="dashboard-panel">
-            <CardHeader>
-              <CardTitle className="dashboard-heading text-base">
-                {Admin.Stats.Appointments}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="dashboard-heading text-3xl font-semibold">
-              {stats.appointments}
-            </CardContent>
-          </Card>
-        </section>
+        {isSidebarOpen ? (
+          <button
+            type="button"
+            aria-label={Admin.Navbar.CloseMenu}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+          />
+        ) : null}
 
-        <section className="space-y-4">
-          <AccordionSection
-            title="Barberia"
-            description="Configuracion general, datos y estado operativo de la barberia."
-          >
+        <div className="space-y-4">
+          <header className="dashboard-panel p-3 sm:p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <Badge className="dashboard-badge-brand">
+                  {Admin.Actions.OpenAdmin}
+                </Badge>
+                <h1 className="dashboard-heading text-xl font-semibold tracking-tight sm:text-2xl">
+                  {Admin.Title}
+                </h1>
+                <p className="dashboard-body-muted text-sm">
+                  {Admin.Description}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  aria-label={
+                    isSidebarOpen
+                      ? Admin.Navbar.CloseMenu
+                      : Admin.Navbar.OpenMenu
+                  }
+                  onClick={() => setIsSidebarOpen((previous) => !previous)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-zinc-100 lg:hidden"
+                >
+                  {isSidebarOpen ? (
+                    <X className="h-4 w-4" />
+                  ) : (
+                    <Menu className="h-4 w-4" />
+                  )}
+                </button>
+                <div className="relative min-w-[220px]">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                  <input
+                    type="search"
+                    placeholder={Admin.Navbar.SearchPlaceholder}
+                    className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  aria-label={Admin.Navbar.Notifications}
+                  className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-zinc-100"
+                >
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-orange-400" />
+                </button>
+                <div className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700 text-xs font-semibold text-zinc-100">
+                    AU
+                  </div>
+                  <div className="leading-tight">
+                    <p className="text-xs font-semibold text-zinc-100">
+                      {Admin.Navbar.UserName}
+                    </p>
+                    <p className="text-[11px] text-zinc-400">{roleLabel}</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push(APP_ROUTES.Dashboard)}
+                >
+                  {Admin.Actions.GoDashboard}
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          <section id="overview" className="dashboard-grid-stats">
             <Card className="dashboard-panel">
               <CardHeader>
-                <CardTitle className={sectionTitleClass}>
-                  Estado de barberia
+                <CardTitle className="dashboard-heading text-base">
+                  {Admin.Stats.Services}
                 </CardTitle>
-                <CardDescription className="dashboard-description">
-                  {canOperate
-                    ? "Barberia configurada. Ya puedes ejecutar el resto del flujo operativo."
-                    : "Aun no tienes barberia asignada. Crea tu barberia para habilitar servicios, barberos, clientes y citas."}
-                </CardDescription>
               </CardHeader>
-              <CardContent>
-                {canOperate ? (
-                  <div className="space-y-4">
-                    {isBarbershopEditMode ? (
-                      <form
-                        className="space-y-3"
-                        onSubmit={onUpdateBarbershopProfile}
-                      >
+              <CardContent className="dashboard-heading text-3xl font-semibold">
+                {stats.services}
+              </CardContent>
+            </Card>
+            <Card className="dashboard-panel">
+              <CardHeader>
+                <CardTitle className="dashboard-heading text-base">
+                  {Admin.Stats.Barbers}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="dashboard-heading text-3xl font-semibold">
+                {stats.barbers}
+              </CardContent>
+            </Card>
+            <Card className="dashboard-panel">
+              <CardHeader>
+                <CardTitle className="dashboard-heading text-base">
+                  {Admin.Stats.Customers}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="dashboard-heading text-3xl font-semibold">
+                {stats.customers}
+              </CardContent>
+            </Card>
+            <Card className="dashboard-panel">
+              <CardHeader>
+                <CardTitle className="dashboard-heading text-base">
+                  {Admin.Stats.Appointments}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="dashboard-heading text-3xl font-semibold">
+                {stats.appointments}
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="space-y-4">
+            <div id="barbershop">
+              <AccordionSection
+                title="Barberia"
+                description="Configuracion general, datos y estado operativo de la barberia."
+              >
+                <Card className="dashboard-panel">
+                  <CardHeader>
+                    <CardTitle className={sectionTitleClass}>
+                      Estado de barberia
+                    </CardTitle>
+                    <CardDescription className="dashboard-description">
+                      {canOperate
+                        ? "Barberia configurada. Ya puedes ejecutar el resto del flujo operativo."
+                        : "Aun no tienes barberia asignada. Crea tu barberia para habilitar servicios, barberos, clientes y citas."}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {canOperate ? (
+                      <div className="space-y-4">
+                        {isBarbershopEditMode ? (
+                          <form
+                            className="space-y-3"
+                            onSubmit={onUpdateBarbershopProfile}
+                          >
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={barbershopName}
+                              onChange={(e) =>
+                                setBarbershopName(e.target.value)
+                              }
+                              placeholder="Nombre de la barberia"
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={barbershopPhone}
+                              onChange={(e) =>
+                                setBarbershopPhone(e.target.value)
+                              }
+                              placeholder={Admin.Fields.Phone}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={barbershopAddressLine}
+                              onChange={(e) =>
+                                setBarbershopAddressLine(e.target.value)
+                              }
+                              placeholder="Direccion (calle, carrera, numero)"
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={barbershopTimezone}
+                              onChange={(e) =>
+                                setBarbershopTimezone(e.target.value)
+                              }
+                              placeholder="Zona horaria"
+                            />
+                            <div className="flex gap-2">
+                              <LoadingButton
+                                type="submit"
+                                disabled={
+                                  !canManageBarbershop ||
+                                  updateBarbershopProfileState.isLoading
+                                }
+                                isLoading={
+                                  updateBarbershopProfileState.isLoading
+                                }
+                                loadingText={Admin.Actions.Updating}
+                              >
+                                Guardar barberia
+                              </LoadingButton>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onCancelBarbershopUpdate}
+                              >
+                                {Admin.Actions.Cancel}
+                              </Button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            <div className="rounded-xl border border-border/60 p-4">
+                              {isBarbershopProfileLoading ? (
+                                <Skeleton className="h-20 rounded-xl" />
+                              ) : (
+                                <dl className="space-y-3">
+                                  <div>
+                                    <dt className="dashboard-microtext">
+                                      {Admin.Fields.Name}
+                                    </dt>
+                                    <dd className="dashboard-heading text-sm font-medium">
+                                      {barbershopProfile?.name ??
+                                        Common.Status.NoData}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt className="dashboard-microtext">
+                                      {Admin.Fields.Phone}
+                                    </dt>
+                                    <dd className="dashboard-heading text-sm font-medium">
+                                      {barbershopProfile?.phone ??
+                                        Common.Status.NoData}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt className="dashboard-microtext">
+                                      Direccion
+                                    </dt>
+                                    <dd className="dashboard-heading text-sm font-medium">
+                                      {barbershopProfile?.address ??
+                                        Common.Status.NoData}
+                                    </dd>
+                                  </div>
+                                  <div>
+                                    <dt className="dashboard-microtext">
+                                      Zona horaria
+                                    </dt>
+                                    <dd className="dashboard-heading text-sm font-medium">
+                                      {barbershopProfile?.timezone ??
+                                        "America/Bogota"}
+                                    </dd>
+                                  </div>
+                                </dl>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={onStartBarbershopUpdate}
+                              disabled={
+                                !canManageBarbershop ||
+                                isBarbershopProfileLoading
+                              }
+                            >
+                              {Admin.Actions.Update}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <form className="space-y-3" onSubmit={onCreateBarbershop}>
                         <input
                           className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
                           value={barbershopName}
@@ -776,6 +1059,34 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
                           }
                           placeholder="Direccion (calle, carrera, numero)"
                         />
+                        <select
+                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                          value={barbershopDepartment}
+                          onChange={(e) => {
+                            setBarbershopDepartment(e.target.value);
+                            setBarbershopCity("");
+                          }}
+                        >
+                          <option value="">Selecciona departamento</option>
+                          {barbershopDepartmentOptions.map((department) => (
+                            <option key={department} value={department}>
+                              {department}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                          value={barbershopCity}
+                          onChange={(e) => setBarbershopCity(e.target.value)}
+                          disabled={!barbershopDepartment}
+                        >
+                          <option value="">Selecciona ciudad</option>
+                          {barbershopCityOptions.map((city) => (
+                            <option key={city} value={city}>
+                              {city}
+                            </option>
+                          ))}
+                        </select>
                         <input
                           className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
                           value={barbershopTimezone}
@@ -784,858 +1095,762 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
                           }
                           placeholder="Zona horaria"
                         />
-                        <div className="flex gap-2">
-                          <LoadingButton
-                            type="submit"
-                            disabled={
-                              !canManageBarbershop ||
-                              updateBarbershopProfileState.isLoading
-                            }
-                            isLoading={updateBarbershopProfileState.isLoading}
-                            loadingText={Admin.Actions.Updating}
-                          >
-                            Guardar barberia
-                          </LoadingButton>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={onCancelBarbershopUpdate}
-                          >
-                            {Admin.Actions.Cancel}
-                          </Button>
-                        </div>
+                        <LoadingButton
+                          type="submit"
+                          isLoading={createBarbershopState.isLoading}
+                          loadingText={Admin.Actions.Creating}
+                        >
+                          Crear barberia
+                        </LoadingButton>
                       </form>
-                    ) : (
-                      <>
-                        <div className="rounded-xl border border-border/60 p-4">
-                          {isBarbershopProfileLoading ? (
-                            <Skeleton className="h-20 rounded-xl" />
+                    )}
+                  </CardContent>
+                </Card>
+              </AccordionSection>
+            </div>
+
+            <div id="operations">
+              <AccordionSection
+                title="Operacion Diaria"
+                description="Altas rapidas para servicios, barberos, clientes y visibilidad de citas."
+              >
+                {!canOperate ? (
+                  <p className="dashboard-microtext">
+                    Debes primero crear tu barberia en la seccion
+                    &quot;Barberia&quot; para habilitar estas operaciones.
+                  </p>
+                ) : null}
+                {canOperate && isOperationalDataRefreshing ? (
+                  <p className="dashboard-microtext">
+                    <LoadingIndicator label={Common.Actions.Loading} />
+                  </p>
+                ) : null}
+                {canOperate ? (
+                  catalogView === "quick" ? (
+                    <section className="dashboard-grid-panels">
+                      <Card className="dashboard-panel">
+                        <CardHeader>
+                          <CardTitle className={sectionTitleClass}>
+                            {Admin.Sections.CreateService}
+                          </CardTitle>
+                          <CardDescription className="dashboard-description">
+                            {Admin.Api.CreateService}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <form
+                            className="space-y-3"
+                            onSubmit={onCreateService}
+                          >
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={serviceName}
+                              onChange={(e) => setServiceName(e.target.value)}
+                              placeholder={Admin.Fields.Name}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={serviceDuration}
+                              onChange={(e) =>
+                                setServiceDuration(e.target.value)
+                              }
+                              placeholder={Admin.Fields.DurationMinutes}
+                              inputMode="numeric"
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={servicePrice}
+                              onChange={(e) => setServicePrice(e.target.value)}
+                              placeholder={Admin.Fields.Price}
+                              inputMode="decimal"
+                            />
+                            <div className="flex gap-2">
+                              <LoadingButton
+                                type="submit"
+                                disabled={
+                                  !canManageServices ||
+                                  createServiceState.isLoading
+                                }
+                                isLoading={createServiceState.isLoading}
+                                loadingText={Admin.Actions.Creating}
+                              >
+                                {Admin.Actions.CreateService}
+                              </LoadingButton>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => onOpenCatalogView("services")}
+                              >
+                                {Admin.Actions.ViewAll}
+                              </Button>
+                            </div>
+                          </form>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="dashboard-panel">
+                        <CardHeader>
+                          <CardTitle className={sectionTitleClass}>
+                            {Admin.Sections.CreateBarber}
+                          </CardTitle>
+                          <CardDescription className="dashboard-description">
+                            {Admin.Api.CreateBarber}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <form className="space-y-3" onSubmit={onCreateBarber}>
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={barberName}
+                              onChange={(e) => setBarberName(e.target.value)}
+                              placeholder={Admin.Fields.Name}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={barberEmail}
+                              onChange={(e) => setBarberEmail(e.target.value)}
+                              placeholder={Admin.Fields.Email}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={barberPhone}
+                              onChange={(e) => setBarberPhone(e.target.value)}
+                              placeholder={Admin.Fields.Phone}
+                            />
+                            <div className="flex gap-2">
+                              <LoadingButton
+                                type="submit"
+                                disabled={
+                                  !canManageBarbers ||
+                                  createBarberState.isLoading
+                                }
+                                isLoading={createBarberState.isLoading}
+                                loadingText={Admin.Actions.Creating}
+                              >
+                                {Admin.Actions.CreateBarber}
+                              </LoadingButton>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => onOpenCatalogView("barbers")}
+                              >
+                                {Admin.Actions.ViewAll}
+                              </Button>
+                            </div>
+                          </form>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="dashboard-panel">
+                        <CardHeader>
+                          <CardTitle className={sectionTitleClass}>
+                            {Admin.Sections.CreateCustomer}
+                          </CardTitle>
+                          <CardDescription className="dashboard-description">
+                            {Admin.Api.CreateCustomer}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <form
+                            className="space-y-3"
+                            onSubmit={onCreateCustomer}
+                          >
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={customerName}
+                              onChange={(e) => setCustomerName(e.target.value)}
+                              placeholder={Admin.Fields.Name}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={customerEmail}
+                              onChange={(e) => setCustomerEmail(e.target.value)}
+                              placeholder={Admin.Fields.Email}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={customerPhone}
+                              onChange={(e) => setCustomerPhone(e.target.value)}
+                              placeholder={Admin.Fields.Phone}
+                            />
+                            <textarea
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                              value={customerNotes}
+                              onChange={(e) => setCustomerNotes(e.target.value)}
+                              placeholder={Admin.Fields.Notes}
+                              rows={3}
+                            />
+                            <div className="flex gap-2">
+                              <LoadingButton
+                                type="submit"
+                                disabled={
+                                  !canManageCustomers ||
+                                  createCustomerState.isLoading
+                                }
+                                isLoading={createCustomerState.isLoading}
+                                loadingText={Admin.Actions.Creating}
+                              >
+                                {Admin.Actions.CreateCustomer}
+                              </LoadingButton>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => onOpenCatalogView("customers")}
+                              >
+                                {Admin.Actions.ViewAll}
+                              </Button>
+                            </div>
+                          </form>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="dashboard-panel">
+                        <CardHeader>
+                          <CardTitle className={sectionTitleClass}>
+                            {Admin.Sections.RecentAppointments}
+                          </CardTitle>
+                          <CardDescription className="dashboard-description">
+                            {Admin.Api.GetAppointments}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          {appointmentsQuery.isLoading ? (
+                            <Skeleton className="h-24 rounded-xl" />
+                          ) : null}
+                          {!appointmentsQuery.isLoading &&
+                          (appointmentsQuery.data?.length ?? 0) === 0 ? (
+                            <p className="dashboard-microtext">
+                              {Admin.Empty.Appointments}
+                            </p>
+                          ) : null}
+                          {canViewAppointments ? (
+                            (appointmentsQuery.data ?? [])
+                              .slice(0, 6)
+                              .map((appointment) => (
+                                <article
+                                  key={appointment.id}
+                                  className="rounded-xl border border-border/60 p-3"
+                                >
+                                  <p className="dashboard-heading text-sm font-medium">
+                                    {appointment.customerName}
+                                  </p>
+                                  <p className="dashboard-microtext">
+                                    {appointment.serviceName} ·{" "}
+                                    {appointment.barberName}
+                                  </p>
+                                  <p className="dashboard-microtext">
+                                    {new Date(
+                                      appointment.appointmentTime,
+                                    ).toLocaleString(Admin.Format.Locale)}
+                                  </p>
+                                </article>
+                              ))
                           ) : (
-                            <dl className="space-y-3">
-                              <div>
-                                <dt className="dashboard-microtext">
-                                  {Admin.Fields.Name}
-                                </dt>
-                                <dd className="dashboard-heading text-sm font-medium">
-                                  {barbershopProfile?.name ??
-                                    Common.Status.NoData}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt className="dashboard-microtext">
-                                  {Admin.Fields.Phone}
-                                </dt>
-                                <dd className="dashboard-heading text-sm font-medium">
-                                  {barbershopProfile?.phone ??
-                                    Common.Status.NoData}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt className="dashboard-microtext">
-                                  Direccion
-                                </dt>
-                                <dd className="dashboard-heading text-sm font-medium">
-                                  {barbershopProfile?.address ??
-                                    Common.Status.NoData}
-                                </dd>
-                              </div>
-                              <div>
-                                <dt className="dashboard-microtext">
-                                  Zona horaria
-                                </dt>
-                                <dd className="dashboard-heading text-sm font-medium">
-                                  {barbershopProfile?.timezone ??
-                                    "America/Bogota"}
-                                </dd>
-                              </div>
-                            </dl>
+                            <p className="dashboard-microtext">
+                              No tienes permisos para ver citas.
+                            </p>
                           )}
-                        </div>
+                        </CardContent>
+                      </Card>
+                    </section>
+                  ) : (
+                    <Card className="dashboard-panel">
+                      <CardHeader className="flex flex-row items-center justify-between gap-2">
+                        <CardTitle className={sectionTitleClass}>
+                          {catalogView === "services"
+                            ? Admin.Sections.ManageServices
+                            : catalogView === "barbers"
+                              ? Admin.Sections.ManageBarbers
+                              : Admin.Sections.ManageCustomers}
+                        </CardTitle>
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={onStartBarbershopUpdate}
-                          disabled={
-                            !canManageBarbershop || isBarbershopProfileLoading
-                          }
+                          onClick={onBackToQuickView}
                         >
-                          {Admin.Actions.Update}
+                          {Admin.Actions.BackToQuick}
                         </Button>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <form className="space-y-3" onSubmit={onCreateBarbershop}>
-                    <input
-                      className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                      value={barbershopName}
-                      onChange={(e) => setBarbershopName(e.target.value)}
-                      placeholder="Nombre de la barberia"
-                    />
-                    <input
-                      className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                      value={barbershopPhone}
-                      onChange={(e) => setBarbershopPhone(e.target.value)}
-                      placeholder={Admin.Fields.Phone}
-                    />
-                    <input
-                      className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                      value={barbershopAddressLine}
-                      onChange={(e) => setBarbershopAddressLine(e.target.value)}
-                      placeholder="Direccion (calle, carrera, numero)"
-                    />
-                    <select
-                      className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                      value={barbershopDepartment}
-                      onChange={(e) => {
-                        setBarbershopDepartment(e.target.value);
-                        setBarbershopCity("");
-                      }}
-                    >
-                      <option value="">Selecciona departamento</option>
-                      {barbershopDepartmentOptions.map((department) => (
-                        <option key={department} value={department}>
-                          {department}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                      value={barbershopCity}
-                      onChange={(e) => setBarbershopCity(e.target.value)}
-                      disabled={!barbershopDepartment}
-                    >
-                      <option value="">Selecciona ciudad</option>
-                      {barbershopCityOptions.map((city) => (
-                        <option key={city} value={city}>
-                          {city}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                      value={barbershopTimezone}
-                      onChange={(e) => setBarbershopTimezone(e.target.value)}
-                      placeholder="Zona horaria"
-                    />
-                    <LoadingButton
-                      type="submit"
-                      isLoading={createBarbershopState.isLoading}
-                      loadingText={Admin.Actions.Creating}
-                    >
-                      Crear barberia
-                    </LoadingButton>
-                  </form>
-                )}
-              </CardContent>
-            </Card>
-          </AccordionSection>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {catalogView === "services" ? (
+                          <div className="overflow-x-auto rounded-xl border border-border/60">
+                            <table className="min-w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-border/60 text-left">
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Name}
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.DurationMinutes}
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Price}
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Status}
+                                  </th>
+                                  <th className="px-3 py-2">Acciones</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(servicesQuery.data ?? []).map((service) => (
+                                  <tr
+                                    key={service.id}
+                                    className="border-b border-border/40"
+                                  >
+                                    <td className="px-3 py-2">
+                                      {service.name}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      {service.durationMinutes}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      {service.price}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      {service.active
+                                        ? Common.Status.Ok
+                                        : Common.Status.Error}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <div className="flex gap-2">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            setEditingService(service)
+                                          }
+                                        >
+                                          {Admin.Actions.Edit}
+                                        </Button>
+                                        <LoadingButton
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            onDeleteService(service.id)
+                                          }
+                                          isLoading={
+                                            deleteServiceState.isLoading
+                                          }
+                                          loadingText={Admin.Actions.Deleting}
+                                        >
+                                          {Admin.Actions.Delete}
+                                        </LoadingButton>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : null}
 
-          <AccordionSection
-            title="Operacion Diaria"
-            description="Altas rapidas para servicios, barberos, clientes y visibilidad de citas."
-          >
-            {!canOperate ? (
-              <p className="dashboard-microtext">
-                Debes primero crear tu barberia en la seccion
-                &quot;Barberia&quot; para habilitar estas operaciones.
-              </p>
-            ) : null}
-            {canOperate && isOperationalDataRefreshing ? (
-              <p className="dashboard-microtext">
-                <LoadingIndicator label={Common.Actions.Loading} />
-              </p>
-            ) : null}
-            {canOperate ? (
-              catalogView === "quick" ? (
-                <section className="dashboard-grid-panels">
-                  <Card className="dashboard-panel">
-                    <CardHeader>
-                      <CardTitle className={sectionTitleClass}>
-                        {Admin.Sections.CreateService}
-                      </CardTitle>
-                      <CardDescription className="dashboard-description">
-                        {Admin.Api.CreateService}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <form className="space-y-3" onSubmit={onCreateService}>
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={serviceName}
-                          onChange={(e) => setServiceName(e.target.value)}
-                          placeholder={Admin.Fields.Name}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={serviceDuration}
-                          onChange={(e) => setServiceDuration(e.target.value)}
-                          placeholder={Admin.Fields.DurationMinutes}
-                          inputMode="numeric"
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={servicePrice}
-                          onChange={(e) => setServicePrice(e.target.value)}
-                          placeholder={Admin.Fields.Price}
-                          inputMode="decimal"
-                        />
-                        <div className="flex gap-2">
-                          <LoadingButton
-                            type="submit"
-                            disabled={
-                              !canManageServices || createServiceState.isLoading
-                            }
-                            isLoading={createServiceState.isLoading}
-                            loadingText={Admin.Actions.Creating}
-                          >
-                            {Admin.Actions.CreateService}
-                          </LoadingButton>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenCatalogView("services")}
-                          >
-                            {Admin.Actions.ViewAll}
-                          </Button>
-                        </div>
-                      </form>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="dashboard-panel">
-                    <CardHeader>
-                      <CardTitle className={sectionTitleClass}>
-                        {Admin.Sections.CreateBarber}
-                      </CardTitle>
-                      <CardDescription className="dashboard-description">
-                        {Admin.Api.CreateBarber}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <form className="space-y-3" onSubmit={onCreateBarber}>
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={barberName}
-                          onChange={(e) => setBarberName(e.target.value)}
-                          placeholder={Admin.Fields.Name}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={barberEmail}
-                          onChange={(e) => setBarberEmail(e.target.value)}
-                          placeholder={Admin.Fields.Email}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={barberPhone}
-                          onChange={(e) => setBarberPhone(e.target.value)}
-                          placeholder={Admin.Fields.Phone}
-                        />
-                        <div className="flex gap-2">
-                          <LoadingButton
-                            type="submit"
-                            disabled={
-                              !canManageBarbers || createBarberState.isLoading
-                            }
-                            isLoading={createBarberState.isLoading}
-                            loadingText={Admin.Actions.Creating}
-                          >
-                            {Admin.Actions.CreateBarber}
-                          </LoadingButton>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenCatalogView("barbers")}
-                          >
-                            {Admin.Actions.ViewAll}
-                          </Button>
-                        </div>
-                      </form>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="dashboard-panel">
-                    <CardHeader>
-                      <CardTitle className={sectionTitleClass}>
-                        {Admin.Sections.CreateCustomer}
-                      </CardTitle>
-                      <CardDescription className="dashboard-description">
-                        {Admin.Api.CreateCustomer}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <form className="space-y-3" onSubmit={onCreateCustomer}>
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          placeholder={Admin.Fields.Name}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={customerEmail}
-                          onChange={(e) => setCustomerEmail(e.target.value)}
-                          placeholder={Admin.Fields.Email}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value)}
-                          placeholder={Admin.Fields.Phone}
-                        />
-                        <textarea
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                          value={customerNotes}
-                          onChange={(e) => setCustomerNotes(e.target.value)}
-                          placeholder={Admin.Fields.Notes}
-                          rows={3}
-                        />
-                        <div className="flex gap-2">
-                          <LoadingButton
-                            type="submit"
-                            disabled={
-                              !canManageCustomers ||
-                              createCustomerState.isLoading
-                            }
-                            isLoading={createCustomerState.isLoading}
-                            loadingText={Admin.Actions.Creating}
-                          >
-                            {Admin.Actions.CreateCustomer}
-                          </LoadingButton>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenCatalogView("customers")}
-                          >
-                            {Admin.Actions.ViewAll}
-                          </Button>
-                        </div>
-                      </form>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="dashboard-panel">
-                    <CardHeader>
-                      <CardTitle className={sectionTitleClass}>
-                        {Admin.Sections.RecentAppointments}
-                      </CardTitle>
-                      <CardDescription className="dashboard-description">
-                        {Admin.Api.GetAppointments}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {appointmentsQuery.isLoading ? (
-                        <Skeleton className="h-24 rounded-xl" />
-                      ) : null}
-                      {!appointmentsQuery.isLoading &&
-                      (appointmentsQuery.data?.length ?? 0) === 0 ? (
-                        <p className="dashboard-microtext">
-                          {Admin.Empty.Appointments}
-                        </p>
-                      ) : null}
-                      {canViewAppointments ? (
-                        (appointmentsQuery.data ?? [])
-                          .slice(0, 6)
-                          .map((appointment) => (
-                            <article
-                              key={appointment.id}
-                              className="rounded-xl border border-border/60 p-3"
-                            >
-                              <p className="dashboard-heading text-sm font-medium">
-                                {appointment.customerName}
-                              </p>
-                              <p className="dashboard-microtext">
-                                {appointment.serviceName} ·{" "}
-                                {appointment.barberName}
-                              </p>
-                              <p className="dashboard-microtext">
-                                {new Date(
-                                  appointment.appointmentTime,
-                                ).toLocaleString(Admin.Format.Locale)}
-                              </p>
-                            </article>
-                          ))
-                      ) : (
-                        <p className="dashboard-microtext">
-                          No tienes permisos para ver citas.
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </section>
-              ) : (
-                <Card className="dashboard-panel">
-                  <CardHeader className="flex flex-row items-center justify-between gap-2">
-                    <CardTitle className={sectionTitleClass}>
-                      {catalogView === "services"
-                        ? Admin.Sections.ManageServices
-                        : catalogView === "barbers"
-                          ? Admin.Sections.ManageBarbers
-                          : Admin.Sections.ManageCustomers}
-                    </CardTitle>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={onBackToQuickView}
-                    >
-                      {Admin.Actions.BackToQuick}
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {catalogView === "services" ? (
-                      <div className="overflow-x-auto rounded-xl border border-border/60">
-                        <table className="min-w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-border/60 text-left">
-                              <th className="px-3 py-2">{Admin.Fields.Name}</th>
-                              <th className="px-3 py-2">
-                                {Admin.Fields.DurationMinutes}
-                              </th>
-                              <th className="px-3 py-2">
-                                {Admin.Fields.Price}
-                              </th>
-                              <th className="px-3 py-2">
-                                {Admin.Fields.Status}
-                              </th>
-                              <th className="px-3 py-2">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(servicesQuery.data ?? []).map((service) => (
-                              <tr
-                                key={service.id}
-                                className="border-b border-border/40"
-                              >
-                                <td className="px-3 py-2">{service.name}</td>
-                                <td className="px-3 py-2">
-                                  {service.durationMinutes}
-                                </td>
-                                <td className="px-3 py-2">{service.price}</td>
-                                <td className="px-3 py-2">
-                                  {service.active
-                                    ? Common.Status.Ok
-                                    : Common.Status.Error}
-                                </td>
-                                <td className="px-3 py-2">
-                                  <div className="flex gap-2">
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => setEditingService(service)}
-                                    >
-                                      {Admin.Actions.Edit}
-                                    </Button>
-                                    <LoadingButton
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        onDeleteService(service.id)
-                                      }
-                                      isLoading={deleteServiceState.isLoading}
-                                      loadingText={Admin.Actions.Deleting}
-                                    >
-                                      {Admin.Actions.Delete}
-                                    </LoadingButton>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : null}
-
-                    {catalogView === "barbers" ? (
-                      <div className="overflow-x-auto rounded-xl border border-border/60">
-                        <table className="min-w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-border/60 text-left">
-                              <th className="px-3 py-2">{Admin.Fields.Name}</th>
-                              <th className="px-3 py-2">
-                                {Admin.Fields.Email}
-                              </th>
-                              <th className="px-3 py-2">
-                                {Admin.Fields.Phone}
-                              </th>
-                              <th className="px-3 py-2">
-                                {Admin.Fields.Status}
-                              </th>
-                              <th className="px-3 py-2">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(barbersQuery.data ?? []).map((barber) => (
-                              <tr
-                                key={barber.id}
-                                className="border-b border-border/40"
-                              >
-                                <td className="px-3 py-2">{barber.name}</td>
-                                <td className="px-3 py-2">
-                                  {barber.email ?? Common.Status.NoData}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {barber.phone ?? Common.Status.NoData}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {barber.isActive
-                                    ? Common.Status.Ok
-                                    : Common.Status.Error}
-                                </td>
-                                <td className="px-3 py-2">
-                                  <div className="flex gap-2">
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => setEditingBarber(barber)}
-                                    >
-                                      {Admin.Actions.Edit}
-                                    </Button>
-                                    <LoadingButton
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        onToggleBarberActive(barber)
-                                      }
-                                      isLoading={
-                                        deleteBarberState.isLoading ||
-                                        updateBarberState.isLoading
-                                      }
-                                      loadingText={Admin.Actions.Updating}
-                                    >
+                        {catalogView === "barbers" ? (
+                          <div className="overflow-x-auto rounded-xl border border-border/60">
+                            <table className="min-w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-border/60 text-left">
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Name}
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Email}
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Phone}
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Status}
+                                  </th>
+                                  <th className="px-3 py-2">Acciones</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(barbersQuery.data ?? []).map((barber) => (
+                                  <tr
+                                    key={barber.id}
+                                    className="border-b border-border/40"
+                                  >
+                                    <td className="px-3 py-2">{barber.name}</td>
+                                    <td className="px-3 py-2">
+                                      {barber.email ?? Common.Status.NoData}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      {barber.phone ?? Common.Status.NoData}
+                                    </td>
+                                    <td className="px-3 py-2">
                                       {barber.isActive
-                                        ? Admin.Actions.Deactivate
-                                        : Admin.Actions.Activate}
-                                    </LoadingButton>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : null}
+                                        ? Common.Status.Ok
+                                        : Common.Status.Error}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <div className="flex gap-2">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            setEditingBarber(barber)
+                                          }
+                                        >
+                                          {Admin.Actions.Edit}
+                                        </Button>
+                                        <LoadingButton
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            onToggleBarberActive(barber)
+                                          }
+                                          isLoading={
+                                            deleteBarberState.isLoading ||
+                                            updateBarberState.isLoading
+                                          }
+                                          loadingText={Admin.Actions.Updating}
+                                        >
+                                          {barber.isActive
+                                            ? Admin.Actions.Deactivate
+                                            : Admin.Actions.Activate}
+                                        </LoadingButton>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : null}
 
-                    {catalogView === "customers" ? (
-                      <div className="overflow-x-auto rounded-xl border border-border/60">
-                        <table className="min-w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-border/60 text-left">
-                              <th className="px-3 py-2">{Admin.Fields.Name}</th>
-                              <th className="px-3 py-2">
-                                {Admin.Fields.Email}
-                              </th>
-                              <th className="px-3 py-2">
-                                {Admin.Fields.Phone}
-                              </th>
-                              <th className="px-3 py-2">
-                                {Admin.Fields.Status}
-                              </th>
-                              <th className="px-3 py-2">Acciones</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(customersQuery.data ?? []).map((customer) => (
-                              <tr
-                                key={customer.id}
-                                className="border-b border-border/40"
-                              >
-                                <td className="px-3 py-2">
-                                  {customer.name ?? Common.Status.NoData}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {customer.email ?? Common.Status.NoData}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {customer.phone ?? Common.Status.NoData}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {customer.isActive
-                                    ? Common.Status.Ok
-                                    : Common.Status.Error}
-                                </td>
-                                <td className="px-3 py-2">
-                                  <div className="flex gap-2">
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        setEditingCustomer(customer)
-                                      }
-                                    >
-                                      {Admin.Actions.Edit}
-                                    </Button>
-                                    <LoadingButton
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() =>
-                                        onToggleCustomerActive(customer)
-                                      }
-                                      isLoading={
-                                        deleteCustomerState.isLoading ||
-                                        updateCustomerState.isLoading
-                                      }
-                                      loadingText={Admin.Actions.Updating}
-                                    >
+                        {catalogView === "customers" ? (
+                          <div className="overflow-x-auto rounded-xl border border-border/60">
+                            <table className="min-w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-border/60 text-left">
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Name}
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Email}
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Phone}
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    {Admin.Fields.Status}
+                                  </th>
+                                  <th className="px-3 py-2">Acciones</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(customersQuery.data ?? []).map((customer) => (
+                                  <tr
+                                    key={customer.id}
+                                    className="border-b border-border/40"
+                                  >
+                                    <td className="px-3 py-2">
+                                      {customer.name ?? Common.Status.NoData}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      {customer.email ?? Common.Status.NoData}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      {customer.phone ?? Common.Status.NoData}
+                                    </td>
+                                    <td className="px-3 py-2">
                                       {customer.isActive
-                                        ? Admin.Actions.Deactivate
-                                        : Admin.Actions.Activate}
-                                    </LoadingButton>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : null}
+                                        ? Common.Status.Ok
+                                        : Common.Status.Error}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <div className="flex gap-2">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            setEditingCustomer(customer)
+                                          }
+                                        >
+                                          {Admin.Actions.Edit}
+                                        </Button>
+                                        <LoadingButton
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() =>
+                                            onToggleCustomerActive(customer)
+                                          }
+                                          isLoading={
+                                            deleteCustomerState.isLoading ||
+                                            updateCustomerState.isLoading
+                                          }
+                                          loadingText={Admin.Actions.Updating}
+                                        >
+                                          {customer.isActive
+                                            ? Admin.Actions.Deactivate
+                                            : Admin.Actions.Activate}
+                                        </LoadingButton>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : null}
 
-                    {editingService ? (
-                      <form className="space-y-3" onSubmit={onUpdateService}>
-                        <p className="dashboard-heading text-sm">
-                          Editar servicio
-                        </p>
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={editingService.name}
-                          onChange={(e) =>
-                            setEditingService({
-                              ...editingService,
-                              name: e.target.value,
-                            })
-                          }
-                          placeholder={Admin.Fields.Name}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={`${editingService.durationMinutes}`}
-                          onChange={(e) =>
-                            setEditingService({
-                              ...editingService,
-                              durationMinutes: Number(e.target.value),
-                            })
-                          }
-                          placeholder={Admin.Fields.DurationMinutes}
-                          inputMode="numeric"
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={`${editingService.price}`}
-                          onChange={(e) =>
-                            setEditingService({
-                              ...editingService,
-                              price: Number(e.target.value),
-                            })
-                          }
-                          placeholder={Admin.Fields.Price}
-                          inputMode="decimal"
-                        />
-                        <div className="flex gap-2">
-                          <LoadingButton
-                            type="submit"
-                            isLoading={updateServiceState.isLoading}
-                            loadingText={Admin.Actions.Saving}
+                        {editingService ? (
+                          <form
+                            className="space-y-3"
+                            onSubmit={onUpdateService}
                           >
-                            {Admin.Actions.Save}
-                          </LoadingButton>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setEditingService(null)}
-                          >
-                            {Admin.Actions.Cancel}
-                          </Button>
-                        </div>
-                      </form>
-                    ) : null}
+                            <p className="dashboard-heading text-sm">
+                              Editar servicio
+                            </p>
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={editingService.name}
+                              onChange={(e) =>
+                                setEditingService({
+                                  ...editingService,
+                                  name: e.target.value,
+                                })
+                              }
+                              placeholder={Admin.Fields.Name}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={`${editingService.durationMinutes}`}
+                              onChange={(e) =>
+                                setEditingService({
+                                  ...editingService,
+                                  durationMinutes: Number(e.target.value),
+                                })
+                              }
+                              placeholder={Admin.Fields.DurationMinutes}
+                              inputMode="numeric"
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={`${editingService.price}`}
+                              onChange={(e) =>
+                                setEditingService({
+                                  ...editingService,
+                                  price: Number(e.target.value),
+                                })
+                              }
+                              placeholder={Admin.Fields.Price}
+                              inputMode="decimal"
+                            />
+                            <div className="flex gap-2">
+                              <LoadingButton
+                                type="submit"
+                                isLoading={updateServiceState.isLoading}
+                                loadingText={Admin.Actions.Saving}
+                              >
+                                {Admin.Actions.Save}
+                              </LoadingButton>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setEditingService(null)}
+                              >
+                                {Admin.Actions.Cancel}
+                              </Button>
+                            </div>
+                          </form>
+                        ) : null}
 
-                    {editingBarber ? (
-                      <form className="space-y-3" onSubmit={onUpdateBarber}>
-                        <p className="dashboard-heading text-sm">
-                          Editar barbero
-                        </p>
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={editingBarber.name}
-                          onChange={(e) =>
-                            setEditingBarber({
-                              ...editingBarber,
-                              name: e.target.value,
-                            })
-                          }
-                          placeholder={Admin.Fields.Name}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={editingBarber.email ?? ""}
-                          onChange={(e) =>
-                            setEditingBarber({
-                              ...editingBarber,
-                              email: e.target.value,
-                            })
-                          }
-                          placeholder={Admin.Fields.Email}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={editingBarber.phone ?? ""}
-                          onChange={(e) =>
-                            setEditingBarber({
-                              ...editingBarber,
-                              phone: e.target.value,
-                            })
-                          }
-                          placeholder={Admin.Fields.Phone}
-                        />
-                        <label className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={editingBarber.isActive}
-                            onChange={(e) =>
-                              setEditingBarber({
-                                ...editingBarber,
-                                isActive: e.target.checked,
-                              })
-                            }
-                          />
-                          {editingBarber.isActive
-                            ? Admin.Actions.Deactivate
-                            : Admin.Actions.Activate}
-                        </label>
-                        <div className="flex gap-2">
-                          <LoadingButton
-                            type="submit"
-                            isLoading={updateBarberState.isLoading}
-                            loadingText={Admin.Actions.Saving}
-                          >
-                            {Admin.Actions.Save}
-                          </LoadingButton>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setEditingBarber(null)}
-                          >
-                            {Admin.Actions.Cancel}
-                          </Button>
-                        </div>
-                      </form>
-                    ) : null}
+                        {editingBarber ? (
+                          <form className="space-y-3" onSubmit={onUpdateBarber}>
+                            <p className="dashboard-heading text-sm">
+                              Editar barbero
+                            </p>
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={editingBarber.name}
+                              onChange={(e) =>
+                                setEditingBarber({
+                                  ...editingBarber,
+                                  name: e.target.value,
+                                })
+                              }
+                              placeholder={Admin.Fields.Name}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={editingBarber.email ?? ""}
+                              onChange={(e) =>
+                                setEditingBarber({
+                                  ...editingBarber,
+                                  email: e.target.value,
+                                })
+                              }
+                              placeholder={Admin.Fields.Email}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={editingBarber.phone ?? ""}
+                              onChange={(e) =>
+                                setEditingBarber({
+                                  ...editingBarber,
+                                  phone: e.target.value,
+                                })
+                              }
+                              placeholder={Admin.Fields.Phone}
+                            />
+                            <label className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={editingBarber.isActive}
+                                onChange={(e) =>
+                                  setEditingBarber({
+                                    ...editingBarber,
+                                    isActive: e.target.checked,
+                                  })
+                                }
+                              />
+                              {editingBarber.isActive
+                                ? Admin.Actions.Deactivate
+                                : Admin.Actions.Activate}
+                            </label>
+                            <div className="flex gap-2">
+                              <LoadingButton
+                                type="submit"
+                                isLoading={updateBarberState.isLoading}
+                                loadingText={Admin.Actions.Saving}
+                              >
+                                {Admin.Actions.Save}
+                              </LoadingButton>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setEditingBarber(null)}
+                              >
+                                {Admin.Actions.Cancel}
+                              </Button>
+                            </div>
+                          </form>
+                        ) : null}
 
-                    {editingCustomer ? (
-                      <form className="space-y-3" onSubmit={onUpdateCustomer}>
-                        <p className="dashboard-heading text-sm">
-                          Editar cliente
-                        </p>
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={editingCustomer.name ?? ""}
-                          onChange={(e) =>
-                            setEditingCustomer({
-                              ...editingCustomer,
-                              name: e.target.value,
-                            })
-                          }
-                          placeholder={Admin.Fields.Name}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={editingCustomer.email ?? ""}
-                          onChange={(e) =>
-                            setEditingCustomer({
-                              ...editingCustomer,
-                              email: e.target.value,
-                            })
-                          }
-                          placeholder={Admin.Fields.Email}
-                        />
-                        <input
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={editingCustomer.phone ?? ""}
-                          onChange={(e) =>
-                            setEditingCustomer({
-                              ...editingCustomer,
-                              phone: e.target.value,
-                            })
-                          }
-                          placeholder={Admin.Fields.Phone}
-                        />
-                        <textarea
-                          className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
-                          value={editingCustomer.notes ?? ""}
-                          onChange={(e) =>
-                            setEditingCustomer({
-                              ...editingCustomer,
-                              notes: e.target.value,
-                            })
-                          }
-                          placeholder={Admin.Fields.Notes}
-                          rows={3}
-                        />
-                        <label className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={editingCustomer.isActive}
-                            onChange={(e) =>
-                              setEditingCustomer({
-                                ...editingCustomer,
-                                isActive: e.target.checked,
-                              })
-                            }
-                          />
-                          {editingCustomer.isActive
-                            ? Admin.Actions.Deactivate
-                            : Admin.Actions.Activate}
-                        </label>
-                        <div className="flex gap-2">
-                          <LoadingButton
-                            type="submit"
-                            isLoading={updateCustomerState.isLoading}
-                            loadingText={Admin.Actions.Saving}
+                        {editingCustomer ? (
+                          <form
+                            className="space-y-3"
+                            onSubmit={onUpdateCustomer}
                           >
-                            {Admin.Actions.Save}
-                          </LoadingButton>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setEditingCustomer(null)}
-                          >
-                            {Admin.Actions.Cancel}
-                          </Button>
-                        </div>
-                      </form>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              )
+                            <p className="dashboard-heading text-sm">
+                              Editar cliente
+                            </p>
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={editingCustomer.name ?? ""}
+                              onChange={(e) =>
+                                setEditingCustomer({
+                                  ...editingCustomer,
+                                  name: e.target.value,
+                                })
+                              }
+                              placeholder={Admin.Fields.Name}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={editingCustomer.email ?? ""}
+                              onChange={(e) =>
+                                setEditingCustomer({
+                                  ...editingCustomer,
+                                  email: e.target.value,
+                                })
+                              }
+                              placeholder={Admin.Fields.Email}
+                            />
+                            <input
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={editingCustomer.phone ?? ""}
+                              onChange={(e) =>
+                                setEditingCustomer({
+                                  ...editingCustomer,
+                                  phone: e.target.value,
+                                })
+                              }
+                              placeholder={Admin.Fields.Phone}
+                            />
+                            <textarea
+                              className="w-full rounded-xl border border-border bg-background/80 px-3 py-2 text-sm text-foreground"
+                              value={editingCustomer.notes ?? ""}
+                              onChange={(e) =>
+                                setEditingCustomer({
+                                  ...editingCustomer,
+                                  notes: e.target.value,
+                                })
+                              }
+                              placeholder={Admin.Fields.Notes}
+                              rows={3}
+                            />
+                            <label className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={editingCustomer.isActive}
+                                onChange={(e) =>
+                                  setEditingCustomer({
+                                    ...editingCustomer,
+                                    isActive: e.target.checked,
+                                  })
+                                }
+                              />
+                              {editingCustomer.isActive
+                                ? Admin.Actions.Deactivate
+                                : Admin.Actions.Activate}
+                            </label>
+                            <div className="flex gap-2">
+                              <LoadingButton
+                                type="submit"
+                                isLoading={updateCustomerState.isLoading}
+                                loadingText={Admin.Actions.Saving}
+                              >
+                                {Admin.Actions.Save}
+                              </LoadingButton>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setEditingCustomer(null)}
+                              >
+                                {Admin.Actions.Cancel}
+                              </Button>
+                            </div>
+                          </form>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  )
+                ) : null}
+              </AccordionSection>
+            </div>
+
+            {isSuperAdmin ? (
+              <div id="superadmin">
+                <AccordionSection
+                  title="Super Admin"
+                  description="Funciones globales del SaaS (multi-tenant, auditoria y politicas)."
+                >
+                  <Card className="dashboard-panel">
+                    <CardHeader>
+                      <CardTitle className={sectionTitleClass}>
+                        Control global de plataforma
+                      </CardTitle>
+                      <CardDescription className="dashboard-description">
+                        Este espacio estara dedicado a funciones exclusivas de
+                        SuperAdmin: gestion de tenants, cuotas, facturacion y
+                        salud global.
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </AccordionSection>
+              </div>
             ) : null}
-          </AccordionSection>
-
-          {isSuperAdmin ? (
-            <AccordionSection
-              title="Super Admin"
-              description="Funciones globales del SaaS (multi-tenant, auditoria y politicas)."
-            >
-              <Card className="dashboard-panel">
-                <CardHeader>
-                  <CardTitle className={sectionTitleClass}>
-                    Control global de plataforma
-                  </CardTitle>
-                  <CardDescription className="dashboard-description">
-                    Este espacio estara dedicado a funciones exclusivas de
-                    SuperAdmin: gestion de tenants, cuotas, facturacion y salud
-                    global.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </AccordionSection>
-          ) : null}
-        </section>
+          </section>
+        </div>
       </section>
     </main>
   );
