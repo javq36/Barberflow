@@ -139,12 +139,18 @@ Backend:
   - `PATCH /appointments/{id}/cancel`
 - Availability slots implemented (`GET /availability/slots`)
 
-Frontend (Owner dashboard/admin):
+Frontend (Owner web app):
 
 - Login/register + session guards
-- Admin module with quick-create and full-width management tables
+- Route-based owner panel with shared shell (sidebar + topbar)
+- Dedicated pages for operations: `/services`, `/barbers`, `/customers`, `/schedule`
+- Dashboard overview at `/dashboard` and legacy `/admin` redirected to dashboard
 - Barbershop view/update flow and owner onboarding without initial barbershop
 - Loading UX standardized (`LoadingIndicator` + `LoadingButton`)
+- Schedule UX connected to backend (day/week/month range, drag/drop reschedule, status actions)
+- Schedule conflict validation per barber (same slot allowed for different barbers)
+- Customer suggestions shown only after typing and receiving API matches
+- Defensive datetime parsing for timezone-less API values (treated as UTC in UI)
 
 ## Database Workflow (Official)
 
@@ -165,7 +171,8 @@ Detailed guide:
 
 ## Next MVP Focus
 
-- Build visual appointment flow in `/admin` using availability slots
-- Connect admin UI to appointment management endpoints (`status/reschedule/cancel`)
-- Add consistent confirmation dialogs and table filters/search
+- Add frontend integration tests for owner panel critical flows
+- Add advanced filtering/search UX for large tables (services/barbers/customers/appointments)
+- Normalize API appointment datetime responses with explicit timezone offset/UTC suffix
+- Replace remaining ad-hoc confirmations with consistent dialog patterns
 - Define multi-branch owner model (multiple barbershops per owner) as next architecture increment
