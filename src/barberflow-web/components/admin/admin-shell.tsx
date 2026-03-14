@@ -2,6 +2,19 @@
 
 import { FormEvent, ReactNode, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Bell,
+  CalendarDays,
+  LayoutDashboard,
+  Menu,
+  Scissors,
+  Search,
+  ShieldUser,
+  Store,
+  Users,
+  Wrench,
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -51,6 +64,7 @@ type AdminShellProps = {
 };
 
 type CatalogView = "quick" | "services" | "barbers" | "customers";
+type AdminSectionId = "overview" | "barbershop" | "operations" | "superadmin";
 
 const COLOMBIA_DEPARTMENT_CITY_MAP: Record<string, string[]> = {
   Antioquia: ["Medellin", "Bello", "Envigado", "Itagui"],
@@ -186,6 +200,7 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
     null,
   );
   const [catalogView, setCatalogView] = useState<CatalogView>("quick");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const stats = useMemo(
     () => ({
@@ -465,6 +480,22 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
     setEditingCustomer(null);
   }
 
+  function onNavigateToSection(
+    sectionId: AdminSectionId,
+    nextCatalogView?: CatalogView,
+  ) {
+    if (nextCatalogView) {
+      setCatalogView(nextCatalogView);
+    }
+
+    setIsSidebarOpen(false);
+
+    requestAnimationFrame(() => {
+      const target = document.getElementById(sectionId);
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   async function onToggleBarberActive(barber: BarberItem) {
     if (barber.isActive) {
       await onDeleteBarber(barber.id);
@@ -660,36 +691,162 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
     barbersQuery.isFetching ||
     customersQuery.isFetching ||
     appointmentsQuery.isFetching;
+  const roleLabel = role === "SuperAdmin" ? "SuperAdmin" : "Manager";
 
   return (
     <main className="relative min-h-screen overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8">
       <div className="dashboard-atmosphere" />
 
-      <section className="dashboard-container">
-        <header className="dashboard-hero p-4 sm:p-6 md:p-8">
-          <div className="flex flex-col gap-3 sm:gap-4 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-2">
-              <Badge className="dashboard-badge-brand">
-                {Admin.Actions.OpenAdmin}
-              </Badge>
-              <h1 className="dashboard-heading text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
-                {Admin.Title}
-              </h1>
-              <p className="dashboard-body-muted max-w-2xl text-sm leading-relaxed sm:text-base">
-                {Admin.Description}
-              </p>
+      <section className="dashboard-container grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <aside
+          className={`dashboard-panel fixed inset-y-3 left-3 z-40 h-auto w-[260px] overflow-y-auto p-3 transition-transform duration-200 lg:sticky lg:top-4 lg:z-auto lg:block lg:h-fit lg:w-auto lg:translate-x-0 ${
+            isSidebarOpen ? "translate-x-0" : "-translate-x-[110%]"
+          }`}
+        >
+          <div className="mb-4 flex items-center gap-2 px-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/20 text-orange-300">
+              <Scissors className="h-4 w-4" />
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.push(APP_ROUTES.Dashboard)}
-            >
-              {Admin.Actions.GoDashboard}
-            </Button>
+            <div>
+              <p className="dashboard-heading text-base font-semibold">BarberFlow</p>
+              <p className="dashboard-microtext text-xs">Admin Panel</p>
+            </div>
           </div>
-        </header>
+          <nav className="space-y-1">
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("overview")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              {Admin.Navigation.Overview}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("barbershop")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <Store className="h-4 w-4" />
+              {Admin.Navigation.Barbershop}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("operations", "quick")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <Wrench className="h-4 w-4" />
+              {Admin.Navigation.Operations}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("operations", "services")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <Scissors className="h-4 w-4" />
+              {Admin.Navigation.Services}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("operations", "barbers")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <Users className="h-4 w-4" />
+              {Admin.Navigation.Barbers}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateToSection("operations", "customers")}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+            >
+              <CalendarDays className="h-4 w-4" />
+              {Admin.Navigation.Customers}
+            </button>
+            {isSuperAdmin ? (
+              <button
+                type="button"
+                onClick={() => onNavigateToSection("superadmin")}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-zinc-300 transition hover:bg-zinc-800/70 hover:text-zinc-100"
+              >
+                <ShieldUser className="h-4 w-4" />
+                {Admin.Navigation.SuperAdmin}
+              </button>
+            ) : null}
+          </nav>
+        </aside>
 
-        <section className="dashboard-grid-stats">
+        {isSidebarOpen ? (
+          <button
+            type="button"
+            aria-label={Admin.Navbar.CloseMenu}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+          />
+        ) : null}
+
+        <div className="space-y-4">
+          <header className="dashboard-panel p-3 sm:p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <Badge className="dashboard-badge-brand">{Admin.Actions.OpenAdmin}</Badge>
+                <h1 className="dashboard-heading text-xl font-semibold tracking-tight sm:text-2xl">
+                  {Admin.Title}
+                </h1>
+                <p className="dashboard-body-muted text-sm">{Admin.Description}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  aria-label={
+                    isSidebarOpen
+                      ? Admin.Navbar.CloseMenu
+                      : Admin.Navbar.OpenMenu
+                  }
+                  onClick={() => setIsSidebarOpen((previous) => !previous)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-zinc-100 lg:hidden"
+                >
+                  {isSidebarOpen ? (
+                    <X className="h-4 w-4" />
+                  ) : (
+                    <Menu className="h-4 w-4" />
+                  )}
+                </button>
+                <div className="relative min-w-[220px]">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                  <input
+                    type="search"
+                    placeholder={Admin.Navbar.SearchPlaceholder}
+                    className="h-9 w-full rounded-lg border border-zinc-700 bg-zinc-900 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  aria-label={Admin.Navbar.Notifications}
+                  className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-700 bg-zinc-900 text-zinc-300 hover:text-zinc-100"
+                >
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-orange-400" />
+                </button>
+                <div className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-700 text-xs font-semibold text-zinc-100">
+                    AU
+                  </div>
+                  <div className="leading-tight">
+                    <p className="text-xs font-semibold text-zinc-100">{Admin.Navbar.UserName}</p>
+                    <p className="text-[11px] text-zinc-400">{roleLabel}</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push(APP_ROUTES.Dashboard)}
+                >
+                  {Admin.Actions.GoDashboard}
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          <section id="overview" className="dashboard-grid-stats">
           <Card className="dashboard-panel">
             <CardHeader>
               <CardTitle className="dashboard-heading text-base">
@@ -733,10 +890,11 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
         </section>
 
         <section className="space-y-4">
-          <AccordionSection
-            title="Barberia"
-            description="Configuracion general, datos y estado operativo de la barberia."
-          >
+          <div id="barbershop">
+            <AccordionSection
+              title="Barberia"
+              description="Configuracion general, datos y estado operativo de la barberia."
+            >
             <Card className="dashboard-panel">
               <CardHeader>
                 <CardTitle className={sectionTitleClass}>
@@ -929,12 +1087,14 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
                 )}
               </CardContent>
             </Card>
-          </AccordionSection>
+            </AccordionSection>
+          </div>
 
-          <AccordionSection
-            title="Operacion Diaria"
-            description="Altas rapidas para servicios, barberos, clientes y visibilidad de citas."
-          >
+          <div id="operations">
+            <AccordionSection
+              title="Operacion Diaria"
+              description="Altas rapidas para servicios, barberos, clientes y visibilidad de citas."
+            >
             {!canOperate ? (
               <p className="dashboard-microtext">
                 Debes primero crear tu barberia en la seccion
@@ -1614,13 +1774,15 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
                 </Card>
               )
             ) : null}
-          </AccordionSection>
+            </AccordionSection>
+          </div>
 
           {isSuperAdmin ? (
-            <AccordionSection
-              title="Super Admin"
-              description="Funciones globales del SaaS (multi-tenant, auditoria y politicas)."
-            >
+            <div id="superadmin">
+              <AccordionSection
+                title="Super Admin"
+                description="Funciones globales del SaaS (multi-tenant, auditoria y politicas)."
+              >
               <Card className="dashboard-panel">
                 <CardHeader>
                   <CardTitle className={sectionTitleClass}>
@@ -1633,9 +1795,11 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
                   </CardDescription>
                 </CardHeader>
               </Card>
-            </AccordionSection>
+              </AccordionSection>
+            </div>
           ) : null}
         </section>
+        </div>
       </section>
     </main>
   );

@@ -108,6 +108,22 @@
       "Deactivate": "Desactivar",
       "Activate": "Activar"
     },
+    "Navigation": {
+      "Overview": "Resumen",
+      "Barbershop": "Barberia",
+      "Operations": "Operacion diaria",
+      "Services": "Servicios",
+      "Barbers": "Barberos",
+      "Customers": "Clientes",
+      "SuperAdmin": "Super Admin"
+    },
+    "Navbar": {
+      "SearchPlaceholder": "Buscar operaciones, clientes o servicios...",
+      "Notifications": "Notificaciones",
+      "UserName": "Admin User",
+      "OpenMenu": "Abrir menu",
+      "CloseMenu": "Cerrar menu"
+    },
     "Api": {
       "CreateService": "POST /services",
       "CreateBarber": "POST /barbers",
@@ -142,6 +158,21 @@
       "Description": "Vista inicial para controlar salud del sistema, agenda de hoy y actividad base del negocio.",
       "Refreshing": "Actualizando metricas...",
       "Realtime": "Datos en tiempo real del backend"
+    },
+    "Navbar": {
+      "SearchPlaceholder": "Buscar en el dashboard...",
+      "Notifications": "Notificaciones",
+      "UserName": "Admin User",
+      "OpenMenu": "Abrir menu",
+      "CloseMenu": "Cerrar menu"
+    },
+    "Navigation": {
+      "Overview": "Resumen",
+      "Schedule": "Agenda",
+      "Services": "Servicios",
+      "Barbers": "Barberos",
+      "Customers": "Clientes",
+      "Platform": "Plataforma"
     },
     "Stats": {
       "AppointmentsToday": {
@@ -180,6 +211,18 @@
     },
     "Actions": {
       "OpenSchedule": "Abrir agenda"
+    },
+    "Operations": {
+      "Title": "Operaciones",
+      "Description": "Las operaciones administrativas ahora viven en el dashboard y se muestran segun permisos de usuario.",
+      "ServicesTitle": "Servicios",
+      "BarbersTitle": "Barberos",
+      "CustomersTitle": "Clientes",
+      "DisabledMessage": "Primero crea/asigna una barberia para habilitar operaciones CRUD.",
+      "BackendWarning": "No se pudo validar estado de backend. Revisa API y sesion."
+    },
+    "Platform": {
+      "Description": "Seccion reservada para funciones globales de plataforma y gobierno del sistema."
     }
   },
   "Schedule": {
@@ -235,7 +278,8 @@
       "Created": "Cita creada correctamente.",
       "Rescheduled": "Cita reprogramada correctamente.",
       "CheckedIn": "La cita quedo confirmada.",
-      "Canceled": "La cita fue cancelada."
+      "Canceled": "La cita fue cancelada.",
+      "DropConflict": "Ese barbero ya tiene una cita en ese horario. Elige otro espacio."
     },
     "Empty": {
       "NoData": "No hay citas para el filtro actual.",
