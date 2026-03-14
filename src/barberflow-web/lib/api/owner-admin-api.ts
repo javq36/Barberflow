@@ -41,6 +41,11 @@ export type AppointmentItem = {
   serviceName: string;
 };
 
+export type GetAppointmentsRange = {
+  from?: string;
+  to?: string;
+};
+
 export type CreateAppointmentRequest = {
   barberId: string;
   serviceId: string;
@@ -146,15 +151,19 @@ export type UpdateBarbershopRequest = {
   timezone?: string;
 };
 
-function makeDateRangeQuery() {
+function makeDateRangeQuery(range?: GetAppointmentsRange) {
   const now = new Date();
-  const from = new Date(now);
-  from.setDate(from.getDate() - 7);
+  const fallbackFrom = new Date(now);
+  fallbackFrom.setDate(fallbackFrom.getDate() - 7);
 
-  const to = new Date(now);
-  to.setDate(to.getDate() + 30);
+  const fallbackTo = new Date(now);
+  fallbackTo.setDate(fallbackTo.getDate() + 30);
 
-  return `from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`;
+  const params = new URLSearchParams();
+  params.set("from", range?.from ?? fallbackFrom.toISOString());
+  params.set("to", range?.to ?? fallbackTo.toISOString());
+
+  return params.toString();
 }
 
 export const ownerAdminApi = baseApi.injectEndpoints({
@@ -236,9 +245,12 @@ export const ownerAdminApi = baseApi.injectEndpoints({
         method: "GET",
       }),
     }),
-    getAppointments: builder.query<AppointmentItem[], void>({
-      query: () => ({
-        url: `/appointments?${makeDateRangeQuery()}`,
+    getAppointments: builder.query<
+      AppointmentItem[],
+      GetAppointmentsRange | void
+    >({
+      query: (range) => ({
+        url: `/appointments?${makeDateRangeQuery(range)}`,
         method: "GET",
       }),
       providesTags: (result) =>

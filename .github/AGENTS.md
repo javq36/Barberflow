@@ -1,9 +1,10 @@
 # BarberFlow Custom Agents
 
-This workspace defines two specialized agents:
+This workspace defines three specialized agents:
 
 - React Frontend Architect: [.github/agents/react-frontend-architect.agent.md](.github/agents/react-frontend-architect.agent.md)
 - .NET Backend Architect: [.github/agents/dotnet-backend-architect.agent.md](.github/agents/dotnet-backend-architect.agent.md)
+- Node.js Backend Architect: [.github/agents/node-backend-architect.agent.md](.github/agents/node-backend-architect.agent.md)
 
 ## Why This v2 Exists
 
@@ -18,6 +19,7 @@ This setup follows common AGENTS.md patterns used in mature repositories:
 
 - Use React Frontend Architect for Next.js App Router, components, UI architecture, Redux Toolkit, RTK Query, performance, and accessibility.
 - Use .NET Backend Architect for ASP.NET Core APIs, clean layering, contracts, domain rules, EF Core, and backend robustness.
+- Use Node.js Backend Architect for Node backends (Express/Fastify/Nest/custom), modular architecture, performance, reliability, and security.
 
 ## Repo-First Commands
 

@@ -77,6 +77,62 @@ function isSameDay(left: Date, right: Date) {
   );
 }
 
+function startOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function getViewRange(date: Date, viewMode: ViewMode) {
+  if (viewMode === "day") {
+    const from = startOfDay(date);
+    return { from, to: addDays(from, 1) };
+  }
+
+  if (viewMode === "week") {
+    const base = startOfDay(date);
+    const mondayOffset = (base.getDay() + 6) % 7;
+    const from = addDays(base, -mondayOffset);
+    return { from, to: addDays(from, 7) };
+  }
+
+  const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+  const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+  return { from: monthStart, to: monthEnd };
+}
+
+function isWithinRange(date: Date, from: Date, to: Date) {
+  return date >= from && date < to;
+}
+
+function formatPeriodLabel(selectedDate: Date, viewMode: ViewMode) {
+  if (viewMode === "day") {
+    return formatDateLabel(selectedDate);
+  }
+
+  if (viewMode === "week") {
+    const { from, to } = getViewRange(selectedDate, "week");
+    const weekEnd = addDays(to, -1);
+    const formatter = new Intl.DateTimeFormat("es-CO", {
+      day: "2-digit",
+      month: "short",
+    });
+
+    return `${formatter.format(from)} - ${formatter.format(weekEnd)}`;
+  }
+
+  return new Intl.DateTimeFormat("es-CO", {
+    month: "long",
+    year: "numeric",
+  }).format(selectedDate);
+}
+
 function formatDateLabel(date: Date) {
   return new Intl.DateTimeFormat("es-CO", {
     weekday: "long",
@@ -218,7 +274,19 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
   const [logout, logoutState] = useLogoutMutation();
   const { Schedule, Common, Admin } = Texts;
 
-  const appointmentsQuery = useGetAppointmentsQuery();
+  const viewRange = useMemo(
+    () => getViewRange(selectedDate, viewMode),
+    [selectedDate, viewMode],
+  );
+  const appointmentsRangeParams = useMemo(
+    () => ({
+      from: viewRange.from.toISOString(),
+      to: viewRange.to.toISOString(),
+    }),
+    [viewRange.from, viewRange.to],
+  );
+
+  const appointmentsQuery = useGetAppointmentsQuery(appointmentsRangeParams);
   const barbersQuery = useGetBarbersQuery();
   const servicesQuery = useGetServicesQuery();
   const customersQuery = useGetCustomersQuery();
@@ -226,12 +294,15 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     useCreateAppointmentMutation();
   const [createCustomer] = useCreateCustomerMutation();
   const debouncedCustomerQuery = useDebouncedValue(customerQuery, 3000);
-  const customerSearchQuery = useGetCustomersSearchQuery(debouncedCustomerQuery, {
-    skip:
-      modalMode !== "create" ||
-      !isModalOpen ||
-      debouncedCustomerQuery.trim().length === 0,
-  });
+  const customerSearchQuery = useGetCustomersSearchQuery(
+    debouncedCustomerQuery,
+    {
+      skip:
+        modalMode !== "create" ||
+        !isModalOpen ||
+        debouncedCustomerQuery.trim().length === 0,
+    },
+  );
   const [updateAppointmentStatus, updateAppointmentStatusState] =
     useUpdateAppointmentStatusMutation();
   const [rescheduleAppointment, rescheduleAppointmentState] =
@@ -257,7 +328,10 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     return map;
   }, [servicesQuery.data]);
 
-  const customers = useMemo(() => customersQuery.data ?? [], [customersQuery.data]);
+  const customers = useMemo(
+    () => customersQuery.data ?? [],
+    [customersQuery.data],
+  );
 
   const filteredCustomers = useMemo(() => {
     if (!customerQuery.trim()) {
@@ -298,42 +372,85 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
         } satisfies ScheduleEvent;
       })
       .filter((event) => {
-        const matchesDate = isSameDay(event.startDate, selectedDate);
         const matchesBarber =
-          selectedBarberId === "all" || event.item.barberId === selectedBarberId;
+          selectedBarberId === "all" ||
+          event.item.barberId === selectedBarberId;
         const matchesSearch =
           !normalizedSearch ||
           event.item.customerName.toLowerCase().includes(normalizedSearch) ||
           event.item.serviceName.toLowerCase().includes(normalizedSearch) ||
           event.item.barberName.toLowerCase().includes(normalizedSearch);
 
-        return matchesDate && matchesBarber && matchesSearch;
+        return matchesBarber && matchesSearch;
       })
-      .sort((left, right) => left.startDate.getTime() - right.startDate.getTime());
+      .sort(
+        (left, right) => left.startDate.getTime() - right.startDate.getTime(),
+      );
   }, [
     appointmentsQuery.data,
     barbers,
     searchTerm,
     selectedBarberId,
-    selectedDate,
     servicesById,
   ]);
 
+  const appointmentsForDayGrid = useMemo(
+    () =>
+      appointments.filter((event) => isSameDay(event.startDate, selectedDate)),
+    [appointments, selectedDate],
+  );
+
+  const appointmentsInView = useMemo(
+    () =>
+      appointments.filter((event) =>
+        isWithinRange(event.startDate, viewRange.from, viewRange.to),
+      ),
+    [appointments, viewRange.from, viewRange.to],
+  );
+
+  const appointmentsByDay = useMemo(() => {
+    const map = new Map<string, ScheduleEvent[]>();
+
+    for (const event of appointmentsInView) {
+      const day = startOfDay(event.startDate);
+      const key = day.toISOString();
+      const current = map.get(key);
+      if (current) {
+        current.push(event);
+      } else {
+        map.set(key, [event]);
+      }
+    }
+
+    return Array.from(map.entries())
+      .sort(
+        ([left], [right]) =>
+          new Date(left).getTime() - new Date(right).getTime(),
+      )
+      .map(([dateKey, items]) => ({
+        date: new Date(dateKey),
+        items: [...items].sort(
+          (left, right) => left.startDate.getTime() - right.startDate.getTime(),
+        ),
+      }));
+  }, [appointmentsInView]);
+
   const effectiveSelectedAppointmentId = useMemo(() => {
-    if (!appointments.length) {
+    if (!appointmentsInView.length) {
       return null;
     }
 
-    const exists = appointments.some(
+    const exists = appointmentsInView.some(
       (appointment) => appointment.item.id === selectedAppointmentId,
     );
 
-    return exists ? selectedAppointmentId : appointments[0].item.id;
-  }, [appointments, selectedAppointmentId]);
+    return exists ? selectedAppointmentId : appointmentsInView[0].item.id;
+  }, [appointmentsInView, selectedAppointmentId]);
 
   const selectedAppointment =
-    appointments.find((event) => event.item.id === effectiveSelectedAppointmentId) ??
-    null;
+    appointmentsInView.find(
+      (event) => event.item.id === effectiveSelectedAppointmentId,
+    ) ?? null;
 
   const barbersToRender =
     selectedBarberId === "all"
@@ -369,7 +486,18 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
   function shiftDay(direction: "back" | "next") {
     setSelectedDate((previous) => {
       const next = new Date(previous);
-      next.setDate(previous.getDate() + (direction === "back" ? -1 : 1));
+
+      if (viewMode === "day") {
+        next.setDate(previous.getDate() + (direction === "back" ? -1 : 1));
+        return next;
+      }
+
+      if (viewMode === "week") {
+        next.setDate(previous.getDate() + (direction === "back" ? -7 : 7));
+        return next;
+      }
+
+      next.setMonth(previous.getMonth() + (direction === "back" ? -1 : 1));
       return next;
     });
   }
@@ -482,7 +610,10 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
           const numericInput = isNumericInput(normalizedInput);
           const normalizedPhone = normalizePhone(normalizedInput);
 
-          if (numericInput && normalizedPhone.length !== COLOMBIA_PHONE_MAX_LENGTH) {
+          if (
+            numericInput &&
+            normalizedPhone.length !== COLOMBIA_PHONE_MAX_LENGTH
+          ) {
             showToast({
               title: Common.Toasts.ErrorTitle,
               description: Schedule.Messages.InvalidPhoneLength,
@@ -497,8 +628,8 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
               normalizePhone(customer.phone ?? "") === normalizedPhone;
             const byName =
               !numericInput &&
-                (customer.name ?? "").trim().toLowerCase() ===
-                  normalizedInput.toLowerCase();
+              (customer.name ?? "").trim().toLowerCase() ===
+                normalizedInput.toLowerCase();
             return byPhone || byName;
           });
 
@@ -528,7 +659,10 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
               return;
             }
 
-            if (!numericInput && complementaryPhone.length !== COLOMBIA_PHONE_MAX_LENGTH) {
+            if (
+              !numericInput &&
+              complementaryPhone.length !== COLOMBIA_PHONE_MAX_LENGTH
+            ) {
               showToast({
                 title: Common.Toasts.ErrorTitle,
                 description: Schedule.Messages.ComplementaryPhoneRequired,
@@ -537,10 +671,9 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
               return;
             }
 
-            const customerName =
-              numericInput
-                ? complementaryName
-                : selectedCustomerName.trim() || normalizedInput;
+            const customerName = numericInput
+              ? complementaryName
+              : selectedCustomerName.trim() || normalizedInput;
 
             await createCustomer({
               name: customerName,
@@ -561,14 +694,18 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
             });
 
             if (!created) {
-              throw new Error("Customer was created but could not be reloaded.");
+              throw new Error(
+                "Customer was created but could not be reloaded.",
+              );
             }
 
             customerIdForAppointment = created.id;
             setDraftCustomerId(created.id);
             setSelectedCustomerName(created.name ?? "");
             setSelectedCustomerPhone(created.phone ?? "");
-            setCustomerQuery(customerDisplayName(created, Schedule.Modal.Unnamed));
+            setCustomerQuery(
+              customerDisplayName(created, Schedule.Modal.Unnamed),
+            );
           }
         }
 
@@ -687,10 +824,18 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
             <h1 className="text-lg font-semibold tracking-tight">BarberFlow</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-800">
+            <button
+              type="button"
+              aria-label={Schedule.Filters.SearchPlaceholder}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-800"
+            >
               <Search className="h-4 w-4" />
             </button>
-            <button className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-800">
+            <button
+              type="button"
+              aria-label={Schedule.Mobile.Alerts}
+              className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-800"
+            >
               <Bell className="h-4 w-4" />
               <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-400" />
             </button>
@@ -752,6 +897,7 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                 <button
                   type="button"
                   onClick={() => shiftDay("back")}
+                  aria-label="Periodo anterior"
                   className="flex h-8 w-8 items-center justify-center rounded text-zinc-300 hover:bg-zinc-700"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -761,11 +907,13 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                   onClick={() => setSelectedDate(new Date())}
                   className="px-3 text-sm font-medium text-zinc-100"
                 >
-                  {Schedule.Filters.Today}: {formatDateLabel(selectedDate)}
+                  {Schedule.Filters.Today}:{" "}
+                  {formatPeriodLabel(selectedDate, viewMode)}
                 </button>
                 <button
                   type="button"
                   onClick={() => shiftDay("next")}
+                  aria-label="Periodo siguiente"
                   className="flex h-8 w-8 items-center justify-center rounded text-zinc-300 hover:bg-zinc-700"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -836,122 +984,194 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
 
           <div className="grid xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="overflow-x-auto">
-              <div className="min-w-[860px]">
-                <div className={`grid border-b border-zinc-800 ${desktopGridClass}`}>
-                  <div className="p-3 text-center text-[10px] uppercase tracking-widest text-zinc-500">
-                    {Schedule.Grid.Timezone}
-                  </div>
-                  {barbersToRender.length ? (
-                    barbersToRender.map((barber) => {
-                      const appointmentCount = appointments.filter(
-                        (event) => event.item.barberId === barber.id,
-                      ).length;
-
-                      return (
-                        <div
-                          key={barber.id}
-                          className="border-l border-zinc-800 p-3 text-center"
-                        >
-                          <div className="text-sm font-semibold text-zinc-100">
-                            {barber.name}
-                          </div>
-                          <div className="text-[11px] text-zinc-500">
-                            {appointmentCount} {Schedule.Grid.Bookings}
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="border-l border-zinc-800 p-3 text-center text-xs text-zinc-500">
-                      {Schedule.Empty.NoBarbers}
-                    </div>
-                  )}
-                </div>
-
-                {daySlots.map((hour) => (
+              {viewMode === "day" ? (
+                <div className="min-w-[860px]">
                   <div
-                    key={hour}
                     className={`grid border-b border-zinc-800 ${desktopGridClass}`}
                   >
-                    <div className="p-2 text-right text-xs text-zinc-500">
-                      {formatHourLabel(hour)}
+                    <div className="p-3 text-center text-[10px] uppercase tracking-widest text-zinc-500">
+                      {Schedule.Grid.Timezone}
                     </div>
-
                     {barbersToRender.length ? (
                       barbersToRender.map((barber) => {
-                        const slotAppointments = appointments.filter(
-                          (event) =>
-                            event.item.barberId === barber.id &&
-                            event.startDate.getHours() === hour,
-                        );
+                        const appointmentCount = appointmentsForDayGrid.filter(
+                          (event) => event.item.barberId === barber.id,
+                        ).length;
 
                         return (
                           <div
-                            key={`${barber.id}-${hour}`}
-                            className="group/slot relative border-l border-zinc-800"
-                            style={{ minHeight: `${SLOT_HEIGHT}px` }}
+                            key={barber.id}
+                            className="border-l border-zinc-800 p-3 text-center"
                           >
-                            <button
-                              type="button"
-                              onClick={() => openCreateModalFromSlot(barber.id, hour)}
-                              className="absolute inset-0 z-0"
-                              aria-label={`${Schedule.Actions.NewAppointment} ${barber.name} ${formatHourLabel(hour)}`}
-                            >
-                              <span className="absolute right-2 top-2 opacity-0 transition group-hover/slot:opacity-100 text-zinc-600">
-                                <Plus className="h-4 w-4" />
-                              </span>
-                            </button>
-
-                            <div className="relative z-10 p-1.5">
-                              {slotAppointments.map((event) => {
-                                const active =
-                                  effectiveSelectedAppointmentId === event.item.id;
-                                const current = isCurrentAppointment(
-                                  new Date(),
-                                  event.startDate,
-                                  event.endDate,
-                                );
-
-                                return (
-                                  <button
-                                    key={event.item.id}
-                                    type="button"
-                                    onClick={() => setSelectedAppointmentId(event.item.id)}
-                                    className={`w-full rounded border-l-4 p-2 text-left ${
-                                      active
-                                        ? "border-blue-500 bg-blue-500/20"
-                                        : "border-amber-400 bg-zinc-900 hover:bg-zinc-800"
-                                    }`}
-                                  >
-                                    <div className="text-[11px] font-bold text-zinc-200">
-                                      {formatTimeRange(event.startDate, event.endDate)}
-                                    </div>
-                                    <div className="text-xs font-semibold text-zinc-100 truncate">
-                                      {event.item.customerName}
-                                    </div>
-                                    <div className="text-[11px] text-zinc-400 truncate">
-                                      {event.item.serviceName}
-                                    </div>
-                                    {current ? (
-                                      <span className="mt-1 inline-flex rounded bg-zinc-700 px-2 py-0.5 text-[10px] uppercase text-zinc-300">
-                                        {Schedule.Grid.Current}
-                                      </span>
-                                    ) : null}
-                                  </button>
-                                );
-                              })}
+                            <div className="text-sm font-semibold text-zinc-100">
+                              {barber.name}
+                            </div>
+                            <div className="text-[11px] text-zinc-500">
+                              {appointmentCount} {Schedule.Grid.Bookings}
                             </div>
                           </div>
                         );
                       })
                     ) : (
-                      <div className="border-l border-zinc-800 p-2 text-xs text-zinc-500">
-                        {Schedule.Empty.NoData}
+                      <div className="border-l border-zinc-800 p-3 text-center text-xs text-zinc-500">
+                        {Schedule.Empty.NoBarbers}
                       </div>
                     )}
                   </div>
-                ))}
-              </div>
+
+                  {daySlots.map((hour) => (
+                    <div
+                      key={hour}
+                      className={`grid border-b border-zinc-800 ${desktopGridClass}`}
+                    >
+                      <div className="p-2 text-right text-xs text-zinc-500">
+                        {formatHourLabel(hour)}
+                      </div>
+
+                      {barbersToRender.length ? (
+                        barbersToRender.map((barber) => {
+                          const slotAppointments =
+                            appointmentsForDayGrid.filter(
+                              (event) =>
+                                event.item.barberId === barber.id &&
+                                event.startDate.getHours() === hour,
+                            );
+
+                          return (
+                            <div
+                              key={`${barber.id}-${hour}`}
+                              className="group/slot relative border-l border-zinc-800"
+                              style={{ minHeight: `${SLOT_HEIGHT}px` }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openCreateModalFromSlot(barber.id, hour)
+                                }
+                                className="absolute inset-0 z-0"
+                                aria-label={`${Schedule.Actions.NewAppointment} ${barber.name} ${formatHourLabel(hour)}`}
+                              >
+                                <span className="absolute right-2 top-2 opacity-0 transition group-hover/slot:opacity-100 text-zinc-600">
+                                  <Plus className="h-4 w-4" />
+                                </span>
+                              </button>
+
+                              <div className="relative z-10 p-1.5">
+                                {slotAppointments.map((event) => {
+                                  const active =
+                                    effectiveSelectedAppointmentId ===
+                                    event.item.id;
+                                  const current = isCurrentAppointment(
+                                    new Date(),
+                                    event.startDate,
+                                    event.endDate,
+                                  );
+
+                                  return (
+                                    <button
+                                      key={event.item.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedAppointmentId(event.item.id)
+                                      }
+                                      className={`w-full rounded border-l-4 p-2 text-left ${
+                                        active
+                                          ? "border-blue-500 bg-blue-500/20"
+                                          : "border-amber-400 bg-zinc-900 hover:bg-zinc-800"
+                                      }`}
+                                    >
+                                      <div className="text-[11px] font-bold text-zinc-200">
+                                        {formatTimeRange(
+                                          event.startDate,
+                                          event.endDate,
+                                        )}
+                                      </div>
+                                      <div className="text-xs font-semibold text-zinc-100 truncate">
+                                        {event.item.customerName}
+                                      </div>
+                                      <div className="text-[11px] text-zinc-400 truncate">
+                                        {event.item.serviceName}
+                                      </div>
+                                      {current ? (
+                                        <span className="mt-1 inline-flex rounded bg-zinc-700 px-2 py-0.5 text-[10px] uppercase text-zinc-300">
+                                          {Schedule.Grid.Current}
+                                        </span>
+                                      ) : null}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="border-l border-zinc-800 p-2 text-xs text-zinc-500">
+                          {Schedule.Empty.NoData}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4">
+                  {appointmentsByDay.length ? (
+                    <div className="space-y-4">
+                      {appointmentsByDay.map((group) => (
+                        <section
+                          key={group.date.toISOString()}
+                          className="rounded-lg border border-zinc-800 bg-zinc-900/40"
+                        >
+                          <header className="border-b border-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-100 capitalize">
+                            {formatDateLabel(group.date)}
+                          </header>
+                          <div className="divide-y divide-zinc-800">
+                            {group.items.map((event) => {
+                              const active =
+                                effectiveSelectedAppointmentId ===
+                                event.item.id;
+
+                              return (
+                                <button
+                                  key={event.item.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedAppointmentId(event.item.id)
+                                  }
+                                  className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left ${
+                                    active
+                                      ? "bg-blue-500/10"
+                                      : "hover:bg-zinc-800/60"
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="text-sm font-semibold text-zinc-100">
+                                      {event.item.customerName}
+                                    </div>
+                                    <div className="text-xs text-zinc-400">
+                                      {event.item.serviceName} ·{" "}
+                                      {event.item.barberName}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-zinc-300">
+                                    {formatTimeRange(
+                                      event.startDate,
+                                      event.endDate,
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 text-sm text-zinc-500">
+                      {Schedule.Empty.NoData}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <aside className="hidden border-l border-zinc-800 xl:block">
@@ -964,14 +1184,19 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                   <>
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-100">
-                        {selectedAppointment.item.customerName.slice(0, 2).toUpperCase()}
+                        {selectedAppointment.item.customerName
+                          .slice(0, 2)
+                          .toUpperCase()}
                       </div>
                       <div>
                         <div className="font-semibold text-zinc-100">
                           {selectedAppointment.item.customerName}
                         </div>
                         <div className="text-xs text-zinc-400">
-                          {getStatusLabel(selectedAppointment.item.status, Schedule.Status)}
+                          {getStatusLabel(
+                            selectedAppointment.item.status,
+                            Schedule.Status,
+                          )}
                         </div>
                       </div>
                     </div>
@@ -984,7 +1209,9 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                             {Schedule.Details.Service}
                           </span>
                         </div>
-                        <div className="text-zinc-100">{selectedAppointment.item.serviceName}</div>
+                        <div className="text-zinc-100">
+                          {selectedAppointment.item.serviceName}
+                        </div>
                       </div>
 
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-2.5">
@@ -1009,7 +1236,9 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                             {Schedule.Details.Barber}
                           </span>
                         </div>
-                        <div className="text-zinc-100">{selectedAppointment.item.barberName}</div>
+                        <div className="text-zinc-100">
+                          {selectedAppointment.item.barberName}
+                        </div>
                       </div>
 
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-2.5">
@@ -1020,7 +1249,8 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                           </span>
                         </div>
                         <div className="text-zinc-300">
-                          {selectedAppointment.item.notes || Schedule.Details.NoNotes}
+                          {selectedAppointment.item.notes ||
+                            Schedule.Details.NoNotes}
                         </div>
                       </div>
                     </div>
@@ -1031,7 +1261,8 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                         size="sm"
                         onClick={openRescheduleModal}
                         disabled={
-                          rescheduleAppointmentState.isLoading || !canEditSelected
+                          rescheduleAppointmentState.isLoading ||
+                          !canEditSelected
                         }
                       >
                         {Schedule.Actions.Reschedule}
@@ -1040,7 +1271,8 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                         size="sm"
                         onClick={onCheckInAppointment}
                         disabled={
-                          updateAppointmentStatusState.isLoading || !canCheckInSelected
+                          updateAppointmentStatusState.isLoading ||
+                          !canCheckInSelected
                         }
                       >
                         {Schedule.Actions.CheckIn}
@@ -1051,7 +1283,9 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                       variant="ghost"
                       size="sm"
                       onClick={onCancelAppointment}
-                      disabled={cancelAppointmentState.isLoading || !canCancelSelected}
+                      disabled={
+                        cancelAppointmentState.isLoading || !canCancelSelected
+                      }
                       className="text-red-400 hover:text-red-300"
                     >
                       {Schedule.Actions.CancelAppointment}
@@ -1093,11 +1327,17 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
             <Calendar className="h-4 w-4" />
             <span className="text-[10px]">{Schedule.Mobile.Schedule}</span>
           </button>
-          <button type="button" className="flex flex-col items-center gap-1 text-zinc-500">
+          <button
+            type="button"
+            className="flex flex-col items-center gap-1 text-zinc-500"
+          >
             <UserRound className="h-4 w-4" />
             <span className="text-[10px]">{Schedule.Mobile.Clients}</span>
           </button>
-          <button type="button" className="flex flex-col items-center gap-1 text-zinc-500">
+          <button
+            type="button"
+            className="flex flex-col items-center gap-1 text-zinc-500"
+          >
             <Bell className="h-4 w-4" />
             <span className="text-[10px]">{Schedule.Mobile.Alerts}</span>
           </button>
@@ -1116,6 +1356,7 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
+                aria-label="Cerrar modal"
                 className="text-zinc-400 hover:text-zinc-100"
               >
                 <X className="h-7 w-7" />
@@ -1174,10 +1415,12 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                 {modalMode === "create" && draftCustomerId ? (
                   <div className="rounded border border-zinc-700 bg-[#101218] p-2.5 text-xs text-zinc-300">
                     <p>
-                      {Schedule.Modal.SelectedCustomerName}: {selectedCustomerName || "-"}
+                      {Schedule.Modal.SelectedCustomerName}:{" "}
+                      {selectedCustomerName || "-"}
                     </p>
                     <p>
-                      {Schedule.Modal.SelectedCustomerPhone}: {selectedCustomerPhone || "-"}
+                      {Schedule.Modal.SelectedCustomerPhone}:{" "}
+                      {selectedCustomerPhone || "-"}
                     </p>
                   </div>
                 ) : null}
@@ -1192,7 +1435,10 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                         className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left hover:bg-zinc-800"
                       >
                         <span className="text-sm text-zinc-100">
-                          {customerDisplayName(customer, Schedule.Modal.Unnamed)}
+                          {customerDisplayName(
+                            customer,
+                            Schedule.Modal.Unnamed,
+                          )}
                         </span>
                         <span className="text-xs text-zinc-500">
                           {customer.phone || "-"}
@@ -1231,7 +1477,9 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                           onChange={(event) =>
                             setSelectedCustomerName(event.target.value)
                           }
-                          placeholder={Schedule.Modal.ComplementaryNamePlaceholder}
+                          placeholder={
+                            Schedule.Modal.ComplementaryNamePlaceholder
+                          }
                           autoFocus
                           className="h-10 w-full rounded border border-zinc-700 bg-[#0f1115] px-3 text-sm text-zinc-100 placeholder:text-zinc-500"
                         />
@@ -1252,12 +1500,15 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                               ),
                             )
                           }
-                          placeholder={Schedule.Modal.ComplementaryPhonePlaceholder}
+                          placeholder={
+                            Schedule.Modal.ComplementaryPhonePlaceholder
+                          }
                           autoFocus
                           className="h-10 w-full rounded border border-zinc-700 bg-[#0f1115] px-3 text-sm text-zinc-100 placeholder:text-zinc-500"
                         />
                         {selectedCustomerPhone.length > 0 &&
-                        selectedCustomerPhone.length < COLOMBIA_PHONE_MAX_LENGTH ? (
+                        selectedCustomerPhone.length <
+                          COLOMBIA_PHONE_MAX_LENGTH ? (
                           <p className="text-[11px] text-amber-300">
                             {Schedule.Modal.PhoneLengthHint}
                           </p>

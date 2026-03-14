@@ -7,11 +7,13 @@ using Microsoft.IdentityModel.Tokens;
 using BarberFlow.API.Constants;
 using BarberFlow.API.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics;
 using BarberFlow.API.Contracts;
 using System.IdentityModel.Tokens.Jwt;
 using Npgsql;
 using System.Data;
 using System.Net;
+using System.Threading.RateLimiting;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +31,16 @@ var key = jwtSection["Key"];
 if (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience) || string.IsNullOrWhiteSpace(key))
 {
     throw new InvalidOperationException(ApiConstants.Messages.JwtConfigMissing);
+}
+
+if (IsInsecureJwtKey(key))
+{
+    throw new InvalidOperationException("JWT key is insecure. Use a strong non-placeholder secret with at least 32 characters.");
+}
+
+if (Encoding.UTF8.GetByteCount(key) < 32)
+{
+    throw new InvalidOperationException("JWT key is too short. Use at least 32 bytes of entropy.");
 }
 
 builder.Services
@@ -49,6 +61,27 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("AuthSensitive", context =>
+    {
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var route = context.Request.Path.ToString().ToLowerInvariant();
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"{ip}:{route}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 8,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
+});
 var configuredCorsOrigins = builder.Configuration
     .GetSection("Cors:AllowedOrigins")
     .Get<string[]>()
@@ -91,8 +124,6 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-await EnsureSchemaCompatibilityAsync(connectionString, app.Logger);
-
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -105,10 +136,63 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exceptionHandlerFeature = context.Features.Get<IExceptionHandlerFeature>();
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalExceptionHandler");
+
+        if (exceptionHandlerFeature?.Error is not null)
+        {
+            logger.LogError(exceptionHandlerFeature.Error, "Unhandled exception while processing request.");
+        }
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = "Unexpected server error.",
+            traceId = context.TraceIdentifier
+        });
+    });
+});
+
+app.UseStatusCodePages(async statusContext =>
+{
+    var response = statusContext.HttpContext.Response;
+    if (response.HasStarted)
+    {
+        return;
+    }
+
+    response.ContentType = "application/json";
+    await response.WriteAsJsonAsync(new
+    {
+        message = $"Request failed with status code {response.StatusCode}.",
+        traceId = statusContext.HttpContext.TraceIdentifier
+    });
+});
+
 app.UseCors("WebClient");
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+bool IsInsecureJwtKey(string jwtKey)
+{
+    var normalized = jwtKey.Trim();
+    var knownPlaceholders = new[]
+    {
+        "CHANGE_ME_WITH_AT_LEAST_32_CHAR_RANDOM_SECRET",
+        "DEV_ONLY_CHANGE_ME_WITH_AT_LEAST_32_CHAR_SECRET",
+        "your_super_secret_key_change_me"
+    };
+
+    return knownPlaceholders.Contains(normalized, StringComparer.Ordinal);
+}
 
 bool IsOwner(ClaimsPrincipal user) =>
     string.Equals(user.FindFirstValue(ClaimTypes.Role), "Owner", StringComparison.OrdinalIgnoreCase);
@@ -176,26 +260,6 @@ bool TryGetBarbershopId(ClaimsPrincipal user, out Guid barbershopId, out IResult
     return true;
 }
 
-static async Task EnsureSchemaCompatibilityAsync(string? connectionString, ILogger logger)
-{
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        logger.LogWarning("Schema compatibility check skipped: missing DB connection string.");
-        return;
-    }
-
-    await using var conn = new NpgsqlConnection(connectionString);
-    await conn.OpenAsync();
-
-    // Dev-safe compatibility patch: older databases may not yet include customers.active.
-    const string ensureCustomersActiveColumnSql = @"
-        ALTER TABLE customers
-        ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;";
-
-    await using var cmd = new NpgsqlCommand(ensureCustomersActiveColumnSql, conn);
-    await cmd.ExecuteNonQueryAsync();
-}
-
 app.MapHealthChecks(ApiConstants.Routes.HealthReady);
 
 app.MapPost(ApiConstants.Routes.AuthRegisterOwner, async (RegisterOwnerRequest request, CancellationToken ct) =>
@@ -225,10 +289,12 @@ app.MapPost(ApiConstants.Routes.AuthRegisterOwner, async (RegisterOwnerRequest r
     var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
     // Step 2: Create owner without barbershop. Barbershop is created in a separate step.
-    await using (var insertCmd = new NpgsqlCommand(@"
-        INSERT INTO users (id, barbershop_id, name, email, phone, role, password_hash, active, created_at)
-        VALUES (@id, NULL, @name, @email, @phone, @role, @passwordHash, TRUE, NOW())", conn))
+    try
     {
+        await using var insertCmd = new NpgsqlCommand(@"
+            INSERT INTO users (id, barbershop_id, name, email, phone, role, password_hash, active, created_at)
+            VALUES (@id, NULL, @name, @email, @phone, @role, @passwordHash, TRUE, NOW())", conn);
+
         insertCmd.Parameters.AddWithValue("id", userId);
         insertCmd.Parameters.AddWithValue("name", request.Name.Trim());
         insertCmd.Parameters.AddWithValue("email", request.Email.Trim().ToLowerInvariant());
@@ -238,6 +304,10 @@ app.MapPost(ApiConstants.Routes.AuthRegisterOwner, async (RegisterOwnerRequest r
 
         await insertCmd.ExecuteNonQueryAsync(ct);
     }
+    catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+    {
+        return Results.Conflict(new { message = ApiConstants.Messages.EmailAlreadyExists });
+    }
 
     return Results.Created(ApiConstants.Routes.AuthMe, new
     {
@@ -245,7 +315,7 @@ app.MapPost(ApiConstants.Routes.AuthRegisterOwner, async (RegisterOwnerRequest r
         email = request.Email.Trim().ToLowerInvariant(),
         role = "Owner"
     });
-});
+}).RequireRateLimiting("AuthSensitive");
 
 app.MapPost(ApiConstants.Routes.AuthLogin, async (LoginRequest request, CancellationToken ct) =>
 {
@@ -349,7 +419,7 @@ app.MapPost(ApiConstants.Routes.AuthLogin, async (LoginRequest request, Cancella
             barbershopId
         }
     });
-});
+}).RequireRateLimiting("AuthSensitive");
 
 app.MapGet(ApiConstants.Routes.HealthAuth, (ClaimsPrincipal user) =>
 {
@@ -405,6 +475,32 @@ app.MapPost(ApiConstants.Routes.Barbershops, async (CreateBarbershopRequest requ
     await conn.OpenAsync(ct);
     await using var transaction = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
+    Guid? existingBarbershopId;
+    await using (var ownerLockCmd = new NpgsqlCommand(@"
+        SELECT barbershop_id
+        FROM users
+        WHERE id = @ownerId
+        FOR UPDATE", conn, transaction))
+    {
+        ownerLockCmd.Parameters.AddWithValue("ownerId", ownerId);
+        var currentValue = await ownerLockCmd.ExecuteScalarAsync(ct);
+
+        if (currentValue is null || currentValue == DBNull.Value)
+        {
+            existingBarbershopId = null;
+        }
+        else
+        {
+            existingBarbershopId = (Guid)currentValue;
+        }
+    }
+
+    if (existingBarbershopId.HasValue)
+    {
+        await transaction.RollbackAsync(ct);
+        return Results.Conflict(new { message = "Owner already has a barbershop assigned." });
+    }
+
     var barbershopId = Guid.NewGuid();
 
     await using (var createShopCmd = new NpgsqlCommand(@"
@@ -427,7 +523,12 @@ app.MapPost(ApiConstants.Routes.Barbershops, async (CreateBarbershopRequest requ
     {
         assignOwnerCmd.Parameters.AddWithValue("barbershopId", barbershopId);
         assignOwnerCmd.Parameters.AddWithValue("ownerId", ownerId);
-        await assignOwnerCmd.ExecuteNonQueryAsync(ct);
+        var affected = await assignOwnerCmd.ExecuteNonQueryAsync(ct);
+        if (affected == 0)
+        {
+            await transaction.RollbackAsync(ct);
+            return Results.BadRequest(new { message = "Owner account was not found for barbershop assignment." });
+        }
     }
 
     await transaction.CommitAsync(ct);
@@ -715,17 +816,24 @@ app.MapPost(ApiConstants.Routes.Barbers, async (CreateBarberRequest request, Cla
     }
 
     var barberId = Guid.NewGuid();
-    await using var insertCmd = new NpgsqlCommand(@"
-        INSERT INTO users (id, barbershop_id, name, email, phone, role, password_hash, active, created_at)
-        VALUES (@id, @barbershopId, @name, @email, @phone, 3, NULL, @active, NOW())", conn);
+    try
+    {
+        await using var insertCmd = new NpgsqlCommand(@"
+            INSERT INTO users (id, barbershop_id, name, email, phone, role, password_hash, active, created_at)
+            VALUES (@id, @barbershopId, @name, @email, @phone, 3, NULL, @active, NOW())", conn);
 
-    insertCmd.Parameters.AddWithValue("id", barberId);
-    insertCmd.Parameters.AddWithValue("barbershopId", barbershopId);
-    insertCmd.Parameters.AddWithValue("name", request.Name.Trim());
-    insertCmd.Parameters.AddWithValue("email", (object?)normalizedEmail ?? DBNull.Value);
-    insertCmd.Parameters.AddWithValue("phone", (object?)request.Phone?.Trim() ?? DBNull.Value);
-    insertCmd.Parameters.AddWithValue("active", request.IsActive);
-    await insertCmd.ExecuteNonQueryAsync(ct);
+        insertCmd.Parameters.AddWithValue("id", barberId);
+        insertCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        insertCmd.Parameters.AddWithValue("name", request.Name.Trim());
+        insertCmd.Parameters.AddWithValue("email", (object?)normalizedEmail ?? DBNull.Value);
+        insertCmd.Parameters.AddWithValue("phone", (object?)request.Phone?.Trim() ?? DBNull.Value);
+        insertCmd.Parameters.AddWithValue("active", request.IsActive);
+        await insertCmd.ExecuteNonQueryAsync(ct);
+    }
+    catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.UniqueViolation)
+    {
+        return Results.Conflict(new { message = ApiConstants.Messages.EmailAlreadyExists });
+    }
 
     return Results.Created($"{ApiConstants.Routes.Barbers}/{barberId}", new
     {
@@ -912,10 +1020,10 @@ app.MapGet(ApiConstants.Routes.Customers, async (ClaimsPrincipal user, string? q
     }
 
     var normalizedQuery = string.IsNullOrWhiteSpace(query)
-        ? null
+        ? string.Empty
         : query.Trim();
-    var queryPattern = normalizedQuery is null
-        ? null
+    var queryPattern = string.IsNullOrWhiteSpace(normalizedQuery)
+        ? string.Empty
         : $"%{normalizedQuery}%";
 
     var rows = new List<object>();
@@ -927,15 +1035,15 @@ app.MapGet(ApiConstants.Routes.Customers, async (ClaimsPrincipal user, string? q
         SELECT id, name, phone, email, notes, active, created_at
         FROM customers
         WHERE barbershop_id = @barbershopId
+                    AND active = TRUE
                     AND (
-                        @query IS NULL
+                        @queryPattern = ''
                         OR COALESCE(name, '') ILIKE @queryPattern
                         OR COALESCE(phone, '') ILIKE @queryPattern
                     )
         ORDER BY name", conn);
     cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        cmd.Parameters.AddWithValue("query", (object?)normalizedQuery ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("queryPattern", (object?)queryPattern ?? DBNull.Value);
+    cmd.Parameters.AddWithValue("queryPattern", queryPattern);
 
     await using var reader = await cmd.ExecuteReaderAsync(ct);
     while (await reader.ReadAsync(ct))
@@ -1083,7 +1191,7 @@ app.MapPost(ApiConstants.Routes.Appointments, async (CreateAppointmentRequest re
     await using (var customerCmd = new NpgsqlCommand(@"
         SELECT 1
         FROM customers
-        WHERE id = @customerId AND barbershop_id = @barbershopId
+        WHERE id = @customerId AND barbershop_id = @barbershopId AND active = TRUE
         LIMIT 1", conn))
     {
         customerCmd.Parameters.AddWithValue("customerId", request.CustomerId);
