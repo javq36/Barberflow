@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Calendar,
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -12,12 +13,12 @@ import {
   Plus,
   Scissors,
   Search,
+  Settings,
   UserRound,
   Users,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
@@ -167,21 +168,6 @@ function parseApiDateTime(value: string) {
   return new Date(hasTimezone ? value : `${value}Z`);
 }
 
-function getStatusLabel(status: number, labels: Record<string, string>) {
-  switch (status) {
-    case 1:
-      return labels.Pending;
-    case 2:
-      return labels.Confirmed;
-    case 3:
-      return labels.Canceled;
-    case 4:
-      return labels.Completed;
-    default:
-      return labels.Unknown;
-  }
-}
-
 function getApiErrorMessage(error: unknown): string | null {
   if (
     error &&
@@ -223,6 +209,75 @@ function isCurrentAppointment(now: Date, startDate: Date, endDate: Date) {
   return now >= startDate && now < endDate;
 }
 
+function to12HourLabel(value: string) {
+  const [hoursRaw, minutesRaw] = value.split(":");
+  const hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw);
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return value;
+  }
+
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
+}
+
+function parse12HourTimeInput(value: string) {
+  const trimmed = value.trim().toLowerCase();
+
+  const match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
+  if (match) {
+    const rawHours = Number(match[1]);
+    const minutes = Number(match[2] ?? "0");
+    const period = match[3];
+
+    if (
+      Number.isNaN(rawHours) ||
+      Number.isNaN(minutes) ||
+      rawHours < 1 ||
+      rawHours > 12 ||
+      minutes < 0 ||
+      minutes > 59
+    ) {
+      return null;
+    }
+
+    let hours = rawHours % 12;
+    if (period === "pm") {
+      hours += 12;
+    }
+
+    return `${hours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")}`;
+  }
+
+  const fallback24h = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (fallback24h) {
+    const hours = Number(fallback24h[1]);
+    const minutes = Number(fallback24h[2]);
+    if (
+      !Number.isNaN(hours) &&
+      !Number.isNaN(minutes) &&
+      hours >= 0 &&
+      hours <= 23 &&
+      minutes >= 0 &&
+      minutes <= 59
+    ) {
+      return `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}`;
+    }
+  }
+
+  return null;
+}
+
 function getDesktopGridClass(columnCount: number) {
   switch (columnCount) {
     case 1:
@@ -256,7 +311,7 @@ function customerDisplayName(customer: CustomerItem, unnamedLabel: string) {
 export function ScheduleShell({ role }: ScheduleShellProps) {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [selectedBarberId, setSelectedBarberId] = useState<string>("all");
+  const [selectedBarberId] = useState<string>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<ModalMode>("create");
@@ -281,7 +336,12 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
   const [draftServiceId, setDraftServiceId] = useState("");
   const [draftBarberId, setDraftBarberId] = useState("");
   const [draftHour, setDraftHour] = useState("");
+  const [draftHourInput, setDraftHourInput] = useState("");
   const [draftNotes, setDraftNotes] = useState("");
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+
+  const timePickerRef = useRef<HTMLDivElement | null>(null);
 
   const { showToast } = useAppToast();
   const [logout, logoutState] = useLogoutMutation();
@@ -421,33 +481,6 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     [appointments, viewRange.from, viewRange.to],
   );
 
-  const appointmentsByDay = useMemo(() => {
-    const map = new Map<string, ScheduleEvent[]>();
-
-    for (const event of appointmentsInView) {
-      const day = startOfDay(event.startDate);
-      const key = day.toISOString();
-      const current = map.get(key);
-      if (current) {
-        current.push(event);
-      } else {
-        map.set(key, [event]);
-      }
-    }
-
-    return Array.from(map.entries())
-      .sort(
-        ([left], [right]) =>
-          new Date(left).getTime() - new Date(right).getTime(),
-      )
-      .map(([dateKey, items]) => ({
-        date: new Date(dateKey),
-        items: [...items].sort(
-          (left, right) => left.startDate.getTime() - right.startDate.getTime(),
-        ),
-      }));
-  }, [appointmentsInView]);
-
   const effectiveSelectedAppointmentId = useMemo(() => {
     if (!appointmentsInView.length) {
       return null;
@@ -470,15 +503,73 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
       ? barbers.slice(0, 4)
       : barbers.filter((barber) => barber.id === selectedBarberId);
 
-  const desktopGridClass = getDesktopGridClass(
-    Math.max(barbersToRender.length, 1),
-  );
-
   const selectedStatus = selectedAppointment?.item.status ?? null;
   const canEditSelected = selectedStatus === 1 || selectedStatus === 2;
   const canCheckInSelected = selectedStatus === 1;
   const canCancelSelected =
     selectedStatus !== null && selectedStatus !== 3 && selectedStatus !== 4;
+
+  const timeOptions = useMemo(() => {
+    const options: Array<{ value: string; label: string }> = [];
+
+    for (let hour = DAY_START_HOUR; hour <= DAY_END_HOUR; hour += 1) {
+      for (const minutes of [0, 15, 30, 45]) {
+        const value = `${hour.toString().padStart(2, "0")}:${minutes
+          .toString()
+          .padStart(2, "0")}`;
+        options.push({ value, label: to12HourLabel(value) });
+      }
+    }
+
+    return options;
+  }, []);
+
+  useEffect(() => {
+    if (!isTimePickerOpen) {
+      return;
+    }
+
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        timePickerRef.current &&
+        !timePickerRef.current.contains(event.target as Node)
+      ) {
+        setIsTimePickerOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isTimePickerOpen]);
+
+  const dayEventsSorted = useMemo(
+    () =>
+      [...appointmentsForDayGrid].sort(
+        (left, right) => left.startDate.getTime() - right.startDate.getTime(),
+      ),
+    [appointmentsForDayGrid],
+  );
+
+  const nextEvent = useMemo(() => {
+    const now = new Date();
+    return (
+      dayEventsSorted.find(
+        (event) => event.endDate.getTime() >= now.getTime(),
+      ) ??
+      dayEventsSorted[0] ??
+      null
+    );
+  }, [dayEventsSorted]);
+
+  const desktopBarbers = useMemo(
+    () => barbersToRender.slice(0, 3),
+    [barbersToRender],
+  );
+  const desktopGridClass = getDesktopGridClass(
+    Math.max(desktopBarbers.length, 1),
+  );
 
   async function onLogout() {
     try {
@@ -528,7 +619,11 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     setSelectedCustomerName("");
     setSelectedCustomerPhone("");
     setDraftHour(`${DAY_START_HOUR.toString().padStart(2, "0")}:00`);
+    setDraftHourInput(
+      to12HourLabel(`${DAY_START_HOUR.toString().padStart(2, "0")}:00`),
+    );
     setDraftNotes("");
+    setIsTimePickerOpen(false);
     setIsModalOpen(true);
   }
 
@@ -543,8 +638,11 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     setCustomerQuery("");
     setSelectedCustomerName("");
     setSelectedCustomerPhone("");
-    setDraftHour(`${hour.toString().padStart(2, "0")}:00`);
+    const hourValue = `${hour.toString().padStart(2, "0")}:00`;
+    setDraftHour(hourValue);
+    setDraftHourInput(to12HourLabel(hourValue));
     setDraftNotes("");
+    setIsTimePickerOpen(false);
     setIsModalOpen(true);
   }
 
@@ -570,9 +668,117 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     setCustomerQuery(selectedAppointment.item.customerName);
     setSelectedCustomerName(selectedAppointment.item.customerName);
     setSelectedCustomerPhone("");
-    setDraftHour(`${localHours}:${localMinutes}`);
+    const hourValue = `${localHours}:${localMinutes}`;
+    setDraftHour(hourValue);
+    setDraftHourInput(to12HourLabel(hourValue));
     setDraftNotes(selectedAppointment.item.notes ?? "");
+    setIsTimePickerOpen(false);
     setIsModalOpen(true);
+  }
+
+  function openEditModalByAppointment(appointmentId: string) {
+    const event = appointmentsInView.find(
+      (item) => item.item.id === appointmentId,
+    );
+    if (!event) {
+      return;
+    }
+
+    setSelectedAppointmentId(appointmentId);
+    const localHours = event.startDate.getHours().toString().padStart(2, "0");
+    const localMinutes = event.startDate
+      .getMinutes()
+      .toString()
+      .padStart(2, "0");
+    const hourValue = `${localHours}:${localMinutes}`;
+
+    setModalMode("reschedule");
+    setEditingAppointmentId(event.item.id);
+    setDraftBarberId(event.item.barberId);
+    setDraftServiceId(event.item.serviceId);
+    setDraftCustomerId(event.item.customerId);
+    setCustomerQuery(event.item.customerName);
+    setSelectedCustomerName(event.item.customerName);
+    setSelectedCustomerPhone("");
+    setDraftHour(hourValue);
+    setDraftHourInput(to12HourLabel(hourValue));
+    setDraftNotes(event.item.notes ?? "");
+    setIsTimePickerOpen(false);
+    setIsModalOpen(true);
+  }
+
+  async function onCancelAppointmentById(
+    appointmentId: string,
+    notes?: string,
+  ) {
+    try {
+      await cancelAppointment({
+        id: appointmentId,
+        notes,
+      }).unwrap();
+
+      showToast({
+        title: Common.Toasts.SuccessTitle,
+        description: Schedule.Messages.Canceled,
+        variant: "success",
+      });
+
+      setIsModalOpen(false);
+      setIsCancelConfirmOpen(false);
+    } catch (error) {
+      showToast({
+        title: Common.Toasts.ErrorTitle,
+        description: getApiErrorMessage(error) ?? Common.Status.Error,
+        variant: "error",
+      });
+    }
+  }
+
+  function requestCancelAppointment() {
+    if (modalMode !== "reschedule" || !editingAppointmentId) {
+      return;
+    }
+
+    setIsCancelConfirmOpen(true);
+  }
+
+  async function confirmCancelAppointment() {
+    if (!editingAppointmentId) {
+      return;
+    }
+
+    await onCancelAppointmentById(
+      editingAppointmentId,
+      draftNotes.trim() || undefined,
+    );
+  }
+
+  const editingAppointmentEvent = useMemo(
+    () =>
+      editingAppointmentId
+        ? (appointmentsInView.find(
+            (event) => event.item.id === editingAppointmentId,
+          ) ?? null)
+        : null,
+    [appointmentsInView, editingAppointmentId],
+  );
+
+  function onSelectTimeOption(value: string) {
+    setDraftHour(value);
+    setDraftHourInput(to12HourLabel(value));
+    setIsTimePickerOpen(false);
+  }
+
+  function onTimeInputBlur() {
+    const parsed = parse12HourTimeInput(draftHourInput);
+
+    if (parsed) {
+      setDraftHour(parsed);
+      setDraftHourInput(to12HourLabel(parsed));
+      return;
+    }
+
+    setDraftHourInput(to12HourLabel(draftHour));
   }
 
   function onPickCustomer(customer: CustomerItem) {
@@ -920,605 +1126,607 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     cancelAppointmentState.isLoading;
 
   return (
-    <main className="min-h-screen bg-[#09090b] text-zinc-100">
-      <header className="sticky top-0 z-30 border-b border-zinc-800 bg-[#09090b]/90 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-[1360px] items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-zinc-100 text-zinc-900 text-sm font-bold">
-              BF
+    <main className="min-h-screen bg-[#191919] text-slate-100">
+      <div className="hidden h-screen overflow-hidden lg:flex">
+        <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800 bg-[#262626]">
+          <div className="flex items-center gap-3 p-6">
+            <div className="h-10 w-10 rounded-full bg-slate-700" />
+            <div>
+              <h1 className="text-lg font-bold leading-none">BarberFlow</h1>
+              <p className="mt-1 text-xs text-slate-400">Management Portal</p>
             </div>
-            <h1 className="text-lg font-semibold tracking-tight">BarberFlow</h1>
           </div>
-          <div className="flex items-center gap-2">
+
+          <nav className="flex-1 space-y-1 px-4">
             <button
               type="button"
-              aria-label={Schedule.Filters.SearchPlaceholder}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-800"
+              onClick={() => router.push(APP_ROUTES.Dashboard)}
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
             >
-              <Search className="h-4 w-4" />
+              <CalendarDays className="h-4 w-4" />
+              Dashboard
             </button>
             <button
               type="button"
-              aria-label={Schedule.Mobile.Alerts}
-              className="relative flex h-9 w-9 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-800"
+              className="flex w-full items-center gap-3 rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white"
             >
-              <Bell className="h-4 w-4" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-blue-400" />
+              <Calendar className="h-4 w-4 text-[#E8611C]" />
+              Schedule
             </button>
-          </div>
-        </div>
-      </header>
-
-      <section className="mx-auto w-full max-w-[1360px] p-4">
-        <div className="rounded-2xl border border-zinc-800 bg-[#0d0f14]">
-          <div className="border-b border-zinc-800 px-4 py-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm text-zinc-500">
-                <span>Dashboard</span>
-                <ChevronRight className="h-3 w-3" />
-                <span className="font-medium text-zinc-100">Schedule</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={openCreateModal}
-                  className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-zinc-200"
-                >
-                  <Plus className="h-4 w-4" />
-                  {Schedule.Actions.NewAppointment}
-                </button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push(APP_ROUTES.Dashboard)}
-                >
-                  {Common.Actions.BackToDashboard}
-                </Button>
-                {canAccessAdmin ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(APP_ROUTES.Admin)}
-                  >
-                    {Admin.Actions.OpenAdmin}
-                  </Button>
-                ) : null}
-                <LoadingButton
-                  variant="outline"
-                  size="sm"
-                  onClick={onLogout}
-                  isLoading={logoutState.isLoading}
-                  loadingText={Common.Actions.Loading}
-                >
-                  <>
-                    <LogOut className="h-4 w-4" />
-                    {Common.Actions.Logout}
-                  </>
-                </LoadingButton>
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center rounded-lg border border-zinc-700 bg-[#12151c] p-1">
-                <button
-                  type="button"
-                  onClick={() => shiftDay("back")}
-                  aria-label="Periodo anterior"
-                  className="flex h-8 w-8 items-center justify-center rounded text-zinc-300 hover:bg-zinc-700"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDate(new Date())}
-                  className="px-3 text-sm font-medium text-zinc-100"
-                >
-                  {Schedule.Filters.Today}:{" "}
-                  {formatPeriodLabel(selectedDate, viewMode)}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => shiftDay("next")}
-                  aria-label="Periodo siguiente"
-                  className="flex h-8 w-8 items-center justify-center rounded text-zinc-300 hover:bg-zinc-700"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-
-              <select
-                value={selectedBarberId}
-                onChange={(event) => setSelectedBarberId(event.target.value)}
-                className="h-10 min-w-[180px] rounded-lg border border-zinc-700 bg-[#12151c] px-3 text-sm text-zinc-100"
+            <button
+              type="button"
+              onClick={() => router.push(APP_ROUTES.Customers)}
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
+            >
+              <Users className="h-4 w-4" />
+              Clients
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(APP_ROUTES.Services)}
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
+            >
+              <Scissors className="h-4 w-4" />
+              Services
+            </button>
+            {canAccessAdmin ? (
+              <button
+                type="button"
+                onClick={() => router.push(APP_ROUTES.Admin)}
+                className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
               >
-                <option value="all">{Schedule.Filters.AllBarbers}</option>
-                {barbers.map((barber) => (
-                  <option key={barber.id} value={barber.id}>
-                    {barber.name}
-                  </option>
-                ))}
-              </select>
+                <Settings className="h-4 w-4" />
+                {Admin.Actions.OpenAdmin}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </button>
+            )}
+          </nav>
 
-              <div className="relative min-w-[260px] flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
+          <div className="border-t border-slate-800 p-4">
+            <div className="mb-3 flex items-center gap-3 p-2">
+              <div className="h-8 w-8 rounded-full border border-slate-700 bg-slate-600" />
+              <div className="overflow-hidden">
+                <p className="truncate text-sm font-medium">Marcus Barber</p>
+                <p className="truncate text-xs text-slate-400">Owner</p>
+              </div>
+            </div>
+            <LoadingButton
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={onLogout}
+              isLoading={logoutState.isLoading}
+              loadingText={Common.Actions.Loading}
+            >
+              <>
+                <LogOut className="h-4 w-4" />
+                {Common.Actions.Logout}
+              </>
+            </LoadingButton>
+          </div>
+        </aside>
+
+        <section className="flex min-w-0 flex-1 flex-col bg-[#191919]">
+          <header className="flex h-16 items-center justify-between border-b border-slate-800 px-8">
+            <div className="flex flex-1 items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-slate-500" />
                 <input
                   type="search"
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder={Schedule.Filters.SearchPlaceholder}
-                  className="h-10 w-full rounded-lg border border-zinc-700 bg-[#12151c] pl-8 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                  placeholder="Search clients, appointments, or bookings..."
+                  className="w-96 border-none bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
                 />
               </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="flex items-center gap-2 rounded-lg bg-[#E8611C] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" />
+                {Schedule.Actions.NewAppointment}
+              </button>
+              <div className="mx-2 h-8 w-px bg-slate-800" />
+              <button
+                type="button"
+                aria-label={Schedule.Mobile.Alerts}
+                className="p-2 text-slate-400 transition hover:text-white"
+              >
+                <Bell className="h-4 w-4" />
+              </button>
+            </div>
+          </header>
 
-              <div className="inline-flex rounded-lg border border-zinc-700 bg-[#12151c] p-1">
-                <button
-                  type="button"
-                  className={`rounded px-3 py-1 text-xs ${
-                    viewMode === "day"
-                      ? "bg-zinc-100 text-zinc-900"
-                      : "text-zinc-400"
-                  }`}
-                  onClick={() => setViewMode("day")}
-                >
-                  {Schedule.Filters.ViewDay}
-                </button>
-                <button
-                  type="button"
-                  className={`rounded px-3 py-1 text-xs ${
-                    viewMode === "week"
-                      ? "bg-zinc-100 text-zinc-900"
-                      : "text-zinc-400"
-                  }`}
-                  onClick={() => setViewMode("week")}
-                >
-                  {Schedule.Filters.ViewWeek}
-                </button>
-                <button
-                  type="button"
-                  className={`rounded px-3 py-1 text-xs ${
-                    viewMode === "month"
-                      ? "bg-zinc-100 text-zinc-900"
-                      : "text-zinc-400"
-                  }`}
-                  onClick={() => setViewMode("month")}
-                >
-                  {Schedule.Filters.ViewMonth}
-                </button>
+          <div className="flex min-h-0 flex-1 flex-col p-8">
+            <div className="mb-8 flex items-end justify-between">
+              <div>
+                <h2 className="text-4xl font-black tracking-tight text-white">
+                  Daily Schedule
+                </h2>
+                <p className="mt-1 text-slate-400">
+                  Manage appointments and barber availability for today.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center rounded-lg border border-slate-800 bg-[#262626] p-1">
+                  <button
+                    type="button"
+                    onClick={() => shiftDay("back")}
+                    className="rounded p-1 hover:bg-slate-800"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(new Date())}
+                    className="px-3 py-1 text-sm font-medium"
+                  >
+                    {Schedule.Filters.Today},{" "}
+                    {formatPeriodLabel(selectedDate, viewMode)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => shiftDay("next")}
+                    className="rounded p-1 hover:bg-slate-800"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="flex items-center rounded-lg border border-slate-800 bg-[#262626] p-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("day")}
+                    className={`rounded px-4 py-1 text-sm font-medium ${
+                      viewMode === "day"
+                        ? "bg-slate-700 text-white"
+                        : "text-slate-400 hover:bg-slate-800"
+                    }`}
+                  >
+                    {Schedule.Filters.ViewDay}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("week")}
+                    className={`rounded px-4 py-1 text-sm font-medium ${
+                      viewMode === "week"
+                        ? "bg-slate-700 text-white"
+                        : "text-slate-400 hover:bg-slate-800"
+                    }`}
+                  >
+                    {Schedule.Filters.ViewWeek}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="grid xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="overflow-x-auto">
-              {viewMode === "day" ? (
-                <div className="min-w-[860px]">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-800 bg-[#262626] shadow-sm">
+              <div
+                className={`grid border-b border-slate-800 bg-slate-800/30 ${desktopGridClass}`}
+              >
+                <div className="flex items-center justify-center p-4 text-[10px] font-bold uppercase text-slate-500">
+                  {Schedule.Grid.Timezone}
+                </div>
+                {desktopBarbers.length ? (
+                  desktopBarbers.map((barber) => {
+                    const appointmentCount = appointmentsForDayGrid.filter(
+                      (event) => event.item.barberId === barber.id,
+                    ).length;
+
+                    return (
+                      <div
+                        key={barber.id}
+                        className="border-l border-slate-800 p-4 text-center"
+                      >
+                        <div className="text-sm font-bold">{barber.name}</div>
+                        <div className="text-[10px] uppercase text-slate-500">
+                          {appointmentCount} {Schedule.Grid.Bookings}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="border-l border-slate-800 p-4 text-xs text-slate-500">
+                    {Schedule.Empty.NoBarbers}
+                  </div>
+                )}
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto bg-[#121212]">
+                {daySlots.map((hour) => (
                   <div
-                    className={`grid border-b border-zinc-800 ${desktopGridClass}`}
+                    key={hour}
+                    className={`grid border-b border-slate-800/70 ${desktopGridClass}`}
                   >
-                    <div className="p-3 text-center text-[10px] uppercase tracking-widest text-zinc-500">
-                      {Schedule.Grid.Timezone}
+                    <div className="flex items-start justify-center pt-2 text-xs font-medium text-slate-500">
+                      {formatHourLabel(hour)}
                     </div>
-                    {barbersToRender.length ? (
-                      barbersToRender.map((barber) => {
-                        const appointmentCount = appointmentsForDayGrid.filter(
-                          (event) => event.item.barberId === barber.id,
-                        ).length;
+
+                    {desktopBarbers.length ? (
+                      desktopBarbers.map((barber) => {
+                        const slotAppointments = appointmentsForDayGrid.filter(
+                          (event) =>
+                            event.item.barberId === barber.id &&
+                            event.startDate.getHours() === hour,
+                        );
+                        const slotKey = `${barber.id}-${hour}`;
+                        const isDropTargetActive =
+                          draggingAppointmentId !== null &&
+                          dropTargetSlotKey === slotKey;
 
                         return (
                           <div
-                            key={barber.id}
-                            className="border-l border-zinc-800 p-3 text-center"
+                            key={`${barber.id}-${hour}`}
+                            className={`group/slot relative border-l border-slate-800 ${
+                              isDropTargetActive
+                                ? "bg-[#1e3a8a1f] ring-1 ring-inset ring-[#3b82f6]"
+                                : ""
+                            }`}
+                            style={{ minHeight: `${SLOT_HEIGHT}px` }}
+                            onDragOver={(event) => {
+                              event.preventDefault();
+                              setDropTargetSlotKey(slotKey);
+                            }}
+                            onDragLeave={() => {
+                              setDropTargetSlotKey((current) =>
+                                current === slotKey ? null : current,
+                              );
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              setDropTargetSlotKey(null);
+                              void onDropAppointmentToSlot(barber.id, hour);
+                            }}
                           >
-                            <div className="text-sm font-semibold text-zinc-100">
-                              {barber.name}
-                            </div>
-                            <div className="text-[11px] text-zinc-500">
-                              {appointmentCount} {Schedule.Grid.Bookings}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                openCreateModalFromSlot(barber.id, hour)
+                              }
+                              className={`absolute inset-0 ${
+                                draggingAppointmentId
+                                  ? "pointer-events-none"
+                                  : ""
+                              }`}
+                              aria-label={`${Schedule.Actions.NewAppointment} ${barber.name} ${formatHourLabel(hour)}`}
+                            >
+                              <span className="absolute right-2 top-2 opacity-0 transition group-hover/slot:opacity-100 text-slate-500">
+                                <Plus className="h-4 w-4" />
+                              </span>
+                            </button>
+
+                            <div className="relative z-10 p-1.5">
+                              {slotAppointments.map((event) => {
+                                const active =
+                                  effectiveSelectedAppointmentId ===
+                                  event.item.id;
+
+                                return (
+                                  <button
+                                    key={event.item.id}
+                                    type="button"
+                                    draggable={
+                                      event.item.status === 1 ||
+                                      event.item.status === 2
+                                    }
+                                    onDragStart={() => {
+                                      setDraggingAppointmentId(event.item.id);
+                                      setDropTargetSlotKey(null);
+                                    }}
+                                    onDragEnd={() => {
+                                      setDraggingAppointmentId(null);
+                                      setDropTargetSlotKey(null);
+                                    }}
+                                    onClick={() =>
+                                      openEditModalByAppointment(event.item.id)
+                                    }
+                                    className={`w-full rounded border-l-4 p-2 text-left ${
+                                      active
+                                        ? "border-[#E8611C] bg-[#E8611C1f]"
+                                        : event.item.status === 2
+                                          ? "border-slate-500 bg-slate-800"
+                                          : "border-[#E8611C] bg-[#2a1a12]"
+                                    } ${
+                                      event.item.status === 1 ||
+                                      event.item.status === 2
+                                        ? "cursor-grab"
+                                        : "cursor-default"
+                                    }`}
+                                  >
+                                    <div className="text-[11px] font-bold text-[#E8611C]">
+                                      {formatTimeRange(
+                                        event.startDate,
+                                        event.endDate,
+                                      )}
+                                    </div>
+                                    <div className="truncate text-xs font-bold text-white">
+                                      {event.item.customerName}
+                                    </div>
+                                    <div className="truncate text-[10px] text-slate-400">
+                                      {event.item.serviceName}
+                                    </div>
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         );
                       })
                     ) : (
-                      <div className="border-l border-zinc-800 p-3 text-center text-xs text-zinc-500">
-                        {Schedule.Empty.NoBarbers}
+                      <div className="border-l border-slate-800 p-2 text-xs text-slate-500">
+                        {Schedule.Empty.NoData}
                       </div>
                     )}
                   </div>
-
-                  {daySlots.map((hour) => (
-                    <div
-                      key={hour}
-                      className={`grid border-b border-zinc-800 ${desktopGridClass}`}
-                    >
-                      <div className="p-2 text-right text-xs text-zinc-500">
-                        {formatHourLabel(hour)}
-                      </div>
-
-                      {barbersToRender.length ? (
-                        barbersToRender.map((barber) => {
-                          const slotAppointments =
-                            appointmentsForDayGrid.filter(
-                              (event) =>
-                                event.item.barberId === barber.id &&
-                                event.startDate.getHours() === hour,
-                            );
-                          const slotKey = `${barber.id}-${hour}`;
-                          const isDropTargetActive =
-                            draggingAppointmentId !== null &&
-                            dropTargetSlotKey === slotKey;
-
-                          return (
-                            <div
-                              key={`${barber.id}-${hour}`}
-                              className={`group/slot relative border-l border-zinc-800 ${
-                                isDropTargetActive
-                                  ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/60"
-                                  : ""
-                              }`}
-                              style={{ minHeight: `${SLOT_HEIGHT}px` }}
-                              onDragOver={(event) => {
-                                event.preventDefault();
-                                setDropTargetSlotKey(slotKey);
-                              }}
-                              onDragLeave={() => {
-                                setDropTargetSlotKey((current) =>
-                                  current === slotKey ? null : current,
-                                );
-                              }}
-                              onDrop={(event) => {
-                                event.preventDefault();
-                                setDropTargetSlotKey(null);
-                                void onDropAppointmentToSlot(barber.id, hour);
-                              }}
-                            >
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openCreateModalFromSlot(barber.id, hour)
-                                }
-                                className={`absolute inset-0 z-0 ${
-                                  draggingAppointmentId
-                                    ? "pointer-events-none"
-                                    : ""
-                                }`}
-                                aria-label={`${Schedule.Actions.NewAppointment} ${barber.name} ${formatHourLabel(hour)}`}
-                              >
-                                <span className="absolute right-2 top-2 opacity-0 transition group-hover/slot:opacity-100 text-zinc-600">
-                                  <Plus className="h-4 w-4" />
-                                </span>
-                              </button>
-
-                              <div className="relative z-10 p-1.5">
-                                {slotAppointments.map((event) => {
-                                  const active =
-                                    effectiveSelectedAppointmentId ===
-                                    event.item.id;
-                                  const current = isCurrentAppointment(
-                                    new Date(),
-                                    event.startDate,
-                                    event.endDate,
-                                  );
-
-                                  return (
-                                    <button
-                                      key={event.item.id}
-                                      type="button"
-                                      draggable={
-                                        event.item.status === 1 ||
-                                        event.item.status === 2
-                                      }
-                                      onDragStart={() => {
-                                        setDraggingAppointmentId(event.item.id);
-                                        setDropTargetSlotKey(null);
-                                      }}
-                                      onDragEnd={() => {
-                                        setDraggingAppointmentId(null);
-                                        setDropTargetSlotKey(null);
-                                      }}
-                                      onClick={() =>
-                                        setSelectedAppointmentId(event.item.id)
-                                      }
-                                      className={`w-full rounded border-l-4 p-2 text-left ${
-                                        active
-                                          ? "border-blue-500 bg-blue-500/20"
-                                          : "border-amber-400 bg-zinc-900 hover:bg-zinc-800"
-                                      } ${
-                                        event.item.status === 1 ||
-                                        event.item.status === 2
-                                          ? "cursor-grab"
-                                          : "cursor-default"
-                                      }`}
-                                    >
-                                      <div className="text-[11px] font-bold text-zinc-200">
-                                        {formatTimeRange(
-                                          event.startDate,
-                                          event.endDate,
-                                        )}
-                                      </div>
-                                      <div className="text-xs font-semibold text-zinc-100 truncate">
-                                        {event.item.customerName}
-                                      </div>
-                                      <div className="text-[11px] text-zinc-400 truncate">
-                                        {event.item.serviceName}
-                                      </div>
-                                      {current ? (
-                                        <span className="mt-1 inline-flex rounded bg-zinc-700 px-2 py-0.5 text-[10px] uppercase text-zinc-300">
-                                          {Schedule.Grid.Current}
-                                        </span>
-                                      ) : null}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="border-l border-zinc-800 p-2 text-xs text-zinc-500">
-                          {Schedule.Empty.NoData}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4">
-                  {appointmentsByDay.length ? (
-                    <div className="space-y-4">
-                      {appointmentsByDay.map((group) => (
-                        <section
-                          key={group.date.toISOString()}
-                          className="rounded-lg border border-zinc-800 bg-zinc-900/40"
-                        >
-                          <header className="border-b border-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-100 capitalize">
-                            {formatDateLabel(group.date)}
-                          </header>
-                          <div className="divide-y divide-zinc-800">
-                            {group.items.map((event) => {
-                              const active =
-                                effectiveSelectedAppointmentId ===
-                                event.item.id;
-
-                              return (
-                                <button
-                                  key={event.item.id}
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedAppointmentId(event.item.id)
-                                  }
-                                  className={`flex w-full items-start justify-between gap-3 px-4 py-3 text-left ${
-                                    active
-                                      ? "bg-blue-500/10"
-                                      : "hover:bg-zinc-800/60"
-                                  }`}
-                                >
-                                  <div>
-                                    <div className="text-sm font-semibold text-zinc-100">
-                                      {event.item.customerName}
-                                    </div>
-                                    <div className="text-xs text-zinc-400">
-                                      {event.item.serviceName} ·{" "}
-                                      {event.item.barberName}
-                                    </div>
-                                  </div>
-                                  <div className="text-xs text-zinc-300">
-                                    {formatTimeRange(
-                                      event.startDate,
-                                      event.endDate,
-                                    )}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </section>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4 text-sm text-zinc-500">
-                      {Schedule.Empty.NoData}
-                    </div>
-                  )}
-                </div>
-              )}
+                ))}
+              </div>
             </div>
-
-            <aside className="hidden border-l border-zinc-800 xl:block">
-              <div className="border-b border-zinc-800 p-4 text-base font-semibold text-zinc-100">
-                {Schedule.Details.Title}
-              </div>
-
-              <div className="space-y-4 p-4">
-                {selectedAppointment ? (
-                  <>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-800 text-sm font-semibold text-zinc-100">
-                        {selectedAppointment.item.customerName
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-zinc-100">
-                          {selectedAppointment.item.customerName}
-                        </div>
-                        <div className="text-xs text-zinc-400">
-                          {getStatusLabel(
-                            selectedAppointment.item.status,
-                            Schedule.Status,
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-2.5">
-                        <div className="mb-1 flex items-center gap-2 text-zinc-500">
-                          <Scissors className="h-4 w-4" />
-                          <span className="text-[11px] uppercase tracking-wide">
-                            {Schedule.Details.Service}
-                          </span>
-                        </div>
-                        <div className="text-zinc-100">
-                          {selectedAppointment.item.serviceName}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-2.5">
-                        <div className="mb-1 flex items-center gap-2 text-zinc-500">
-                          <Calendar className="h-4 w-4" />
-                          <span className="text-[11px] uppercase tracking-wide">
-                            {Schedule.Details.Schedule}
-                          </span>
-                        </div>
-                        <div className="text-zinc-100">
-                          {formatTimeRange(
-                            selectedAppointment.startDate,
-                            selectedAppointment.endDate,
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-2.5">
-                        <div className="mb-1 flex items-center gap-2 text-zinc-500">
-                          <Users className="h-4 w-4" />
-                          <span className="text-[11px] uppercase tracking-wide">
-                            {Schedule.Details.Barber}
-                          </span>
-                        </div>
-                        <div className="text-zinc-100">
-                          {selectedAppointment.item.barberName}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-2.5">
-                        <div className="mb-1 flex items-center gap-2 text-zinc-500">
-                          <Clock3 className="h-4 w-4" />
-                          <span className="text-[11px] uppercase tracking-wide">
-                            {Schedule.Details.Notes}
-                          </span>
-                        </div>
-                        <div className="text-zinc-300">
-                          {selectedAppointment.item.notes ||
-                            Schedule.Details.NoNotes}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={openRescheduleModal}
-                        disabled={
-                          rescheduleAppointmentState.isLoading ||
-                          !canEditSelected
-                        }
-                      >
-                        {Schedule.Actions.Reschedule}
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={onCheckInAppointment}
-                        disabled={
-                          updateAppointmentStatusState.isLoading ||
-                          !canCheckInSelected
-                        }
-                      >
-                        {Schedule.Actions.CheckIn}
-                      </Button>
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={onCancelAppointment}
-                      disabled={
-                        cancelAppointmentState.isLoading || !canCancelSelected
-                      }
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      {Schedule.Actions.CancelAppointment}
-                    </Button>
-                  </>
-                ) : (
-                  <div className="text-sm text-zinc-500">
-                    {Schedule.Empty.SelectAppointment}
-                  </div>
-                )}
-              </div>
-            </aside>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
-      <button
-        type="button"
-        onClick={openCreateModal}
-        className="fixed bottom-24 right-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100 text-zinc-900 shadow-2xl xl:hidden"
-      >
-        <Plus className="h-5 w-5" />
-      </button>
-
-      <nav className="fixed bottom-0 left-0 right-0 z-20 border-t border-zinc-800 bg-[#09090b]/95 px-4 py-2 backdrop-blur xl:hidden">
-        <div className="flex items-center justify-around">
+      <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden pb-24 lg:hidden">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[#262626] bg-[#1a1a1ad9] px-4 py-3 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#262626] text-xl font-bold">
+              BF
+            </div>
+            <div>
+              <h1 className="text-sm font-bold leading-tight">BarberFlow</h1>
+              <p className="text-xs text-slate-400">Alex&apos;s Schedule</p>
+            </div>
+          </div>
           <button
             type="button"
-            className="flex flex-col items-center gap-1 text-zinc-500"
-            onClick={() => router.push(APP_ROUTES.Dashboard)}
-          >
-            <CalendarDays className="h-4 w-4" />
-            <span className="text-[10px]">{Schedule.Mobile.Home}</span>
-          </button>
-          <button
-            type="button"
-            className="flex flex-col items-center gap-1 text-zinc-100"
-          >
-            <Calendar className="h-4 w-4" />
-            <span className="text-[10px]">{Schedule.Mobile.Schedule}</span>
-          </button>
-          <button
-            type="button"
-            className="flex flex-col items-center gap-1 text-zinc-500"
-          >
-            <UserRound className="h-4 w-4" />
-            <span className="text-[10px]">{Schedule.Mobile.Clients}</span>
-          </button>
-          <button
-            type="button"
-            className="flex flex-col items-center gap-1 text-zinc-500"
+            aria-label={Schedule.Mobile.Alerts}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#262626]"
           >
             <Bell className="h-4 w-4" />
-            <span className="text-[10px]">{Schedule.Mobile.Alerts}</span>
+          </button>
+        </header>
+
+        <div className="flex items-center justify-between bg-[#1a1a1a] px-4 py-4">
+          <button
+            type="button"
+            onClick={() => shiftDay("back")}
+            className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#262626]"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div className="flex flex-col items-center">
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              {Schedule.Filters.Today}
+            </span>
+            <span className="text-lg font-bold capitalize">
+              {formatDateLabel(selectedDate)}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => shiftDay("next")}
+            className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#262626]"
+          >
+            <ChevronRight className="h-5 w-5" />
           </button>
         </div>
-      </nav>
+
+        <section className="px-4 py-2">
+          <div className="overflow-hidden rounded-xl border border-[#262626] bg-[#1f1f1f] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="rounded-full bg-[#262626] px-2.5 py-1 text-[10px] font-bold uppercase tracking-tight text-slate-100">
+                Next Up •{" "}
+                {nextEvent
+                  ? formatTimeRange(
+                      nextEvent.startDate,
+                      nextEvent.endDate,
+                    ).split(" - ")[0]
+                  : "--:--"}
+              </span>
+              <span className="text-xs font-semibold text-slate-400">
+                {nextEvent ? "In 15 mins" : Schedule.Empty.NoData}
+              </span>
+            </div>
+
+            <div className="mb-4 flex items-start gap-4">
+              <div className="h-14 w-14 shrink-0 rounded-lg bg-[#323232]" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold leading-none">
+                  {nextEvent?.item.customerName ?? Schedule.Empty.NoData}
+                </h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  {nextEvent?.item.serviceName ?? "-"}
+                </p>
+                <p className="mt-1 text-xs font-medium text-[#E8611C]">
+                  {nextEvent
+                    ? `${Math.max(15, Math.round((nextEvent.endDate.getTime() - nextEvent.startDate.getTime()) / 60000))} mins`
+                    : "-"}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={onCheckInAppointment}
+                disabled={!canCheckInSelected}
+                className="flex flex-col items-center justify-center gap-1 rounded-lg bg-[#E8611C] py-2 text-slate-100 transition active:scale-95 disabled:opacity-50"
+              >
+                <span className="text-[10px] font-bold uppercase">
+                  Check In
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={onCancelAppointment}
+                disabled={!canCancelSelected}
+                className="flex flex-col items-center justify-center gap-1 rounded-lg border border-[#303030] bg-[#1a1a1a] py-2 transition active:scale-95 disabled:opacity-50"
+              >
+                <span className="text-[10px] font-bold uppercase">No Show</span>
+              </button>
+              <button
+                type="button"
+                onClick={openRescheduleModal}
+                disabled={!canEditSelected}
+                className="flex flex-col items-center justify-center gap-1 rounded-lg border border-[#303030] bg-[#1a1a1a] py-2 transition active:scale-95 disabled:opacity-50"
+              >
+                <span className="text-[10px] font-bold uppercase">Resched</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6 flex flex-col px-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-bold">Today&apos;s Schedule</h2>
+            <span className="text-xs text-slate-400">
+              {dayEventsSorted.length} Appointments
+            </span>
+          </div>
+
+          <div className="space-y-0">
+            {dayEventsSorted.map((event) => {
+              const active = effectiveSelectedAppointmentId === event.item.id;
+              const current = isCurrentAppointment(
+                new Date(),
+                event.startDate,
+                event.endDate,
+              );
+
+              return (
+                <div
+                  key={event.item.id}
+                  className="relative flex min-h-[84px] gap-4"
+                >
+                  <div className="flex w-12 flex-col items-end pt-1">
+                    <span
+                      className={`text-xs font-bold ${active ? "text-[#E8611C]" : ""}`}
+                    >
+                      {new Intl.DateTimeFormat("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      }).format(event.startDate)}
+                    </span>
+                  </div>
+                  <div className="relative flex-1 pb-4">
+                    <div className="absolute left-[-17px] top-2.5 z-10 h-2 w-2 rounded-full bg-slate-500 ring-4 ring-[#1a1a1a]" />
+                    <div className="absolute left-[-13.5px] top-3 h-full w-[1px] bg-slate-800" />
+                    <button
+                      type="button"
+                      onClick={() => openEditModalByAppointment(event.item.id)}
+                      className={`w-full rounded-lg border p-3 text-left ${
+                        current
+                          ? "border-[#E8611C44] border-l-4 border-l-[#E8611C] bg-[#E8611C14]"
+                          : "border-slate-800 bg-[#202020]"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-bold">
+                            {event.item.customerName}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {event.item.serviceName}
+                          </p>
+                        </div>
+                        {current ? (
+                          <span className="rounded-full bg-[#E8611C2a] px-2 py-0.5 text-[10px] font-bold uppercase text-[#E8611C]">
+                            Current
+                          </span>
+                        ) : null}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="fixed bottom-24 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#E8611C] text-slate-100 shadow-xl transition active:scale-90"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#262626] bg-[#1a1a1a] pb-6 pt-2">
+          <div className="flex items-center justify-around px-4">
+            <button
+              type="button"
+              className="flex flex-col items-center gap-1 text-[#E8611C]"
+            >
+              <Calendar className="h-4 w-4" />
+              <p className="text-[10px] font-bold uppercase">Schedule</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(APP_ROUTES.Customers)}
+              className="flex flex-col items-center gap-1 text-slate-400"
+            >
+              <UserRound className="h-4 w-4" />
+              <p className="text-[10px] font-medium uppercase">Clients</p>
+            </button>
+            <button
+              type="button"
+              className="flex flex-col items-center gap-1 text-slate-400"
+            >
+              <Clock3 className="h-4 w-4" />
+              <p className="text-[10px] font-medium uppercase">Earnings</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(APP_ROUTES.Dashboard)}
+              className="flex flex-col items-center gap-1 text-slate-400"
+            >
+              <Settings className="h-4 w-4" />
+              <p className="text-[10px] font-medium uppercase">Settings</p>
+            </button>
+          </div>
+        </nav>
+      </div>
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-[520px] overflow-hidden rounded border border-zinc-700 bg-[#17191e] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-700 p-6">
-              <h2 className="text-3xl font-bold text-zinc-100">
+          <div className="relative w-full max-w-[520px] overflow-hidden rounded border border-[#262626] bg-[#1c1c1c] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#262626] p-6">
+              <h2 className="text-xl font-bold tracking-tight text-slate-100">
                 {modalMode === "create"
                   ? Schedule.Modal.Title
                   : Schedule.Modal.RescheduleTitle}
               </h2>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setIsCancelConfirmOpen(false);
+                }}
                 aria-label="Cerrar modal"
-                className="text-zinc-400 hover:text-zinc-100"
+                className="text-slate-400 transition hover:text-white"
               >
-                <X className="h-7 w-7" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-5 p-6">
+            <div className="space-y-6 p-6">
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   {Schedule.Modal.Customer}
                 </label>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                <div className="relative group">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 group-focus-within:text-[#E8611C]" />
                   <input
                     type="text"
                     value={customerQuery}
@@ -1533,36 +1741,18 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                       } else {
                         setCustomerQuery(nextRaw);
                       }
-
                       setDraftCustomerId("");
                       setSelectedCustomerName("");
                       setSelectedCustomerPhone("");
                     }}
                     placeholder={Schedule.Modal.CustomerSearchPlaceholder}
-                    className="h-12 w-full rounded border border-zinc-700 bg-[#0f1115] pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                    className="h-12 w-full rounded border border-white/10 bg-[#121212] px-4 pl-11 text-sm text-slate-100 placeholder:text-slate-600 focus:border-[#E8611C] focus:outline-none focus:ring-1 focus:ring-[#E8611C]"
                     disabled={modalMode === "reschedule"}
                   />
                 </div>
 
-                {modalMode === "create" &&
-                isNumericInput(customerQuery) &&
-                customerQuery.length === COLOMBIA_PHONE_MAX_LENGTH ? (
-                  <p className="text-[11px] text-zinc-500">
-                    {Schedule.Modal.PhoneLengthOk}
-                  </p>
-                ) : null}
-
-                {modalMode === "create" &&
-                isNumericInput(customerQuery) &&
-                customerQuery.length > 0 &&
-                customerQuery.length < COLOMBIA_PHONE_MAX_LENGTH ? (
-                  <p className="text-[11px] text-amber-300">
-                    {Schedule.Modal.PhoneLengthHint}
-                  </p>
-                ) : null}
-
                 {modalMode === "create" && draftCustomerId ? (
-                  <div className="rounded border border-zinc-700 bg-[#101218] p-2.5 text-xs text-zinc-300">
+                  <div className="rounded border border-[#262626] bg-[#101218] p-2.5 text-xs text-slate-300">
                     <p>
                       {Schedule.Modal.SelectedCustomerName}:{" "}
                       {selectedCustomerName || "-"}
@@ -1577,21 +1767,21 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                 {modalMode === "create" &&
                 customerQuery.trim().length > 0 &&
                 filteredCustomers.length ? (
-                  <div className="max-h-40 space-y-1 overflow-auto rounded border border-zinc-700 bg-[#101218] p-1">
+                  <div className="max-h-40 space-y-1 overflow-auto rounded border border-[#262626] bg-[#101218] p-1">
                     {filteredCustomers.map((customer) => (
                       <button
                         key={customer.id}
                         type="button"
                         onClick={() => onPickCustomer(customer)}
-                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left hover:bg-zinc-800"
+                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-left hover:bg-slate-800"
                       >
-                        <span className="text-sm text-zinc-100">
+                        <span className="text-sm text-slate-100">
                           {customerDisplayName(
                             customer,
                             Schedule.Modal.Unnamed,
                           )}
                         </span>
-                        <span className="text-xs text-zinc-500">
+                        <span className="text-xs text-slate-500">
                           {customer.phone || "-"}
                         </span>
                       </button>
@@ -1602,7 +1792,7 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                 {modalMode === "create" &&
                 customerQuery.trim().length > 0 &&
                 customerSearchQuery.isFetching ? (
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-slate-500">
                     {Schedule.Modal.SearchingCustomers}
                   </p>
                 ) : null}
@@ -1613,89 +1803,70 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                 customerSearchQuery.data &&
                 customerSearchQuery.data.length === 0 ? (
                   <div className="space-y-2">
-                    <p className="text-xs text-zinc-500">
+                    <p className="text-xs text-slate-500">
                       {Schedule.Modal.NoCustomerResults}
                     </p>
-
                     {queryInputIsPhone ? (
-                      <div className="space-y-1">
-                        <label className="text-[11px] uppercase tracking-widest text-zinc-500">
-                          {Schedule.Modal.ComplementaryNameLabel}
-                        </label>
-                        <input
-                          type="text"
-                          value={selectedCustomerName}
-                          onChange={(event) =>
-                            setSelectedCustomerName(event.target.value)
-                          }
-                          placeholder={
-                            Schedule.Modal.ComplementaryNamePlaceholder
-                          }
-                          autoFocus
-                          className="h-10 w-full rounded border border-zinc-700 bg-[#0f1115] px-3 text-sm text-zinc-100 placeholder:text-zinc-500"
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        value={selectedCustomerName}
+                        onChange={(event) =>
+                          setSelectedCustomerName(event.target.value)
+                        }
+                        placeholder={
+                          Schedule.Modal.ComplementaryNamePlaceholder
+                        }
+                        className="h-10 w-full rounded border border-white/10 bg-[#121212] px-3 text-sm text-slate-100 placeholder:text-slate-500"
+                      />
                     ) : (
-                      <div className="space-y-1">
-                        <label className="text-[11px] uppercase tracking-widest text-zinc-500">
-                          {Schedule.Modal.ComplementaryPhoneLabel}
-                        </label>
-                        <input
-                          type="text"
-                          value={selectedCustomerPhone}
-                          onChange={(event) =>
-                            setSelectedCustomerPhone(
-                              normalizePhone(event.target.value).slice(
-                                0,
-                                COLOMBIA_PHONE_MAX_LENGTH,
-                              ),
-                            )
-                          }
-                          placeholder={
-                            Schedule.Modal.ComplementaryPhonePlaceholder
-                          }
-                          autoFocus
-                          className="h-10 w-full rounded border border-zinc-700 bg-[#0f1115] px-3 text-sm text-zinc-100 placeholder:text-zinc-500"
-                        />
-                        {selectedCustomerPhone.length > 0 &&
-                        selectedCustomerPhone.length <
-                          COLOMBIA_PHONE_MAX_LENGTH ? (
-                          <p className="text-[11px] text-amber-300">
-                            {Schedule.Modal.PhoneLengthHint}
-                          </p>
-                        ) : null}
-                      </div>
+                      <input
+                        type="text"
+                        value={selectedCustomerPhone}
+                        onChange={(event) =>
+                          setSelectedCustomerPhone(
+                            normalizePhone(event.target.value).slice(
+                              0,
+                              COLOMBIA_PHONE_MAX_LENGTH,
+                            ),
+                          )
+                        }
+                        placeholder={
+                          Schedule.Modal.ComplementaryPhonePlaceholder
+                        }
+                        className="h-10 w-full rounded border border-white/10 bg-[#121212] px-3 text-sm text-slate-100 placeholder:text-slate-500"
+                      />
                     )}
                   </div>
                 ) : null}
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   {Schedule.Modal.Service}
                 </label>
                 <select
                   value={draftServiceId}
                   onChange={(event) => setDraftServiceId(event.target.value)}
-                  className="h-12 w-full rounded border border-zinc-700 bg-[#0f1115] px-3 text-sm text-zinc-100"
+                  className="h-12 w-full rounded border border-white/10 bg-[#121212] px-4 text-sm text-slate-100"
                 >
                   {(servicesQuery.data ?? []).map((service) => (
                     <option key={service.id} value={service.id}>
-                      {service.name} - {service.durationMinutes}m
+                      {service.name} - {service.durationMinutes}m - $
+                      {service.price}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     {Schedule.Modal.Barber}
                   </label>
                   <select
                     value={draftBarberId}
                     onChange={(event) => setDraftBarberId(event.target.value)}
-                    className="h-12 w-full rounded border border-zinc-700 bg-[#0f1115] px-3 text-sm text-zinc-100"
+                    className="h-12 w-full rounded border border-white/10 bg-[#121212] px-4 text-sm text-slate-100"
                   >
                     {barbers.map((barber) => (
                       <option key={barber.id} value={barber.id}>
@@ -1704,60 +1875,155 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                     ))}
                   </select>
                 </div>
+
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     {Schedule.Modal.Time}
                   </label>
-                  <div className="relative">
-                    <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-                    <input
-                      type="time"
-                      value={draftHour}
-                      onChange={(event) => setDraftHour(event.target.value)}
-                      className="h-12 w-full rounded border border-zinc-700 bg-[#0f1115] pl-9 pr-3 text-sm text-zinc-100"
-                    />
+                  <div ref={timePickerRef} className="relative">
+                    <div className="relative flex items-center gap-3 rounded border border-[#262626] bg-[#121212] px-3">
+                      <Clock3 className="h-4 w-4 text-[#E8611C]" />
+                      <input
+                        type="text"
+                        value={draftHourInput}
+                        onChange={(event) =>
+                          setDraftHourInput(event.target.value)
+                        }
+                        onFocus={() => setIsTimePickerOpen(true)}
+                        onBlur={onTimeInputBlur}
+                        placeholder="10:45 AM"
+                        className="h-12 w-full border-none bg-transparent text-sm text-slate-100 focus:outline-none"
+                      />
+                    </div>
+
+                    {isTimePickerOpen ? (
+                      <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded border border-[#262626] bg-[#151515] shadow-2xl">
+                        {timeOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => onSelectTimeOption(option.value)}
+                            className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition hover:bg-[#202020] ${
+                              draftHour === option.value
+                                ? "bg-[#E8611C1f] text-[#E8611C]"
+                                : "text-slate-200"
+                            }`}
+                          >
+                            <span>{option.label}</span>
+                            {draftHour === option.value ? (
+                              <Check className="h-3.5 w-3.5" />
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-                  {Schedule.Modal.Notes}
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  {Schedule.Modal.Notes}{" "}
+                  <span className="normal-case text-slate-600">(Optional)</span>
                 </label>
                 <textarea
                   value={draftNotes}
                   onChange={(event) => setDraftNotes(event.target.value)}
-                  rows={4}
+                  rows={3}
                   placeholder={Schedule.Modal.NotesPlaceholder}
-                  className="w-full rounded border border-zinc-700 bg-[#0f1115] p-3 text-sm text-zinc-100 placeholder:text-zinc-500"
+                  className="w-full rounded border border-white/10 bg-[#121212] p-3 text-sm text-slate-100 placeholder:text-slate-600"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t border-zinc-700 bg-[#14161b] p-6">
-              <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                {Schedule.Actions.Cancel}
-              </Button>
-              <button
-                type="button"
-                onClick={onSubmitAppointmentModal}
-                disabled={
-                  createAppointmentState.isLoading ||
-                  rescheduleAppointmentState.isLoading
-                }
-                className="inline-flex items-center rounded bg-[#d4af37] px-5 py-2.5 text-sm font-bold text-black hover:bg-[#c09f33] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {modalMode === "create"
-                  ? Schedule.Actions.CreateAppointment
-                  : Schedule.Actions.SaveReschedule}
-              </button>
+            <div className="flex items-center justify-end gap-3 border-t border-[#262626] bg-[#141414] p-6">
+              {modalMode === "create" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-5 py-2.5 text-sm font-medium text-slate-400 transition hover:text-white"
+                  >
+                    {Schedule.Actions.GoBack}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSubmitAppointmentModal}
+                    disabled={createAppointmentState.isLoading}
+                    className="inline-flex items-center gap-2 rounded bg-[#E8611C] px-6 py-2.5 text-sm font-bold tracking-tight text-white transition hover:opacity-90 disabled:opacity-50"
+                  >
+                    {Schedule.Actions.CreateAppointment}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={requestCancelAppointment}
+                    disabled={cancelAppointmentState.isLoading}
+                    className="inline-flex items-center gap-2 rounded border border-[#EF444466] bg-[#EF44441a] px-6 py-2.5 text-sm font-bold tracking-tight text-[#EF4444] transition hover:bg-[#EF444433] disabled:opacity-50"
+                  >
+                    {Schedule.Actions.CancelAppointment}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSubmitAppointmentModal}
+                    disabled={rescheduleAppointmentState.isLoading}
+                    className="inline-flex items-center gap-2 rounded bg-[#E8611C] px-6 py-2.5 text-sm font-bold tracking-tight text-white transition hover:opacity-90 disabled:opacity-50"
+                  >
+                    {Schedule.Actions.SaveReschedule}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-5 py-2.5 text-sm font-medium text-slate-400 transition hover:text-white"
+                  >
+                    {Schedule.Actions.GoBack}
+                  </button>
+                </>
+              )}
             </div>
           </div>
+
+          {isCancelConfirmOpen ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/70 p-4">
+              <div className="w-full max-w-[460px] rounded border border-[#2a2a2a] bg-[#171717] p-6 shadow-2xl">
+                <h3 className="text-lg font-bold text-slate-100">
+                  {Schedule.Modal.CancelConfirmTitle}
+                </h3>
+                <p className="mt-3 text-sm text-slate-300">
+                  {Schedule.Modal.CancelConfirmMessagePrefix} &quot;
+                  {(editingAppointmentEvent?.item.customerName ??
+                    customerQuery) ||
+                    Schedule.Modal.Unnamed}
+                  &quot;?
+                </p>
+                <div className="mt-6 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsCancelConfirmOpen(false)}
+                    className="px-5 py-2.5 text-sm font-medium text-slate-400 transition hover:text-white"
+                  >
+                    {Schedule.Modal.CancelConfirmBack}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void confirmCancelAppointment()}
+                    disabled={cancelAppointmentState.isLoading}
+                    className="inline-flex items-center rounded bg-[#EF4444] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#dc2626] disabled:opacity-50"
+                  >
+                    {Schedule.Modal.CancelConfirmAccept}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
       {isBusy ? (
-        <div className="pointer-events-none fixed bottom-4 right-4 z-40 rounded-xl border border-zinc-700 bg-zinc-900/90 px-3 py-2 text-xs text-zinc-400 backdrop-blur">
+        <div className="pointer-events-none fixed bottom-4 right-4 z-40 rounded-xl border border-slate-700 bg-[#111111] px-3 py-2 text-xs text-slate-400 backdrop-blur">
           {Common.Actions.Loading}
         </div>
       ) : null}

@@ -225,6 +225,86 @@
       "Description": "Seccion reservada para funciones globales de plataforma y gobierno del sistema."
     }
   },
+  "DashboardV2": {
+    "Header": {
+      "CommandCenter": "Command Center",
+      "TodaysOverview": "Today's Overview",
+      "SearchPlaceholder": "Search appointments...",
+      "Notifications": "Notificaciones",
+      "User": "Shop Manager",
+      "Role": "Owner",
+      "Refreshing": "Refreshing data...",
+      "Loading": "Cargando dashboard...",
+      "Ready": "Dashboard listo"
+    },
+    "Sidebar": {
+      "Command": "Command Center",
+      "Calendar": "Calendar",
+      "Clients": "Clients",
+      "Staff": "Staff",
+      "Settings": "Settings"
+    },
+    "Actions": {
+      "NewAppointment": "New Appointment"
+    },
+    "Metrics": {
+      "Revenue": "Today's Revenue",
+      "DailyRevenue": "Daily Revenue",
+      "Appointments": "Appointments",
+      "Occupancy": "Occupancy Rate",
+      "NewClients": "New Clients"
+    },
+    "Chart": {
+      "RevenueTrends": "Revenue Trends (Last 7 Days)",
+      "WeeklyView": "Weekly View",
+      "MonthlyView": "Monthly View"
+    },
+    "Services": {
+      "Title": "Popular Services"
+    },
+    "NextUp": {
+      "Title": "Next Up",
+      "With": "With",
+      "ViewAll": "View All Appointments",
+      "DateLabel": "Upcoming date:"
+    },
+    "Team": {
+      "Title": "Staff Activity",
+      "TodaysTeam": "Today's Team",
+      "ViewAll": "View All",
+      "Online": "Barbers Online",
+      "Active": "Active",
+      "Today": "Today",
+      "Status": {
+        "InSession": "In Session",
+        "Break": "Break · 15m left",
+        "Available": "Available"
+      }
+    },
+    "Mobile": {
+      "AtGlance": "At a Glance",
+      "UpcomingAppointment": "UPCOMING APPOINTMENT",
+      "Barber": "Barber",
+      "CheckInNow": "Check-In Now",
+      "HourlyRevenue": "Hourly Revenue",
+      "Last8Hours": "Last 8 hours",
+      "Command": "Command",
+      "Schedule": "Schedule",
+      "Team": "Team",
+      "Settings": "Settings"
+    },
+    "Status": {
+      "BackendWarning": "No se pudieron cargar algunos datos del backend."
+    },
+    "Fallback": {
+      "Time": "10:30 AM",
+      "Revenue": "$1,240.00",
+      "Occupancy": "85%",
+      "Slots": "12",
+      "Customer": "Michael Scott",
+      "Service": "Classic Fade & Beard Trim"
+    }
+  },
   "Schedule": {
     "Header": {
       "Badge": "BarberFlow · Agenda",
@@ -251,6 +331,7 @@
       "Reschedule": "Reagendar",
       "CheckIn": "Check in",
       "Cancel": "Cancelar",
+      "GoBack": "Regresar",
       "CancelAppointment": "Cancelar cita"
     },
     "Details": {
@@ -307,7 +388,11 @@
       "AutoNamePrefix": "Cliente",
       "SearchingCustomers": "Buscando clientes...",
       "NoCustomerResults": "Sin coincidencias. Se creara el cliente automaticamente al guardar la cita.",
-      "Unnamed": "Cliente sin nombre"
+      "Unnamed": "Cliente sin nombre",
+      "CancelConfirmTitle": "Confirmar cancelacion",
+      "CancelConfirmMessagePrefix": "Estas seguro que deseas cancelar la cita de",
+      "CancelConfirmAccept": "Aceptar",
+      "CancelConfirmBack": "Cancelar"
     },
     "Mobile": {
       "TodaySchedule": "Agenda de hoy",
