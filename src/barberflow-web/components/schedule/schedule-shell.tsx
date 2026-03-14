@@ -160,6 +160,13 @@ function formatTimeRange(startDate: Date, endDate: Date) {
   return `${formatter.format(startDate)} - ${formatter.format(endDate)}`;
 }
 
+function parseApiDateTime(value: string) {
+  // Backend can return naive timestamps (without timezone suffix).
+  // Treat them as UTC to keep client rendering consistent across requests.
+  const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
+  return new Date(hasTimezone ? value : `${value}Z`);
+}
+
 function getStatusLabel(status: number, labels: Record<string, string>) {
   switch (status) {
     case 1:
@@ -259,6 +266,12 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<
     string | null
   >(null);
+  const [draggingAppointmentId, setDraggingAppointmentId] = useState<
+    string | null
+  >(null);
+  const [dropTargetSlotKey, setDropTargetSlotKey] = useState<string | null>(
+    null,
+  );
   const [searchTerm, setSearchTerm] = useState("");
 
   const [draftCustomerId, setDraftCustomerId] = useState("");
@@ -335,7 +348,7 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
 
   const filteredCustomers = useMemo(() => {
     if (!customerQuery.trim()) {
-      return customers.slice(0, 6);
+      return [];
     }
 
     if (customerSearchQuery.data) {
@@ -343,7 +356,7 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     }
 
     return [];
-  }, [customerQuery, customers, customerSearchQuery.data]);
+  }, [customerQuery, customerSearchQuery.data]);
 
   const shouldCreateCustomerOnSubmit =
     modalMode === "create" &&
@@ -360,8 +373,8 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
 
     return (appointmentsQuery.data ?? [])
       .map((item) => {
-        const startDate = new Date(item.appointmentTime);
-        const endDate = new Date(item.endTime);
+        const startDate = parseApiDateTime(item.appointmentTime);
+        const endDate = parseApiDateTime(item.endTime);
 
         return {
           item,
@@ -567,6 +580,99 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     setCustomerQuery(customerDisplayName(customer, Schedule.Modal.Unnamed));
     setSelectedCustomerName(customer.name ?? "");
     setSelectedCustomerPhone(customer.phone ?? "");
+  }
+
+  async function onDropAppointmentToSlot(barberId: string, hour: number) {
+    if (!draggingAppointmentId) {
+      return;
+    }
+
+    const draggedEvent = appointmentsForDayGrid.find(
+      (event) => event.item.id === draggingAppointmentId,
+    );
+
+    if (!draggedEvent) {
+      setDraggingAppointmentId(null);
+      return;
+    }
+
+    if (![1, 2].includes(draggedEvent.item.status)) {
+      showToast({
+        title: Common.Toasts.ErrorTitle,
+        description: Schedule.Messages.InvalidTime,
+        variant: "error",
+      });
+      setDraggingAppointmentId(null);
+      return;
+    }
+
+    const nextAppointmentDate = new Date(selectedDate);
+    nextAppointmentDate.setHours(
+      hour,
+      draggedEvent.startDate.getMinutes(),
+      0,
+      0,
+    );
+
+    const draggedDurationMs =
+      draggedEvent.endDate.getTime() - draggedEvent.startDate.getTime();
+    const targetEndDate = new Date(
+      nextAppointmentDate.getTime() + draggedDurationMs,
+    );
+
+    const hasConflictInTargetBarber = appointmentsForDayGrid.some((event) => {
+      if (event.item.id === draggedEvent.item.id) {
+        return false;
+      }
+
+      if (event.item.barberId !== barberId) {
+        return false;
+      }
+
+      if (![1, 2].includes(event.item.status)) {
+        return false;
+      }
+
+      return (
+        nextAppointmentDate < event.endDate && targetEndDate > event.startDate
+      );
+    });
+
+    if (hasConflictInTargetBarber) {
+      showToast({
+        title: Common.Toasts.ErrorTitle,
+        description: Schedule.Messages.DropConflict,
+        variant: "error",
+      });
+      setDraggingAppointmentId(null);
+      setDropTargetSlotKey(null);
+      return;
+    }
+
+    try {
+      await rescheduleAppointment({
+        id: draggedEvent.item.id,
+        appointmentTime: nextAppointmentDate.toISOString(),
+        barberId,
+        serviceId: draggedEvent.item.serviceId,
+        notes: draggedEvent.item.notes,
+      }).unwrap();
+
+      showToast({
+        title: Common.Toasts.SuccessTitle,
+        description: Schedule.Messages.Rescheduled,
+        variant: "success",
+      });
+    } catch (error) {
+      showToast({
+        title: Common.Toasts.ErrorTitle,
+        description: getApiErrorMessage(error) ?? Common.Status.Error,
+        variant: "error",
+      });
+    } finally {
+      setDraggingAppointmentId(null);
+      setDropTargetSlotKey(null);
+    }
   }
 
   async function onSubmitAppointmentModal() {
@@ -1036,19 +1142,45 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                                 event.item.barberId === barber.id &&
                                 event.startDate.getHours() === hour,
                             );
+                          const slotKey = `${barber.id}-${hour}`;
+                          const isDropTargetActive =
+                            draggingAppointmentId !== null &&
+                            dropTargetSlotKey === slotKey;
 
                           return (
                             <div
                               key={`${barber.id}-${hour}`}
-                              className="group/slot relative border-l border-zinc-800"
+                              className={`group/slot relative border-l border-zinc-800 ${
+                                isDropTargetActive
+                                  ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/60"
+                                  : ""
+                              }`}
                               style={{ minHeight: `${SLOT_HEIGHT}px` }}
+                              onDragOver={(event) => {
+                                event.preventDefault();
+                                setDropTargetSlotKey(slotKey);
+                              }}
+                              onDragLeave={() => {
+                                setDropTargetSlotKey((current) =>
+                                  current === slotKey ? null : current,
+                                );
+                              }}
+                              onDrop={(event) => {
+                                event.preventDefault();
+                                setDropTargetSlotKey(null);
+                                void onDropAppointmentToSlot(barber.id, hour);
+                              }}
                             >
                               <button
                                 type="button"
                                 onClick={() =>
                                   openCreateModalFromSlot(barber.id, hour)
                                 }
-                                className="absolute inset-0 z-0"
+                                className={`absolute inset-0 z-0 ${
+                                  draggingAppointmentId
+                                    ? "pointer-events-none"
+                                    : ""
+                                }`}
                                 aria-label={`${Schedule.Actions.NewAppointment} ${barber.name} ${formatHourLabel(hour)}`}
                               >
                                 <span className="absolute right-2 top-2 opacity-0 transition group-hover/slot:opacity-100 text-zinc-600">
@@ -1071,6 +1203,18 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                                     <button
                                       key={event.item.id}
                                       type="button"
+                                      draggable={
+                                        event.item.status === 1 ||
+                                        event.item.status === 2
+                                      }
+                                      onDragStart={() => {
+                                        setDraggingAppointmentId(event.item.id);
+                                        setDropTargetSlotKey(null);
+                                      }}
+                                      onDragEnd={() => {
+                                        setDraggingAppointmentId(null);
+                                        setDropTargetSlotKey(null);
+                                      }}
                                       onClick={() =>
                                         setSelectedAppointmentId(event.item.id)
                                       }
@@ -1078,6 +1222,11 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                                         active
                                           ? "border-blue-500 bg-blue-500/20"
                                           : "border-amber-400 bg-zinc-900 hover:bg-zinc-800"
+                                      } ${
+                                        event.item.status === 1 ||
+                                        event.item.status === 2
+                                          ? "cursor-grab"
+                                          : "cursor-default"
                                       }`}
                                     >
                                       <div className="text-[11px] font-bold text-zinc-200">
@@ -1425,7 +1574,9 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                   </div>
                 ) : null}
 
-                {modalMode === "create" && filteredCustomers.length ? (
+                {modalMode === "create" &&
+                customerQuery.trim().length > 0 &&
+                filteredCustomers.length ? (
                   <div className="max-h-40 space-y-1 overflow-auto rounded border border-zinc-700 bg-[#101218] p-1">
                     {filteredCustomers.map((customer) => (
                       <button

@@ -151,7 +151,7 @@ export type UpdateBarbershopRequest = {
   timezone?: string;
 };
 
-function makeDateRangeQuery(range?: GetAppointmentsRange) {
+function makeDateRangeQuery(range?: GetAppointmentsRange | void) {
   const now = new Date();
   const fallbackFrom = new Date(now);
   fallbackFrom.setDate(fallbackFrom.getDate() - 7);
