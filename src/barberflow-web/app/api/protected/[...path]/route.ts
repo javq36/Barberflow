@@ -6,6 +6,40 @@ type RouteContext = {
   params: { path?: string[] } | Promise<{ path?: string[] }>;
 };
 
+const FORWARDED_REQUEST_HEADERS = [
+  "accept",
+  "accept-language",
+  "content-type",
+  "user-agent",
+  "x-request-id",
+  "x-correlation-id",
+] as const;
+
+function buildForwardHeaders(
+  request: NextRequest,
+  token: string,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "x-forwarded-host": request.nextUrl.host,
+    "x-forwarded-proto": request.nextUrl.protocol.replace(":", ""),
+  };
+
+  for (const headerName of FORWARDED_REQUEST_HEADERS) {
+    const value = request.headers.get(headerName);
+    if (value) {
+      headers[headerName] = value;
+    }
+  }
+
+  const xForwardedFor = request.headers.get("x-forwarded-for");
+  if (xForwardedFor) {
+    headers["x-forwarded-for"] = xForwardedFor;
+  }
+
+  return headers;
+}
+
 function unauthorizedResponse() {
   return NextResponse.json(
     { message: "Unauthorized" },
@@ -42,12 +76,7 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
     targetPath,
     {
       method: request.method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(request.headers.get("content-type")
-          ? { "content-type": request.headers.get("content-type") as string }
-          : {}),
-      },
+      headers: buildForwardHeaders(request, token),
       body: requestBody,
     },
     request.nextUrl.search,

@@ -18,18 +18,28 @@ function buildResponse(
 export async function POST(request: NextRequest) {
   const body = await request.text();
 
-  const upstreamResponse = await fetchApi("/auth/register-owner", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body,
-  });
+  try {
+    const upstreamResponse = await fetchApi("/auth/register-owner", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body,
+    });
 
-  const payload = await upstreamResponse.text();
-  return buildResponse(
-    payload,
-    upstreamResponse.status,
-    upstreamResponse.headers.get("content-type"),
-  );
+    const payload = await upstreamResponse.text();
+    return buildResponse(
+      payload,
+      upstreamResponse.status,
+      upstreamResponse.headers.get("content-type"),
+    );
+  } catch {
+    return buildResponse(
+      JSON.stringify({
+        message: "Upstream authentication service unavailable.",
+      }),
+      502,
+      "application/json",
+    );
+  }
 }
