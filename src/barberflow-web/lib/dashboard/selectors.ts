@@ -11,6 +11,7 @@ export type DashboardNavItem = {
 type DashboardNavigationTexts = {
   Overview: string;
   Schedule: string;
+  Payments: string;
   Services: string;
   Barbers: string;
   Customers: string;
@@ -38,6 +39,13 @@ export function selectDashboardNavItems(
       id: "schedule",
       label: labels.Schedule,
       href: APP_ROUTES.Schedule,
+      icon: "schedule",
+    });
+
+    items.push({
+      id: "payments",
+      label: labels.Payments,
+      href: APP_ROUTES.Payments,
       icon: "schedule",
     });
   }

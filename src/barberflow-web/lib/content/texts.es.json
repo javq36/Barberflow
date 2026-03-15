@@ -1,7 +1,7 @@
 {
   "Layout": {
     "Metadata": {
-      "Title": "BarberFlow Dashboard",
+      "Title": "Panel BarberFlow",
       "Description": "Panel operativo inicial para la gestion de la barberia."
     }
   },
@@ -22,6 +22,7 @@
       "RegisteredTitle": "Cuenta creada"
     },
     "Actions": {
+      "CheckIn": "Registrar",
       "BackToDashboard": "Volver al dashboard",
       "Logout": "Cerrar sesion",
       "Loading": "Cargando..."
@@ -30,7 +31,7 @@
   "Auth": {
     "Login": {
       "Title": "Iniciar sesion",
-      "Description": "Accede con tu cuenta Owner para gestionar tu barberia.",
+      "Description": "Accede con tu cuenta de propietario para gestionar tu barberia.",
       "EmailLabel": "Correo",
       "PasswordLabel": "Contrasena",
       "Submit": "Entrar",
@@ -41,7 +42,7 @@
       "Error": "No fue posible iniciar sesion. Verifica tus credenciales."
     },
     "Register": {
-      "Title": "Crear cuenta Owner",
+      "Title": "Crear cuenta de propietario",
       "Description": "Registra tu cuenta inicial para comenzar con BarberFlow.",
       "NameLabel": "Nombre",
       "EmailLabel": "Correo",
@@ -151,9 +152,17 @@
       "Customers": "Aun no hay clientes."
     }
   },
+  "SharedShell": {
+    "BrandName": "BarberFlow",
+    "BrandMonogram": "BF",
+    "ManagementSubtitle": "Panel de gestion",
+    "DemoOwnerName": "Propietario demo",
+    "DemoOwnerRole": "Propietario",
+    "DemoOwnerInitials": "PD"
+  },
   "Dashboard": {
     "Header": {
-      "Badge": "BarberFlow · Panel Owner",
+      "Badge": "BarberFlow · Panel de propietario",
       "Title": "Dashboard operativo",
       "Description": "Vista inicial para controlar salud del sistema, agenda de hoy y actividad base del negocio.",
       "Refreshing": "Actualizando metricas...",
@@ -169,6 +178,7 @@
     "Navigation": {
       "Overview": "Resumen",
       "Schedule": "Agenda",
+      "Payments": "Pagos",
       "Services": "Servicios",
       "Barbers": "Barberos",
       "Customers": "Clientes",
@@ -225,11 +235,97 @@
       "Description": "Seccion reservada para funciones globales de plataforma y gobierno del sistema."
     }
   },
+  "DashboardV2": {
+    "Header": {
+      "CommandCenter": "Centro de control",
+      "TodaysOverview": "Resumen de hoy",
+      "SearchPlaceholder": "Buscar citas...",
+      "BrandSubtitle": "Gestion premium",
+      "Notifications": "Notificaciones",
+      "User": "Encargado",
+      "Role": "Propietario",
+      "Refreshing": "Actualizando datos...",
+      "Loading": "Cargando dashboard...",
+      "Ready": "Dashboard listo"
+    },
+    "Sidebar": {
+      "Command": "Centro de control",
+      "Calendar": "Agenda",
+      "Clients": "Clientes",
+      "Staff": "Equipo",
+      "Payments": "Pagos",
+      "Settings": "Configuracion"
+    },
+    "Actions": {
+      "NewAppointment": "Nueva cita"
+    },
+    "Metrics": {
+      "Revenue": "Ingresos de hoy",
+      "DailyRevenue": "Ingresos diarios",
+      "Appointments": "Citas",
+      "Occupancy": "Tasa de ocupacion",
+      "NewClients": "Nuevos clientes"
+    },
+    "Chart": {
+      "RevenueTrends": "Tendencia de ingresos (ultimos 7 dias)",
+      "WeeklyView": "Vista semanal",
+      "MonthlyView": "Vista mensual"
+    },
+    "Services": {
+      "Title": "Servicios populares"
+    },
+    "NextUp": {
+      "Title": "Proxima cita",
+      "With": "Con",
+      "ViewAll": "Ver todas las citas",
+      "DateLabel": "Fecha programada:"
+    },
+    "Team": {
+      "Title": "Actividad del equipo",
+      "TodaysTeam": "Equipo de hoy",
+      "ViewAll": "Ver todo",
+      "Online": "Barberos en linea",
+      "Active": "Activos",
+      "Today": "Hoy",
+      "Status": {
+        "InSession": "En sesion",
+        "Break": "Descanso · 15m restantes",
+        "Available": "Disponible"
+      }
+    },
+    "Mobile": {
+      "AtGlance": "Vista rapida",
+      "UpcomingAppointment": "PROXIMA CITA",
+      "Barber": "Barber",
+      "CheckInNow": "Registrar ahora",
+      "HourlyRevenue": "Ingresos por hora",
+      "Last8Hours": "Ultimas 8 horas",
+      "Command": "Inicio",
+      "Schedule": "Agenda",
+      "Team": "Equipo",
+      "Payments": "Pagos",
+      "Settings": "Configuracion"
+    },
+    "Status": {
+      "BackendWarning": "No se pudieron cargar algunos datos del backend."
+    },
+    "Fallback": {
+      "Time": "10:30",
+      "Revenue": "$1,240.00",
+      "Occupancy": "85%",
+      "Slots": "12",
+      "Customer": "Miguel Soto",
+      "Service": "Degradado clasico y arreglo de barba",
+      "Barber": "Barbero principal"
+    }
+  },
   "Schedule": {
     "Header": {
       "Badge": "BarberFlow · Agenda",
       "Title": "Planificacion del dia",
-      "GridTitle": "Agenda por barbero"
+      "GridTitle": "Agenda por barbero",
+      "DesktopTitle": "Agenda diaria",
+      "DesktopDescription": "Gestiona citas y disponibilidad de barberos para hoy."
     },
     "Filters": {
       "Today": "Hoy",
@@ -251,6 +347,7 @@
       "Reschedule": "Reagendar",
       "CheckIn": "Check in",
       "Cancel": "Cancelar",
+      "GoBack": "Regresar",
       "CancelAppointment": "Cancelar cita"
     },
     "Details": {
@@ -269,6 +366,9 @@
       "Unknown": "Sin estado"
     },
     "Messages": {
+      "CustomerRequired": "Selecciona o escribe un cliente para continuar.",
+      "ServiceRequired": "Selecciona un servicio para continuar.",
+      "BarberRequired": "Selecciona un barbero para continuar.",
       "InvalidTime": "Selecciona una hora valida.",
       "CompleteRequired": "Completa los campos obligatorios para crear la cita.",
       "InvalidPhoneLength": "En Colombia el telefono celular debe tener exactamente 10 digitos.",
@@ -294,6 +394,7 @@
       "Barber": "Barbero",
       "Time": "Hora",
       "Notes": "Notas (opcional)",
+      "Optional": "opcional",
       "NotesPlaceholder": "Agrega instrucciones para el equipo...",
       "CustomerSearchPlaceholder": "Buscar por nombre o telefono...",
       "PhoneLengthOk": "Telefono valido (10/10).",
@@ -307,15 +408,397 @@
       "AutoNamePrefix": "Cliente",
       "SearchingCustomers": "Buscando clientes...",
       "NoCustomerResults": "Sin coincidencias. Se creara el cliente automaticamente al guardar la cita.",
-      "Unnamed": "Cliente sin nombre"
+      "Unnamed": "Cliente sin nombre",
+      "CancelConfirmTitle": "Confirmar cancelacion",
+      "CancelConfirmMessagePrefix": "Estas seguro que deseas cancelar la cita de",
+      "CancelConfirmAccept": "Aceptar",
+      "CancelConfirmBack": "Cancelar"
     },
     "Mobile": {
       "TodaySchedule": "Agenda de hoy",
       "NextUp": "Siguiente",
+      "NextIn": "En 15 min",
       "Home": "Inicio",
       "Schedule": "Agenda",
       "Clients": "Clientes",
       "Alerts": "Alertas"
+    }
+  },
+  "ClientsV2": {
+    "DisabledMessage": "Primero crea/asigna una barberia para habilitar operaciones de clientes.",
+    "Common": {
+      "Optional": "opcional"
+    },
+    "Sidebar": {
+      "Dashboard": "Inicio",
+      "Clients": "Clientes",
+      "Appointments": "Agenda",
+      "Payments": "Pagos",
+      "Services": "Servicios",
+      "Settings": "Configuracion"
+    },
+    "Header": {
+      "SearchPlaceholder": "Buscar clientes, citas o telefonos...",
+      "Notifications": "Notificaciones"
+    },
+    "Content": {
+      "Title": "Directorio de clientes",
+      "Description": "Gestiona de forma eficiente la base de clientes y su historial de visitas."
+    },
+    "Stats": {
+      "TotalClients": "Total clientes",
+      "NewThisMonth": "Nuevos este mes",
+      "ReturningRate": "Tasa de retorno",
+      "TopTierClients": "Clientes top"
+    },
+    "Table": {
+      "Name": "Nombre",
+      "TotalAppointments": "Total de citas",
+      "LastVisit": "Ultima visita",
+      "Actions": "Acciones",
+      "Visits": "Visitas",
+      "VisitsVip": "Visits (VIP)",
+      "With": "con",
+      "Team": "equipo",
+      "Appointments": "citas",
+      "Showing": "Mostrando 1 a {count} de {total} clientes"
+    },
+    "Actions": {
+      "NewClient": "Nuevo cliente",
+      "View": "Ver cliente",
+      "Edit": "Editar cliente",
+      "Delete": "Borrar",
+      "Back": "Regresar",
+      "Close": "Cerrar"
+    },
+    "Modal": {
+      "NewTitle": "Nuevo cliente",
+      "EditTitle": "Editar cliente",
+      "ViewTitle": "Detalle cliente",
+      "Notes": "Notas",
+      "LabelName": "Nombre",
+      "LabelEmail": "Correo",
+      "LabelPhone": "Telefono",
+      "LabelNotes": "Notas",
+      "DeleteConfirmTitle": "Confirmar eliminacion",
+      "DeleteConfirmMessagePrefix": "Estas seguro de borrar el cliente",
+      "DeleteConfirmCancel": "Cancelar",
+      "DeleteConfirmAccept": "Aceptar"
+    },
+    "Messages": {
+      "NameRequired": "El nombre del cliente es obligatorio.",
+      "PhoneRequired": "El telefono del cliente es obligatorio.",
+      "PhoneInvalid": "El telefono del cliente debe tener exactamente 10 digitos."
+    },
+    "Mobile": {
+      "Title": "Clientes",
+      "SearchPlaceholder": "Buscar por nombre o telefono...",
+      "RecentClients": "Clientes recientes",
+      "Filter": "Filtrar",
+      "LastLabel": "Ultima:",
+      "Schedule": "Agenda",
+      "Clients": "Clientes",
+      "Services": "Servicios",
+      "Settings": "Configuracion"
+    }
+  },
+  "PaymentsV2": {
+    "DisabledMessage": "Primero crea/asigna una barberia para habilitar reportes de pagos e ingresos.",
+    "Sidebar": {
+      "Dashboard": "Inicio",
+      "Appointments": "Agenda",
+      "Payments": "Pagos",
+      "Clients": "Clientes",
+      "Services": "Servicios",
+      "Barbers": "Barberos",
+      "Settings": "Configuracion",
+      "AdminPanel": "Panel admin",
+      "OwnerRole": "Propietario"
+    },
+    "Header": {
+      "Title": "Pagos e ingresos",
+      "SearchPlaceholder": "Buscar transacciones...",
+      "Export": "Exportar"
+    },
+    "Filters": {
+      "Last7Days": "Ultimos 7 dias",
+      "Last30Days": "Ultimos 30 dias",
+      "YearToDate": "Ano actual",
+      "CustomRange": "Rango personalizado",
+      "Daily": "Diario",
+      "Weekly": "Semanal",
+      "Monthly": "Mensual"
+    },
+    "Metrics": {
+      "TotalRevenue": "Ingresos totales",
+      "TotalAppointments": "Citas totales",
+      "AvgTicketValue": "Ticket promedio",
+      "Appointments": "Citas",
+      "RevenueTrend": "Tendencia de ingresos",
+      "RevenueTrendDescription": "Resumen mensual de ingresos del ano actual",
+      "Actual": "Real",
+      "Projection": "Proyeccion",
+      "RecentTransactions": "Transacciones recientes",
+      "ViewAll": "Ver todo",
+      "PreviousPeriod": "vs. {value} del periodo anterior",
+      "TodayRevenue": "Ingresos de hoy",
+      "Last7Days": "Ultimos 7 dias"
+    },
+    "Table": {
+      "Client": "Cliente",
+      "Service": "Servicio",
+      "Date": "Fecha",
+      "Amount": "Monto",
+      "Status": "Estado",
+      "Action": "Accion"
+    },
+    "Status": {
+      "Paid": "Pagado",
+      "Pending": "Pendiente",
+      "Failed": "Fallido"
+    },
+    "Months": [
+      "Ene",
+      "Feb",
+      "Mar",
+      "Abr",
+      "May",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dic"
+    ],
+    "WeekDays": ["LUN", "MAR", "MIE", "JUE", "VIE", "SAB", "DOM"],
+    "Mobile": {
+      "RevenueDashboard": "Panel de ingresos",
+      "Schedule": "Agenda",
+      "Clients": "Clientes",
+      "Revenue": "Ingresos",
+      "Growth": "Crecimiento",
+      "Settings": "Configuracion"
+    }
+  },
+  "BarbersV2": {
+    "DisabledMessage": "Primero crea/asigna una barberia para habilitar operaciones del equipo.",
+    "Common": {
+      "Optional": "opcional"
+    },
+    "Sidebar": {
+      "Dashboard": "Inicio",
+      "Staff": "Equipo",
+      "Schedule": "Agenda",
+      "Payments": "Pagos",
+      "Services": "Servicios",
+      "Performance": "Rendimiento",
+      "CurrentPlan": "Plan actual",
+      "PlanName": "Suite profesional",
+      "UpgradePlan": "Mejorar plan"
+    },
+    "Header": {
+      "SearchPlaceholder": "Buscar integrantes, roles o especialidades..."
+    },
+    "Content": {
+      "Title": "Miembros del equipo",
+      "Description": "Gestiona horarios, roles y desempeno del equipo en tiempo real.",
+      "QuickInviteTitle": "Invitacion rapida",
+      "QuickInviteHint": "Las invitaciones expiran en 48 horas",
+      "QuickInviteDescription": "Crea y vincula un nuevo perfil de barbero con sus datos en segundos.",
+      "TopPerformer": "Mejor rendimiento",
+      "TopMetricOne": "Satisfaccion del cliente",
+      "TopMetricTwo": "Calificacion del equipo"
+    },
+    "Stats": {
+      "TotalBarbers": "Total barberos",
+      "ActiveNow": "Activos ahora",
+      "AvgRating": "Calificacion promedio",
+      "MonthlyRevenue": "Ingreso mensual",
+      "DemoRevenue": "$14.2k",
+      "ThisMonth": "este mes",
+      "AwayLabel": "ausentes"
+    },
+    "Roles": [
+      "Barbero junior",
+      "Barbero senior",
+      "Barbero master",
+      "Especialista en color"
+    ],
+    "Specialties": [
+      "Degradados a piel y perfilado de barba",
+      "Cortes clasicos y trabajo con tijera",
+      "Afeitado con navaja y texturizado",
+      "Correccion de color y estilizado moderno"
+    ],
+    "Status": {
+      "Active": "Activo",
+      "ActiveNow": "Activo ahora",
+      "Away": "Ausente"
+    },
+    "Table": {
+      "AllBarbers": "Todos los barberos",
+      "PendingInvites": "Invitaciones pendientes ({count})",
+      "AwayLeave": "Ausentes/licencia",
+      "Barber": "Barbero",
+      "Role": "Rol y especialidades",
+      "Status": "Estado",
+      "Efficiency": "Eficiencia",
+      "Rating": "Calificacion",
+      "Actions": "Acciones"
+    },
+    "Actions": {
+      "ExportReport": "Exportar reporte",
+      "InviteNewBarber": "Invitar barbero",
+      "OpenInviteForm": "Abrir formulario",
+      "CreateBarber": "Crear barbero",
+      "EditBarber": "Editar barbero",
+      "Activate": "Activar",
+      "Deactivate": "Desactivar",
+      "Save": "Guardar",
+      "Cancel": "Cancelar",
+      "Confirm": "Confirmar",
+      "Saving": "Guardando...",
+      "Creating": "Creando...",
+      "Updating": "Actualizando..."
+    },
+    "Toasts": {
+      "Created": "Barbero {name} creado correctamente.",
+      "Updated": "Perfil de {name} actualizado.",
+      "Activated": "Barbero {name} activado.",
+      "Deactivated": "Barbero {name} desactivado."
+    },
+    "Modal": {
+      "NewTitle": "Invitar nuevo barbero",
+      "EditTitle": "Editar perfil de barbero",
+      "LabelName": "Nombre completo",
+      "LabelEmail": "Correo",
+      "LabelPhone": "Telefono",
+      "PlaceholderName": "Ej: Marcus Johnson",
+      "PlaceholderEmail": "Ej: barber@email.com",
+      "PlaceholderPhone": "Ej: 3001234567",
+      "PhoneHint": "Si agregas telefono de Colombia, debe tener 10 digitos.",
+      "ConfirmTitle": "Confirmar cambio de estado",
+      "ConfirmMessagePrefix": "Estas seguro que deseas cambiar el estado de"
+    },
+    "Messages": {
+      "NameRequired": "El nombre del barbero es obligatorio.",
+      "PhoneRequired": "El telefono del barbero es obligatorio.",
+      "EmailInvalid": "Ingresa un correo valido.",
+      "PhoneInvalid": "El telefono debe tener exactamente 10 digitos."
+    },
+    "Empty": {
+      "NoBarbers": "No hay barberos registrados todavia."
+    },
+    "Mobile": {
+      "Title": "Equipo",
+      "SearchPlaceholder": "Buscar por nombre, correo o rol...",
+      "DirectoryTitle": "Directorio de barberos",
+      "Filter": "Filtrar",
+      "InviteTitle": "Invitar barbero",
+      "InviteDescription": "Agrega un miembro al equipo para gestionar su agenda y servicios.",
+      "InviteAction": "Abrir formulario",
+      "Home": "Inicio",
+      "Staff": "Equipo",
+      "Services": "Servicios",
+      "Schedule": "Agenda",
+      "Settings": "Configuracion"
+    }
+  },
+  "ServicesV2": {
+    "DisabledMessage": "Primero crea/asigna una barberia para habilitar operaciones de servicios.",
+    "Sidebar": {
+      "Dashboard": "Inicio",
+      "Services": "Servicios",
+      "Staff": "Barberos",
+      "Appointments": "Agenda",
+      "Payments": "Pagos",
+      "Customers": "Clientes",
+      "Analytics": "Analitica",
+      "AdminPanel": "Panel admin"
+    },
+    "Common": {
+      "Optional": "opcional"
+    },
+    "Header": {
+      "SearchPlaceholder": "Buscar servicios, categorias o precios..."
+    },
+    "Content": {
+      "Title": "Catalogo de servicios",
+      "Description": "Construye un menu premium de servicios y actualiza precios en segundos.",
+      "DetailedList": "Listado detallado de servicios"
+    },
+    "Stats": {
+      "TotalServices": "Total servicios",
+      "AveragePrice": "Precio promedio",
+      "PopularCategory": "Categoria mas popular"
+    },
+    "Card": {
+      "Active": "Activo",
+      "Hidden": "Oculto"
+    },
+    "Table": {
+      "ServiceName": "Servicio",
+      "Duration": "Duracion",
+      "Price": "Precio",
+      "Status": "Estado",
+      "Actions": "Acciones",
+      "Active": "Activo",
+      "Hidden": "Oculto"
+    },
+    "Actions": {
+      "AddNewService": "Agregar servicio",
+      "Edit": "Editar",
+      "Back": "Regresar",
+      "Restore": "Restaurar",
+      "RemoveImage": "Quitar imagen"
+    },
+    "Toasts": {
+      "Created": "Servicio {name} creado ({duration} min, {price}).",
+      "Updated": "Servicio {name} actualizado ({duration} min, {price}).",
+      "Deactivated": "Servicio {name} ocultado del catalogo.",
+      "Restored": "Servicio {name} restaurado en el catalogo."
+    },
+    "Modal": {
+      "NewTitle": "Crear servicio",
+      "EditTitle": "Editar servicio",
+      "LabelName": "Nombre del servicio",
+      "LabelDuration": "Duracion (min)",
+      "LabelPrice": "Precio",
+      "LabelImage": "Imagen",
+      "DurationOptionalPlaceholder": "Duracion (min) - opcional (default 30)",
+      "ImageHint": "Formatos soportados: JPG, PNG, WEBP, HEIC/HEIF (si el navegador lo permite). Max 3MB.",
+      "DeleteConfirmTitle": "Confirmar accion",
+      "DeleteConfirmMessagePrefix": "Estas seguro de cambiar el estado del servicio",
+      "DeleteConfirmCancel": "Cancelar",
+      "DeleteConfirmAccept": "Aceptar"
+    },
+    "Messages": {
+      "ImageMustBeImage": "Selecciona un archivo de imagen valido.",
+      "ImageTooLarge": "La imagen es muy pesada. Usa una menor a 3MB.",
+      "ImageReadError": "No se pudo leer la imagen. Intenta con otra foto.",
+      "ImageUploadError": "No se pudo subir la imagen al storage.",
+      "NameRequired": "El nombre del servicio es obligatorio.",
+      "PriceRequired": "El precio del servicio es obligatorio.",
+      "PriceInvalid": "El precio debe ser un numero valido mayor o igual a 0."
+    },
+    "Mobile": {
+      "Title": "Servicios",
+      "ManageCatalog": "Gestionar servicios",
+      "ActiveServices": "servicios activos",
+      "NewService": "Nuevo servicio",
+      "Calendar": "Agenda",
+      "Services": "Servicios",
+      "Clients": "Clientes",
+      "Settings": "Configuracion"
+    },
+    "Categories": {
+      "General": "General",
+      "Fades": "Degradados",
+      "Beard": "Barba",
+      "Shave": "Afeitado",
+      "Kids": "Ninos",
+      "Styling": "Estilizado"
     }
   }
 }

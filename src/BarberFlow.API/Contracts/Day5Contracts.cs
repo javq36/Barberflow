@@ -4,13 +4,15 @@ public sealed record CreateServiceRequest(
     string Name,
     int DurationMinutes,
     decimal Price,
-    bool Active = true);
+    bool Active = true,
+    string? ImageUrl = null);
 
 public sealed record UpdateServiceRequest(
     string Name,
     int DurationMinutes,
     decimal Price,
-    bool Active);
+    bool Active,
+    string? ImageUrl = null);
 
 public sealed record CreateBarberRequest(
     string Name,

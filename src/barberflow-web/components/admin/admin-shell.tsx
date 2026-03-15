@@ -136,7 +136,7 @@ function getApiErrorMessage(error: unknown): string | null {
 
 export function AdminShell({ role, barbershopId }: AdminShellProps) {
   const router = useRouter();
-  const { Admin, Common } = Texts;
+  const { Admin, Common, SharedShell } = Texts;
   const { showToast } = useAppToast();
 
   const canOperate = Boolean(barbershopId);
@@ -691,7 +691,8 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
     barbersQuery.isFetching ||
     customersQuery.isFetching ||
     appointmentsQuery.isFetching;
-  const roleLabel = role === "SuperAdmin" ? "SuperAdmin" : "Manager";
+  const roleLabel =
+    role === "SuperAdmin" ? "SuperAdmin" : SharedShell.DemoOwnerRole;
 
   return (
     <main className="relative min-h-screen overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6 md:px-6 md:py-8">
@@ -709,9 +710,11 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
             </div>
             <div>
               <p className="dashboard-heading text-base font-semibold">
-                BarberFlow
+                {SharedShell.BrandName}
               </p>
-              <p className="dashboard-microtext text-xs">Admin Panel</p>
+              <p className="dashboard-microtext text-xs">
+                {Admin.Actions.OpenAdmin}
+              </p>
             </div>
           </div>
           <nav className="space-y-1">

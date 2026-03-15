@@ -124,6 +124,8 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+await EnsureServicesImageColumnAsync(connectionString, app.Logger, CancellationToken.None);
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -258,6 +260,46 @@ bool TryGetBarbershopId(ClaimsPrincipal user, out Guid barbershopId, out IResult
     }
 
     return true;
+}
+
+async Task<bool> HasServicesImageColumnAsync(NpgsqlConnection conn, CancellationToken ct)
+{
+    await using var cmd = new NpgsqlCommand(@"
+        SELECT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'services'
+              AND column_name = 'image_url'
+        )", conn);
+
+    var exists = await cmd.ExecuteScalarAsync(ct);
+    return exists is bool value && value;
+}
+
+async Task EnsureServicesImageColumnAsync(string? connString, ILogger logger, CancellationToken ct)
+{
+    if (string.IsNullOrWhiteSpace(connString))
+    {
+        logger.LogWarning("DefaultConnection is missing. Skipping services.image_url column check.");
+        return;
+    }
+
+    try
+    {
+        await using var conn = new NpgsqlConnection(connString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            ALTER TABLE IF EXISTS public.services
+            ADD COLUMN IF NOT EXISTS image_url TEXT;", conn);
+
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Could not ensure services.image_url column at startup.");
+    }
 }
 
 app.MapHealthChecks(ApiConstants.Routes.HealthReady);
@@ -649,9 +691,22 @@ app.MapPost(ApiConstants.Routes.Services, async (CreateServiceRequest request, C
         return error!;
     }
 
-    if (string.IsNullOrWhiteSpace(request.Name) || request.DurationMinutes <= 0 || request.Price < 0)
+    if (string.IsNullOrWhiteSpace(request.Name) || request.Price < 0)
     {
         return Results.BadRequest(new { message = "Invalid service payload." });
+    }
+
+    var normalizedDuration = request.DurationMinutes > 0
+        ? request.DurationMinutes
+        : 30;
+
+    var normalizedImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl)
+        ? null
+        : request.ImageUrl.Trim();
+
+    if (normalizedImageUrl is not null && normalizedImageUrl.Length > 4_000_000)
+    {
+        return Results.BadRequest(new { message = "Service image is too large." });
     }
 
     var serviceId = Guid.NewGuid();
@@ -659,16 +714,28 @@ app.MapPost(ApiConstants.Routes.Services, async (CreateServiceRequest request, C
     await using var conn = new NpgsqlConnection(connectionString);
     await conn.OpenAsync(ct);
 
-    await using var cmd = new NpgsqlCommand(@"
+    var hasImageColumn = await HasServicesImageColumnAsync(conn, ct);
+
+    var insertSql = hasImageColumn
+        ? @"
+        INSERT INTO services (id, barbershop_id, name, duration_minutes, price, active, image_url)
+        VALUES (@id, @barbershopId, @name, @duration, @price, @active, @imageUrl)"
+        : @"
         INSERT INTO services (id, barbershop_id, name, duration_minutes, price, active)
-        VALUES (@id, @barbershopId, @name, @duration, @price, @active)", conn);
+        VALUES (@id, @barbershopId, @name, @duration, @price, @active)";
+
+    await using var cmd = new NpgsqlCommand(insertSql, conn);
 
     cmd.Parameters.AddWithValue("id", serviceId);
     cmd.Parameters.AddWithValue("barbershopId", barbershopId);
     cmd.Parameters.AddWithValue("name", request.Name.Trim());
-    cmd.Parameters.AddWithValue("duration", request.DurationMinutes);
+    cmd.Parameters.AddWithValue("duration", normalizedDuration);
     cmd.Parameters.AddWithValue("price", request.Price);
     cmd.Parameters.AddWithValue("active", request.Active);
+    if (hasImageColumn)
+    {
+        cmd.Parameters.AddWithValue("imageUrl", (object?)normalizedImageUrl ?? DBNull.Value);
+    }
 
     await cmd.ExecuteNonQueryAsync(ct);
 
@@ -677,9 +744,10 @@ app.MapPost(ApiConstants.Routes.Services, async (CreateServiceRequest request, C
         id = serviceId,
         barbershopId,
         request.Name,
-        request.DurationMinutes,
+        DurationMinutes = normalizedDuration,
         request.Price,
-        request.Active
+        request.Active,
+        imageUrl = hasImageColumn ? normalizedImageUrl : null
     });
 }).RequireAuthorization();
 
@@ -695,11 +763,21 @@ app.MapGet(ApiConstants.Routes.Services, async (ClaimsPrincipal user, Cancellati
     await using var conn = new NpgsqlConnection(connectionString);
     await conn.OpenAsync(ct);
 
-    await using var cmd = new NpgsqlCommand(@"
+    var hasImageColumn = await HasServicesImageColumnAsync(conn, ct);
+
+    var selectSql = hasImageColumn
+        ? @"
+        SELECT id, name, duration_minutes, price, active, image_url
+        FROM services
+        WHERE barbershop_id = @barbershopId
+        ORDER BY name"
+        : @"
         SELECT id, name, duration_minutes, price, active
         FROM services
         WHERE barbershop_id = @barbershopId
-        ORDER BY name", conn);
+        ORDER BY name";
+
+    await using var cmd = new NpgsqlCommand(selectSql, conn);
     cmd.Parameters.AddWithValue("barbershopId", barbershopId);
 
     await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -711,7 +789,8 @@ app.MapGet(ApiConstants.Routes.Services, async (ClaimsPrincipal user, Cancellati
             name = reader.GetString(1),
             durationMinutes = reader.GetInt32(2),
             price = reader.IsDBNull(3) ? 0m : reader.GetDecimal(3),
-            active = reader.GetBoolean(4)
+            active = reader.GetBoolean(4),
+            imageUrl = hasImageColumn && !reader.IsDBNull(5) ? reader.GetString(5) : null
         });
     }
 
@@ -730,28 +809,58 @@ app.MapPut($"{ApiConstants.Routes.Services}/{{id:guid}}", async (Guid id, Update
         return error!;
     }
 
-    if (string.IsNullOrWhiteSpace(request.Name) || request.DurationMinutes <= 0 || request.Price < 0)
+    if (string.IsNullOrWhiteSpace(request.Name) || request.Price < 0)
     {
         return Results.BadRequest(new { message = "Invalid service payload." });
+    }
+
+    var normalizedDuration = request.DurationMinutes > 0
+        ? request.DurationMinutes
+        : 30;
+
+    var normalizedImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl)
+        ? null
+        : request.ImageUrl.Trim();
+
+    if (normalizedImageUrl is not null && normalizedImageUrl.Length > 4_000_000)
+    {
+        return Results.BadRequest(new { message = "Service image is too large." });
     }
 
     await using var conn = new NpgsqlConnection(connectionString);
     await conn.OpenAsync(ct);
 
-    await using var cmd = new NpgsqlCommand(@"
+    var hasImageColumn = await HasServicesImageColumnAsync(conn, ct);
+
+    var updateSql = hasImageColumn
+        ? @"
+        UPDATE services
+        SET name = @name,
+            duration_minutes = @duration,
+            price = @price,
+            active = @active,
+            image_url = @imageUrl
+        WHERE id = @id AND barbershop_id = @barbershopId"
+        : @"
         UPDATE services
         SET name = @name,
             duration_minutes = @duration,
             price = @price,
             active = @active
-        WHERE id = @id AND barbershop_id = @barbershopId", conn);
+        WHERE id = @id AND barbershop_id = @barbershopId";
+
+    await using var cmd = new NpgsqlCommand(updateSql, conn);
 
     cmd.Parameters.AddWithValue("id", id);
     cmd.Parameters.AddWithValue("barbershopId", barbershopId);
     cmd.Parameters.AddWithValue("name", request.Name.Trim());
-    cmd.Parameters.AddWithValue("duration", request.DurationMinutes);
+    cmd.Parameters.AddWithValue("duration", normalizedDuration);
     cmd.Parameters.AddWithValue("price", request.Price);
     cmd.Parameters.AddWithValue("active", request.Active);
+    if (hasImageColumn)
+    {
+        cmd.Parameters.AddWithValue("imageUrl", (object?)normalizedImageUrl ?? DBNull.Value);
+    }
 
     var affected = await cmd.ExecuteNonQueryAsync(ct);
     return affected == 0 ? Results.NotFound() : Results.NoContent();
@@ -976,9 +1085,18 @@ app.MapPost(ApiConstants.Routes.Customers, async (CreateCustomerRequest request,
         return error!;
     }
 
+    var normalizedPhone = string.IsNullOrWhiteSpace(request.Phone)
+        ? string.Empty
+        : new string(request.Phone.Where(char.IsDigit).ToArray());
+
     if (string.IsNullOrWhiteSpace(request.Name))
     {
         return Results.BadRequest(new { message = "Customer name is required." });
+    }
+
+    if (normalizedPhone.Length != 10)
+    {
+        return Results.BadRequest(new { message = "Customer phone must contain exactly 10 digits." });
     }
 
     var customerId = Guid.NewGuid();
@@ -993,7 +1111,7 @@ app.MapPost(ApiConstants.Routes.Customers, async (CreateCustomerRequest request,
     cmd.Parameters.AddWithValue("id", customerId);
     cmd.Parameters.AddWithValue("barbershopId", barbershopId);
     cmd.Parameters.AddWithValue("name", request.Name.Trim());
-    cmd.Parameters.AddWithValue("phone", (object?)request.Phone?.Trim() ?? DBNull.Value);
+    cmd.Parameters.AddWithValue("phone", normalizedPhone);
     cmd.Parameters.AddWithValue("email", (object?)request.Email?.Trim().ToLowerInvariant() ?? DBNull.Value);
     cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
     cmd.Parameters.AddWithValue("active", request.IsActive);
@@ -1005,7 +1123,7 @@ app.MapPost(ApiConstants.Routes.Customers, async (CreateCustomerRequest request,
         id = customerId,
         barbershopId,
         name = request.Name.Trim(),
-        request.Phone,
+        phone = normalizedPhone,
         request.Email,
         request.Notes,
         isActive = request.IsActive
@@ -1075,9 +1193,18 @@ app.MapPut($"{ApiConstants.Routes.Customers}/{{id:guid}}", async (Guid id, Updat
         return error!;
     }
 
+    var normalizedPhone = string.IsNullOrWhiteSpace(request.Phone)
+        ? string.Empty
+        : new string(request.Phone.Where(char.IsDigit).ToArray());
+
     if (string.IsNullOrWhiteSpace(request.Name))
     {
         return Results.BadRequest(new { message = "Customer name is required." });
+    }
+
+    if (normalizedPhone.Length != 10)
+    {
+        return Results.BadRequest(new { message = "Customer phone must contain exactly 10 digits." });
     }
 
     await using var conn = new NpgsqlConnection(connectionString);
@@ -1095,7 +1222,7 @@ app.MapPut($"{ApiConstants.Routes.Customers}/{{id:guid}}", async (Guid id, Updat
     cmd.Parameters.AddWithValue("id", id);
     cmd.Parameters.AddWithValue("barbershopId", barbershopId);
     cmd.Parameters.AddWithValue("name", request.Name.Trim());
-    cmd.Parameters.AddWithValue("phone", (object?)request.Phone?.Trim() ?? DBNull.Value);
+    cmd.Parameters.AddWithValue("phone", normalizedPhone);
     cmd.Parameters.AddWithValue("email", (object?)request.Email?.Trim().ToLowerInvariant() ?? DBNull.Value);
     cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
     cmd.Parameters.AddWithValue("active", request.IsActive);
