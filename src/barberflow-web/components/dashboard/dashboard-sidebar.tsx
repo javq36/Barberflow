@@ -6,6 +6,7 @@ import {
   Scissors,
   ShieldCheck,
 } from "lucide-react";
+import { Texts } from "@/lib/content/texts";
 import { DashboardNavItem } from "@/lib/dashboard/selectors";
 
 type DashboardSidebarProps = {
@@ -32,6 +33,8 @@ export function DashboardSidebar({
   isOpen,
   onNavigate,
 }: DashboardSidebarProps) {
+  const { SharedShell } = Texts;
+
   return (
     <aside
       className={`dashboard-panel fixed inset-y-3 left-3 z-40 h-auto w-[260px] overflow-y-auto p-3 transition-transform duration-200 lg:sticky lg:top-4 lg:z-auto lg:block lg:h-fit lg:w-auto lg:translate-x-0 ${
@@ -44,9 +47,11 @@ export function DashboardSidebar({
         </div>
         <div>
           <p className="dashboard-heading text-base font-semibold">
-            BarberFlow
+            {SharedShell.BrandName}
           </p>
-          <p className="dashboard-microtext text-xs">Owner Panel</p>
+          <p className="dashboard-microtext text-xs">
+            {SharedShell.ManagementSubtitle}
+          </p>
         </div>
       </div>
 

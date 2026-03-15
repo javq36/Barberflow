@@ -23,9 +23,10 @@ export function OwnerPanelShell({
 }: OwnerPanelShellProps) {
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { Dashboard, Common } = Texts;
+  const { Dashboard, Common, SharedShell } = Texts;
   const { navItems, logoutState, onLogout } = useOwnerPanelShellModel({ role });
-  const roleLabel = role === "SuperAdmin" ? "SuperAdmin" : "Owner";
+  const roleLabel =
+    role === "SuperAdmin" ? "SuperAdmin" : SharedShell.DemoOwnerRole;
 
   function onNavigate(href: string) {
     setIsSidebarOpen(false);

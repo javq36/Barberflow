@@ -24,6 +24,7 @@ export function useOwnerPanelShellModel({
       selectDashboardNavItems(role, {
         Overview: Dashboard.Navigation.Overview,
         Schedule: Dashboard.Navigation.Schedule,
+        Payments: Dashboard.Navigation.Payments,
         Services: Dashboard.Navigation.Services,
         Barbers: Dashboard.Navigation.Barbers,
         Customers: Dashboard.Navigation.Customers,

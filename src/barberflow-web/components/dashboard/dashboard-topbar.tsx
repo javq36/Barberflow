@@ -3,6 +3,7 @@
 import { Bell, LogOut, Menu, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { Texts } from "@/lib/content/texts";
 
 type DashboardTopbarProps = {
   title: string;
@@ -37,11 +38,15 @@ export function DashboardTopbar({
   onToggleMenu,
   onLogout,
 }: DashboardTopbarProps) {
+  const { SharedShell } = Texts;
+
   return (
     <header className="dashboard-panel p-3 sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <Badge className="dashboard-badge-brand">BarberFlow</Badge>
+          <Badge className="dashboard-badge-brand">
+            {SharedShell.BrandName}
+          </Badge>
           <h1 className="dashboard-heading text-xl font-semibold tracking-tight sm:text-2xl">
             {title}
           </h1>
