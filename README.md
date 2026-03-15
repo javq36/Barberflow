@@ -151,6 +151,17 @@ Frontend (Owner web app):
 - Schedule conflict validation per barber (same slot allowed for different barbers)
 - Customer suggestions shown only after typing and receiving API matches
 - Defensive datetime parsing for timezone-less API values (treated as UTC in UI)
+- Visual unification for operations modules using reusable role-based workspace shell
+- Dedicated payments workspace at `/payments` with role-based navigation
+- Centralized Spanish UI copy expanded (`texts.es.json`) across dashboard/admin/operations/schedule
+- Services module supports image upload to Supabase Storage through server route
+
+Recent backend/API updates:
+
+- Services contracts and endpoints now support optional `imageUrl`
+- Startup check to ensure `services.image_url` column exists in database
+- Customers create/update now normalize and validate 10-digit phone numbers
+- Protected web proxy handles no-body statuses (`204/205/304`) safely
 
 ## Database Workflow (Official)
 
@@ -171,8 +182,9 @@ Detailed guide:
 
 ## Next MVP Focus
 
-- Add frontend integration tests for owner panel critical flows
-- Add advanced filtering/search UX for large tables (services/barbers/customers/appointments)
+- Add frontend integration/regression tests for owner panel critical flows (operations + schedule + payments)
+- Add advanced filtering/search UX for large datasets (services/barbers/customers/appointments)
 - Normalize API appointment datetime responses with explicit timezone offset/UTC suffix
 - Replace remaining ad-hoc confirmations with consistent dialog patterns
+- Harden observability/logging around storage uploads and scheduling mutations
 - Define multi-branch owner model (multiple barbershops per owner) as next architecture increment
