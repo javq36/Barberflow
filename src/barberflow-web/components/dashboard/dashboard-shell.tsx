@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Users,
   UserSquare2,
+  Wallet,
 } from "lucide-react";
 import { Texts } from "@/lib/content/texts";
 import { APP_ROUTES } from "@/lib/config/app";
@@ -27,7 +28,7 @@ type DashboardShellProps = {
 };
 
 export function DashboardShell({ role }: DashboardShellProps) {
-  const { DashboardV2 } = Texts;
+  const { DashboardV2, SharedShell } = Texts;
   const { data, isLoading, isFetching, error } = useGetDashboardSummaryQuery();
   const roleLabel =
     role === "SuperAdmin" ? "SuperAdmin" : DashboardV2.Header.Role;
@@ -40,10 +41,10 @@ export function DashboardShell({ role }: DashboardShellProps) {
     if (!value) {
       return DashboardV2.Fallback.Time;
     }
-    return new Intl.DateTimeFormat("en-US", {
+    return new Intl.DateTimeFormat("es-CO", {
       hour: "numeric",
       minute: "2-digit",
-      hour12: true,
+      hour12: false,
     }).format(new Date(value));
   }
 
@@ -84,19 +85,19 @@ export function DashboardShell({ role }: DashboardShellProps) {
 
   const team = [
     {
-      name: "Alex Rivera",
+      name: `${DashboardV2.Team.Title} 1`,
       status: DashboardV2.Team.Status.InSession,
       value: "$420.00",
       color: "bg-[#10B981]",
     },
     {
-      name: "Sam Wilson",
+      name: `${DashboardV2.Team.Title} 2`,
       status: DashboardV2.Team.Status.Break,
       value: "$385.00",
       color: "bg-[#F59E0B]",
     },
     {
-      name: "Jordan Lee",
+      name: `${DashboardV2.Team.Title} 3`,
       status: DashboardV2.Team.Status.Available,
       value: "$210.00",
       color: "bg-[#10B981]",
@@ -109,33 +110,9 @@ export function DashboardShell({ role }: DashboardShellProps) {
       customer:
         data?.proximaCita?.customerName ?? DashboardV2.Fallback.Customer,
       service: data?.proximaCita?.serviceName ?? DashboardV2.Fallback.Service,
-      barber: data?.proximaCita?.barberName ?? "Alex R.",
+      barber: data?.proximaCita?.barberName ?? DashboardV2.Fallback.Barber,
       time: formatHourLabel(data?.proximaCita?.appointmentTime),
       active: true,
-    },
-    {
-      id: "a2",
-      customer: "David Smith",
-      service: "Scissors Cut Only",
-      barber: "Sarah C.",
-      time: "11:15 AM",
-      active: false,
-    },
-    {
-      id: "a3",
-      customer: "Robert T.",
-      service: "Buzz Cut",
-      barber: "Alex R.",
-      time: "12:00 PM",
-      active: false,
-    },
-    {
-      id: "a4",
-      customer: "Oscar Wilde",
-      service: "Father & Son Combo",
-      barber: "Sarah C.",
-      time: "12:45 PM",
-      active: false,
     },
   ];
 
@@ -150,8 +127,12 @@ export function DashboardShell({ role }: DashboardShellProps) {
               <Scissors className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight">BarberFlow</h1>
-              <p className="text-xs text-[#9CA3AF]">Premium Management</p>
+              <h1 className="text-lg font-bold tracking-tight">
+                {SharedShell.BrandName}
+              </h1>
+              <p className="text-xs text-[#9CA3AF]">
+                {DashboardV2.Header.BrandSubtitle}
+              </p>
             </div>
           </div>
 
@@ -194,6 +175,16 @@ export function DashboardShell({ role }: DashboardShellProps) {
               <UserSquare2 className="h-4 w-4" />
               <span className="text-sm font-medium">
                 {DashboardV2.Sidebar.Staff}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navigateTo(APP_ROUTES.Payments)}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[#9CA3AF] transition hover:bg-white/5 hover:text-white"
+            >
+              <Wallet className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                {DashboardV2.Sidebar.Payments}
               </span>
             </button>
             <button
@@ -310,7 +301,7 @@ export function DashboardShell({ role }: DashboardShellProps) {
                     </select>
                   </div>
                   <div className="flex h-48 items-end justify-between gap-4 px-2">
-                    {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
+                    {["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"].map(
                       (day, index) => (
                         <div
                           key={day}
@@ -458,7 +449,7 @@ export function DashboardShell({ role }: DashboardShellProps) {
             </div>
             <div>
               <h1 className="text-lg font-bold leading-tight tracking-tight">
-                BarberFlow
+                {SharedShell.BrandName}
               </h1>
               <p className="text-xs font-medium text-[#9CA3AF]">
                 {DashboardV2.Header.CommandCenter}
@@ -549,7 +540,8 @@ export function DashboardShell({ role }: DashboardShellProps) {
                     {DashboardV2.Mobile.Barber}
                   </span>
                   <p className="text-sm font-semibold">
-                    {data?.proximaCita?.barberName ?? "Alex Rivera"}
+                    {data?.proximaCita?.barberName ??
+                      DashboardV2.Fallback.Barber}
                   </p>
                 </div>
 
@@ -586,9 +578,9 @@ export function DashboardShell({ role }: DashboardShellProps) {
                 ))}
               </div>
               <div className="mt-2 flex justify-between text-[10px] font-medium text-[#4B5563]">
-                <span>8AM</span>
-                <span>12PM</span>
-                <span>4PM</span>
+                <span>08:00</span>
+                <span>12:00</span>
+                <span>16:00</span>
               </div>
             </article>
           </section>
@@ -687,11 +679,12 @@ export function DashboardShell({ role }: DashboardShellProps) {
           </button>
           <button
             type="button"
+            onClick={() => navigateTo(APP_ROUTES.Payments)}
             className="flex flex-1 flex-col items-center justify-center gap-1 text-[#9CA3AF]"
           >
-            <Settings className="h-4 w-4" />
+            <Wallet className="h-4 w-4" />
             <p className="text-[10px] font-medium uppercase tracking-tighter">
-              {DashboardV2.Mobile.Settings}
+              {DashboardV2.Mobile.Payments}
             </p>
           </button>
         </nav>

@@ -4,22 +4,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Calendar,
-  CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
   LogOut,
   Plus,
-  Scissors,
   Search,
   Settings,
   UserRound,
-  Users,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { RoleWorkspaceShell } from "@/components/dashboard/operations/role-workspace-shell";
 import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
 import {
@@ -41,7 +39,7 @@ import {
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useLogoutMutation } from "@/lib/api/authApi";
 import { useAppToast } from "@/lib/toast/toast-provider";
-import { AppRole, hasPermission } from "@/lib/auth/permissions";
+import { AppRole } from "@/lib/auth/permissions";
 
 type ScheduleShellProps = {
   role: AppRole;
@@ -345,7 +343,7 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
 
   const { showToast } = useAppToast();
   const [logout, logoutState] = useLogoutMutation();
-  const { Schedule, Common, Admin } = Texts;
+  const { Schedule, Common, SharedShell, Dashboard } = Texts;
 
   const viewRange = useMemo(
     () => getViewRange(selectedDate, viewMode),
@@ -383,7 +381,6 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
   const [cancelAppointment, cancelAppointmentState] =
     useCancelAppointmentMutation();
 
-  const canAccessAdmin = hasPermission(role, "admin.access");
   const daySlots = useMemo(() => getDaySlots(), []);
 
   const barbers = useMemo(
@@ -1126,75 +1123,26 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     cancelAppointmentState.isLoading;
 
   return (
-    <main className="min-h-screen bg-[#191919] text-slate-100">
-      <div className="hidden h-screen overflow-hidden lg:flex">
-        <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800 bg-[#262626]">
-          <div className="flex items-center gap-3 p-6">
-            <div className="h-10 w-10 rounded-full bg-slate-700" />
-            <div>
-              <h1 className="text-lg font-bold leading-none">BarberFlow</h1>
-              <p className="mt-1 text-xs text-slate-400">Management Portal</p>
-            </div>
-          </div>
-
-          <nav className="flex-1 space-y-1 px-4">
-            <button
-              type="button"
-              onClick={() => router.push(APP_ROUTES.Dashboard)}
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
-            >
-              <CalendarDays className="h-4 w-4" />
-              Dashboard
-            </button>
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white"
-            >
-              <Calendar className="h-4 w-4 text-[#E8611C]" />
-              Schedule
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push(APP_ROUTES.Customers)}
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
-            >
-              <Users className="h-4 w-4" />
-              Clients
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push(APP_ROUTES.Services)}
-              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
-            >
-              <Scissors className="h-4 w-4" />
-              Services
-            </button>
-            {canAccessAdmin ? (
-              <button
-                type="button"
-                onClick={() => router.push(APP_ROUTES.Admin)}
-                className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
-              >
-                <Settings className="h-4 w-4" />
-                {Admin.Actions.OpenAdmin}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
-              >
-                <Settings className="h-4 w-4" />
-                Settings
-              </button>
-            )}
-          </nav>
-
-          <div className="border-t border-slate-800 p-4">
+    <>
+      <RoleWorkspaceShell
+        canOperate
+        disabledMessage={Schedule.Empty.NoData}
+        role={role}
+        activeItemId="schedule"
+        onNavigate={(href) => router.push(href)}
+        brandTitle={SharedShell.BrandName}
+        brandSubtitle={SharedShell.ManagementSubtitle}
+        desktopSidebarFooter={
+          <>
             <div className="mb-3 flex items-center gap-3 p-2">
               <div className="h-8 w-8 rounded-full border border-slate-700 bg-slate-600" />
               <div className="overflow-hidden">
-                <p className="truncate text-sm font-medium">Marcus Barber</p>
-                <p className="truncate text-xs text-slate-400">Owner</p>
+                <p className="truncate text-sm font-medium">
+                  {SharedShell.DemoOwnerName}
+                </p>
+                <p className="truncate text-xs text-slate-400">
+                  {SharedShell.DemoOwnerRole}
+                </p>
               </div>
             </div>
             <LoadingButton
@@ -1210,10 +1158,9 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                 {Common.Actions.Logout}
               </>
             </LoadingButton>
-          </div>
-        </aside>
-
-        <section className="flex min-w-0 flex-1 flex-col bg-[#191919]">
+          </>
+        }
+        desktopHeader={
           <header className="flex h-16 items-center justify-between border-b border-slate-800 px-8">
             <div className="flex flex-1 items-center gap-6">
               <div className="flex items-center gap-2">
@@ -1222,7 +1169,7 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                   type="search"
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search clients, appointments, or bookings..."
+                  placeholder={Schedule.Filters.SearchPlaceholder}
                   className="w-96 border-none bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
                 />
               </div>
@@ -1246,15 +1193,16 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
               </button>
             </div>
           </header>
-
+        }
+        desktopBody={
           <div className="flex min-h-0 flex-1 flex-col p-8">
             <div className="mb-8 flex items-end justify-between">
               <div>
                 <h2 className="text-4xl font-black tracking-tight text-white">
-                  Daily Schedule
+                  {Schedule.Header.DesktopTitle}
                 </h2>
                 <p className="mt-1 text-slate-400">
-                  Manage appointments and barber availability for today.
+                  {Schedule.Header.DesktopDescription}
                 </p>
               </div>
 
@@ -1473,230 +1421,255 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
               </div>
             </div>
           </div>
-        </section>
-      </div>
-
-      <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden pb-24 lg:hidden">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[#262626] bg-[#1a1a1ad9] px-4 py-3 backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#262626] text-xl font-bold">
-              BF
-            </div>
-            <div>
-              <h1 className="text-sm font-bold leading-tight">BarberFlow</h1>
-              <p className="text-xs text-slate-400">Alex&apos;s Schedule</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            aria-label={Schedule.Mobile.Alerts}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-[#262626]"
-          >
-            <Bell className="h-4 w-4" />
-          </button>
-        </header>
-
-        <div className="flex items-center justify-between bg-[#1a1a1a] px-4 py-4">
-          <button
-            type="button"
-            onClick={() => shiftDay("back")}
-            className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#262626]"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div className="flex flex-col items-center">
-            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
-              {Schedule.Filters.Today}
-            </span>
-            <span className="text-lg font-bold capitalize">
-              {formatDateLabel(selectedDate)}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => shiftDay("next")}
-            className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#262626]"
-          >
-            <ChevronRight className="h-5 w-5" />
-          </button>
-        </div>
-
-        <section className="px-4 py-2">
-          <div className="overflow-hidden rounded-xl border border-[#262626] bg-[#1f1f1f] p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="rounded-full bg-[#262626] px-2.5 py-1 text-[10px] font-bold uppercase tracking-tight text-slate-100">
-                Next Up •{" "}
-                {nextEvent
-                  ? formatTimeRange(
-                      nextEvent.startDate,
-                      nextEvent.endDate,
-                    ).split(" - ")[0]
-                  : "--:--"}
-              </span>
-              <span className="text-xs font-semibold text-slate-400">
-                {nextEvent ? "In 15 mins" : Schedule.Empty.NoData}
-              </span>
-            </div>
-
-            <div className="mb-4 flex items-start gap-4">
-              <div className="h-14 w-14 shrink-0 rounded-lg bg-[#323232]" />
-              <div className="flex-1">
-                <h3 className="text-lg font-bold leading-none">
-                  {nextEvent?.item.customerName ?? Schedule.Empty.NoData}
-                </h3>
-                <p className="mt-1 text-sm text-slate-400">
-                  {nextEvent?.item.serviceName ?? "-"}
-                </p>
-                <p className="mt-1 text-xs font-medium text-[#E8611C]">
-                  {nextEvent
-                    ? `${Math.max(15, Math.round((nextEvent.endDate.getTime() - nextEvent.startDate.getTime()) / 60000))} mins`
-                    : "-"}
+        }
+        mobileHeader={
+          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[#262626] bg-[#1a1a1ad9] px-4 py-3 backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#262626] text-xl font-bold">
+                {SharedShell.BrandMonogram}
+              </div>
+              <div>
+                <h1 className="text-sm font-bold leading-tight">
+                  {SharedShell.BrandName}
+                </h1>
+                <p className="text-xs text-slate-400">
+                  {Schedule.Header.Title}
                 </p>
               </div>
             </div>
-
-            <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              aria-label={Schedule.Mobile.Alerts}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-[#262626]"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
+          </header>
+        }
+        mobileBody={
+          <>
+            <div className="flex items-center justify-between bg-[#1a1a1a] px-4 py-4">
               <button
                 type="button"
-                onClick={onCheckInAppointment}
-                disabled={!canCheckInSelected}
-                className="flex flex-col items-center justify-center gap-1 rounded-lg bg-[#E8611C] py-2 text-slate-100 transition active:scale-95 disabled:opacity-50"
+                onClick={() => shiftDay("back")}
+                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#262626]"
               >
-                <span className="text-[10px] font-bold uppercase">
-                  Check In
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <div className="flex flex-col items-center">
+                <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+                  {Schedule.Filters.Today}
                 </span>
-              </button>
+                <span className="text-lg font-bold capitalize">
+                  {formatDateLabel(selectedDate)}
+                </span>
+              </div>
               <button
                 type="button"
-                onClick={onCancelAppointment}
-                disabled={!canCancelSelected}
-                className="flex flex-col items-center justify-center gap-1 rounded-lg border border-[#303030] bg-[#1a1a1a] py-2 transition active:scale-95 disabled:opacity-50"
+                onClick={() => shiftDay("next")}
+                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#262626]"
               >
-                <span className="text-[10px] font-bold uppercase">No Show</span>
-              </button>
-              <button
-                type="button"
-                onClick={openRescheduleModal}
-                disabled={!canEditSelected}
-                className="flex flex-col items-center justify-center gap-1 rounded-lg border border-[#303030] bg-[#1a1a1a] py-2 transition active:scale-95 disabled:opacity-50"
-              >
-                <span className="text-[10px] font-bold uppercase">Resched</span>
+                <ChevronRight className="h-5 w-5" />
               </button>
             </div>
-          </div>
-        </section>
 
-        <section className="mt-6 flex flex-col px-4">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-base font-bold">Today&apos;s Schedule</h2>
-            <span className="text-xs text-slate-400">
-              {dayEventsSorted.length} Appointments
-            </span>
-          </div>
+            <section className="px-4 py-2">
+              <div className="overflow-hidden rounded-xl border border-[#262626] bg-[#1f1f1f] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="rounded-full bg-[#262626] px-2.5 py-1 text-[10px] font-bold uppercase tracking-tight text-slate-100">
+                    {Schedule.Mobile.NextUp} -{" "}
+                    {nextEvent
+                      ? formatTimeRange(
+                          nextEvent.startDate,
+                          nextEvent.endDate,
+                        ).split(" - ")[0]
+                      : "--:--"}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400">
+                    {nextEvent ? Schedule.Mobile.NextIn : Schedule.Empty.NoData}
+                  </span>
+                </div>
 
-          <div className="space-y-0">
-            {dayEventsSorted.map((event) => {
-              const active = effectiveSelectedAppointmentId === event.item.id;
-              const current = isCurrentAppointment(
-                new Date(),
-                event.startDate,
-                event.endDate,
-              );
-
-              return (
-                <div
-                  key={event.item.id}
-                  className="relative flex min-h-[84px] gap-4"
-                >
-                  <div className="flex w-12 flex-col items-end pt-1">
-                    <span
-                      className={`text-xs font-bold ${active ? "text-[#E8611C]" : ""}`}
-                    >
-                      {new Intl.DateTimeFormat("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      }).format(event.startDate)}
-                    </span>
-                  </div>
-                  <div className="relative flex-1 pb-4">
-                    <div className="absolute left-[-17px] top-2.5 z-10 h-2 w-2 rounded-full bg-slate-500 ring-4 ring-[#1a1a1a]" />
-                    <div className="absolute left-[-13.5px] top-3 h-full w-[1px] bg-slate-800" />
-                    <button
-                      type="button"
-                      onClick={() => openEditModalByAppointment(event.item.id)}
-                      className={`w-full rounded-lg border p-3 text-left ${
-                        current
-                          ? "border-[#E8611C44] border-l-4 border-l-[#E8611C] bg-[#E8611C14]"
-                          : "border-slate-800 bg-[#202020]"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-sm font-bold">
-                            {event.item.customerName}
-                          </p>
-                          <p className="text-xs text-slate-400">
-                            {event.item.serviceName}
-                          </p>
-                        </div>
-                        {current ? (
-                          <span className="rounded-full bg-[#E8611C2a] px-2 py-0.5 text-[10px] font-bold uppercase text-[#E8611C]">
-                            Current
-                          </span>
-                        ) : null}
-                      </div>
-                    </button>
+                <div className="mb-4 flex items-start gap-4">
+                  <div className="h-14 w-14 shrink-0 rounded-lg bg-[#323232]" />
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold leading-none">
+                      {nextEvent?.item.customerName ?? Schedule.Empty.NoData}
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-400">
+                      {nextEvent?.item.serviceName ?? "-"}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-[#E8611C]">
+                      {nextEvent
+                        ? `${Math.max(15, Math.round((nextEvent.endDate.getTime() - nextEvent.startDate.getTime()) / 60000))} min`
+                        : "-"}
+                    </p>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </section>
 
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="fixed bottom-24 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#E8611C] text-slate-100 shadow-xl transition active:scale-90"
-        >
-          <Plus className="h-6 w-6" />
-        </button>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={onCheckInAppointment}
+                    disabled={!canCheckInSelected}
+                    className="flex flex-col items-center justify-center gap-1 rounded-lg bg-[#E8611C] py-2 text-slate-100 transition active:scale-95 disabled:opacity-50"
+                  >
+                    <span className="text-[10px] font-bold uppercase">
+                      {Common.Actions.CheckIn}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onCancelAppointment}
+                    disabled={!canCancelSelected}
+                    className="flex flex-col items-center justify-center gap-1 rounded-lg border border-[#303030] bg-[#1a1a1a] py-2 transition active:scale-95 disabled:opacity-50"
+                  >
+                    <span className="text-[10px] font-bold uppercase">
+                      {Schedule.Actions.CancelAppointment}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openRescheduleModal}
+                    disabled={!canEditSelected}
+                    className="flex flex-col items-center justify-center gap-1 rounded-lg border border-[#303030] bg-[#1a1a1a] py-2 transition active:scale-95 disabled:opacity-50"
+                  >
+                    <span className="text-[10px] font-bold uppercase">
+                      {Schedule.Actions.Reschedule}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </section>
 
-        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#262626] bg-[#1a1a1a] pb-6 pt-2">
-          <div className="flex items-center justify-around px-4">
+            <section className="mt-6 flex flex-col px-4">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-base font-bold">
+                  {Schedule.Mobile.TodaySchedule}
+                </h2>
+                <span className="text-xs text-slate-400">
+                  {dayEventsSorted.length} {Schedule.Grid.Bookings}
+                </span>
+              </div>
+
+              <div className="space-y-0">
+                {dayEventsSorted.map((event) => {
+                  const active =
+                    effectiveSelectedAppointmentId === event.item.id;
+                  const current = isCurrentAppointment(
+                    new Date(),
+                    event.startDate,
+                    event.endDate,
+                  );
+
+                  return (
+                    <div
+                      key={event.item.id}
+                      className="relative flex min-h-[84px] gap-4"
+                    >
+                      <div className="flex w-12 flex-col items-end pt-1">
+                        <span
+                          className={`text-xs font-bold ${active ? "text-[#E8611C]" : ""}`}
+                        >
+                          {new Intl.DateTimeFormat("en-US", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                          }).format(event.startDate)}
+                        </span>
+                      </div>
+                      <div className="relative flex-1 pb-4">
+                        <div className="absolute left-[-17px] top-2.5 z-10 h-2 w-2 rounded-full bg-slate-500 ring-4 ring-[#1a1a1a]" />
+                        <div className="absolute left-[-13.5px] top-3 h-full w-[1px] bg-slate-800" />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openEditModalByAppointment(event.item.id)
+                          }
+                          className={`w-full rounded-lg border p-3 text-left ${
+                            current
+                              ? "border-[#E8611C44] border-l-4 border-l-[#E8611C] bg-[#E8611C14]"
+                              : "border-slate-800 bg-[#202020]"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-sm font-bold">
+                                {event.item.customerName}
+                              </p>
+                              <p className="text-xs text-slate-400">
+                                {event.item.serviceName}
+                              </p>
+                            </div>
+                            {current ? (
+                              <span className="rounded-full bg-[#E8611C2a] px-2 py-0.5 text-[10px] font-bold uppercase text-[#E8611C]">
+                                {Schedule.Grid.Current}
+                              </span>
+                            ) : null}
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
             <button
               type="button"
-              className="flex flex-col items-center gap-1 text-[#E8611C]"
+              onClick={openCreateModal}
+              className="fixed bottom-24 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-[#E8611C] text-slate-100 shadow-xl transition active:scale-90"
             >
-              <Calendar className="h-4 w-4" />
-              <p className="text-[10px] font-bold uppercase">Schedule</p>
+              <Plus className="h-6 w-6" />
             </button>
-            <button
-              type="button"
-              onClick={() => router.push(APP_ROUTES.Customers)}
-              className="flex flex-col items-center gap-1 text-slate-400"
-            >
-              <UserRound className="h-4 w-4" />
-              <p className="text-[10px] font-medium uppercase">Clients</p>
-            </button>
-            <button
-              type="button"
-              className="flex flex-col items-center gap-1 text-slate-400"
-            >
-              <Clock3 className="h-4 w-4" />
-              <p className="text-[10px] font-medium uppercase">Earnings</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push(APP_ROUTES.Dashboard)}
-              className="flex flex-col items-center gap-1 text-slate-400"
-            >
-              <Settings className="h-4 w-4" />
-              <p className="text-[10px] font-medium uppercase">Settings</p>
-            </button>
-          </div>
-        </nav>
-      </div>
+          </>
+        }
+        mobileFooter={
+          <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#262626] bg-[#1a1a1a] pb-6 pt-2">
+            <div className="flex items-center justify-around px-4">
+              <button
+                type="button"
+                className="flex flex-col items-center gap-1 text-[#E8611C]"
+              >
+                <Calendar className="h-4 w-4" />
+                <p className="text-[10px] font-bold uppercase">
+                  {Schedule.Mobile.Schedule}
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(APP_ROUTES.Customers)}
+                className="flex flex-col items-center gap-1 text-slate-400"
+              >
+                <UserRound className="h-4 w-4" />
+                <p className="text-[10px] font-medium uppercase">
+                  {Schedule.Mobile.Clients}
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(APP_ROUTES.Payments)}
+                className="flex flex-col items-center gap-1 text-slate-400"
+              >
+                <Clock3 className="h-4 w-4" />
+                <p className="text-[10px] font-medium uppercase">
+                  {Dashboard.Navigation.Payments}
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push(APP_ROUTES.Dashboard)}
+                className="flex flex-col items-center gap-1 text-slate-400"
+              >
+                <Settings className="h-4 w-4" />
+                <p className="text-[10px] font-medium uppercase">
+                  {Schedule.Mobile.Home}
+                </p>
+              </button>
+            </div>
+          </nav>
+        }
+      />
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -2027,6 +2000,6 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
           {Common.Actions.Loading}
         </div>
       ) : null}
-    </main>
+    </>
   );
 }

@@ -6,6 +6,7 @@ export type ServiceItem = {
   durationMinutes: number;
   price: number;
   active: boolean;
+  imageUrl?: string;
 };
 
 export type BarberItem = {
@@ -78,6 +79,7 @@ export type CreateServiceRequest = {
   durationMinutes: number;
   price: number;
   active: boolean;
+  imageUrl?: string;
 };
 
 export type CreateBarberRequest = {
@@ -101,6 +103,7 @@ export type UpdateServiceRequest = {
   durationMinutes: number;
   price: number;
   active: boolean;
+  imageUrl?: string;
 };
 
 export type UpdateBarberRequest = {

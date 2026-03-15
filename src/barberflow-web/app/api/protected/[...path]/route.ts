@@ -82,6 +82,19 @@ async function proxyRequest(request: NextRequest, context: RouteContext) {
     request.nextUrl.search,
   );
 
+  if (
+    upstreamResponse.status === 204 ||
+    upstreamResponse.status === 205 ||
+    upstreamResponse.status === 304
+  ) {
+    return new NextResponse(null, {
+      status: upstreamResponse.status,
+      headers: {
+        "cache-control": "no-store",
+      },
+    });
+  }
+
   const payload = await upstreamResponse.text();
   return new NextResponse(payload, {
     status: upstreamResponse.status,

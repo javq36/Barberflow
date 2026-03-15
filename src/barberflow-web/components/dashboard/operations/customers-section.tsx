@@ -5,18 +5,17 @@ import {
   Bell,
   CalendarDays,
   ChevronRight,
+  Clock3,
   Eye,
-  Menu,
   Pencil,
   Plus,
   Scissors,
   Search,
-  Settings,
   Trash2,
-  UserRound,
   Users,
   X,
 } from "lucide-react";
+import { RoleWorkspaceShell } from "@/components/dashboard/operations/role-workspace-shell";
 import { LoadingButton } from "@/components/ui/loading-button";
 import {
   AppointmentItem,
@@ -27,6 +26,7 @@ import {
   useGetCustomersQuery,
   useUpdateCustomerMutation,
 } from "@/lib/api/owner-admin-api";
+import { AppRole } from "@/lib/auth/permissions";
 import { getApiErrorMessage } from "@/lib/api/error";
 import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
@@ -35,11 +35,23 @@ import { useRouter } from "next/navigation";
 
 type CustomersSectionProps = {
   canOperate: boolean;
+  role: AppRole;
 };
 
-export function CustomersSection({ canOperate }: CustomersSectionProps) {
+type CustomerFormErrors = {
+  name?: string;
+  phone?: string;
+};
+
+const COLOMBIA_PHONE_MAX_LENGTH = 10;
+
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
   const router = useRouter();
-  const { Admin, Common, ClientsV2 } = Texts;
+  const { Admin, Common, ClientsV2, SharedShell } = Texts;
   const { showToast } = useAppToast();
 
   const customersQuery = useGetCustomersQuery(undefined, { skip: !canOperate });
@@ -61,6 +73,10 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
+  const [createCustomerErrors, setCreateCustomerErrors] =
+    useState<CustomerFormErrors>({});
+  const [editCustomerErrors, setEditCustomerErrors] =
+    useState<CustomerFormErrors>({});
   const [editingCustomer, setEditingCustomer] = useState<CustomerItem | null>(
     null,
   );
@@ -176,7 +192,7 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
       return Common.Status.NoData;
     }
 
-    return new Intl.DateTimeFormat("en-US", {
+    return new Intl.DateTimeFormat("es-CO", {
       month: "short",
       day: "2-digit",
       year: "numeric",
@@ -191,23 +207,61 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
       return Common.Status.NoData;
     }
 
-    const time = new Intl.DateTimeFormat("en-US", {
+    const time = new Intl.DateTimeFormat("es-CO", {
       hour: "numeric",
       minute: "2-digit",
-      hour12: true,
+      hour12: false,
     }).format(new Date(isoDate));
 
     return `${time} ${ClientsV2.Table.With} ${barberName ?? ClientsV2.Table.Team}`;
+  }
+
+  function validateCustomer(name: string, phone: string): CustomerFormErrors {
+    const errors: CustomerFormErrors = {};
+
+    if (!name.trim()) {
+      errors.name = ClientsV2.Messages.NameRequired;
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      errors.phone = ClientsV2.Messages.PhoneRequired;
+    } else if (normalizedPhone.length !== COLOMBIA_PHONE_MAX_LENGTH) {
+      errors.phone = ClientsV2.Messages.PhoneInvalid;
+    }
+
+    return errors;
   }
 
   async function onCreateCustomer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     try {
+      const normalizedName = customerName.trim();
+      const normalizedPhone = normalizePhone(customerPhone);
+      const validationErrors = validateCustomer(
+        normalizedName,
+        normalizedPhone,
+      );
+      if (validationErrors.name || validationErrors.phone) {
+        setCreateCustomerErrors(validationErrors);
+        showToast({
+          title: Common.Toasts.ErrorTitle,
+          description:
+            validationErrors.name ??
+            validationErrors.phone ??
+            Common.Status.Error,
+          variant: "error",
+        });
+        return;
+      }
+
+      setCreateCustomerErrors({});
+
       await createCustomer({
-        name: customerName.trim(),
+        name: normalizedName,
         email: customerEmail.trim() || undefined,
-        phone: customerPhone.trim() || undefined,
+        phone: normalizedPhone,
         notes: customerNotes.trim() || undefined,
         isActive: true,
       }).unwrap();
@@ -239,11 +293,32 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
     }
 
     try {
+      const normalizedName = (editingCustomer.name ?? "").trim();
+      const normalizedPhone = normalizePhone(editingCustomer.phone ?? "");
+      const validationErrors = validateCustomer(
+        normalizedName,
+        normalizedPhone,
+      );
+      if (validationErrors.name || validationErrors.phone) {
+        setEditCustomerErrors(validationErrors);
+        showToast({
+          title: Common.Toasts.ErrorTitle,
+          description:
+            validationErrors.name ??
+            validationErrors.phone ??
+            Common.Status.Error,
+          variant: "error",
+        });
+        return;
+      }
+
+      setEditCustomerErrors({});
+
       await updateCustomer({
         id: editingCustomer.id,
-        name: (editingCustomer.name ?? "").trim(),
+        name: normalizedName,
         email: editingCustomer.email?.trim() || undefined,
-        phone: editingCustomer.phone?.trim() || undefined,
+        phone: normalizedPhone,
         notes: editingCustomer.notes?.trim() || undefined,
         isActive: editingCustomer.isActive,
       }).unwrap();
@@ -300,382 +375,306 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
   }
 
   return (
-    <main className="min-h-screen bg-[#191919] text-slate-100">
-      {!canOperate ? (
-        <section className="mx-auto max-w-3xl p-6">
-          <div className="rounded-xl border border-slate-800 bg-[#222] p-6 text-sm text-slate-300">
-            {ClientsV2.DisabledMessage}
-          </div>
-        </section>
-      ) : null}
-
-      {canOperate ? (
-        <>
-          <div className="hidden h-screen overflow-hidden lg:flex">
-            <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800 bg-[#262626]">
-              <div className="flex items-center gap-3 p-6">
-                <div className="h-10 w-10 rounded-full bg-slate-700" />
-                <div>
-                  <h1 className="text-lg font-bold leading-none">BarberFlow</h1>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Management Portal
-                  </p>
-                </div>
+    <>
+      <RoleWorkspaceShell
+        canOperate={canOperate}
+        disabledMessage={ClientsV2.DisabledMessage}
+        role={role}
+        activeItemId="customers"
+        onNavigate={(href) => router.push(href)}
+        brandTitle={SharedShell.BrandName}
+        brandSubtitle={SharedShell.ManagementSubtitle}
+        desktopHeader={
+          <header className="flex h-16 items-center justify-between border-b border-slate-800 px-8">
+            <div className="flex flex-1 items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-slate-400" />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="w-96 border-none bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
+                  placeholder={ClientsV2.Header.SearchPlaceholder}
+                />
               </div>
+            </div>
 
-              <nav className="flex-1 space-y-1 px-4">
-                <button
-                  type="button"
-                  onClick={() => router.push(APP_ROUTES.Dashboard)}
-                  className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
-                >
-                  <CalendarDays className="h-4 w-4" />
-                  {ClientsV2.Sidebar.Dashboard}
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 rounded-lg bg-slate-800 px-4 py-3 text-sm font-medium text-white"
-                >
-                  <Users className="h-4 w-4" />
-                  {ClientsV2.Sidebar.Clients}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push(APP_ROUTES.Schedule)}
-                  className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
-                >
-                  <CalendarDays className="h-4 w-4" />
-                  {ClientsV2.Sidebar.Appointments}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push(APP_ROUTES.Services)}
-                  className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
-                >
-                  <Scissors className="h-4 w-4" />
-                  {ClientsV2.Sidebar.Services}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push(APP_ROUTES.Dashboard)}
-                  className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 transition hover:bg-slate-800"
-                >
-                  <Settings className="h-4 w-4" />
-                  {ClientsV2.Sidebar.Settings}
-                </button>
-              </nav>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" />
+                {ClientsV2.Actions.NewClient}
+              </button>
+              <div className="mx-2 h-8 w-px bg-slate-800" />
+              <button
+                type="button"
+                className="p-2 text-slate-400 transition hover:text-white"
+                aria-label={ClientsV2.Header.Notifications}
+              >
+                <Bell className="h-4 w-4" />
+              </button>
+            </div>
+          </header>
+        }
+        desktopBody={
+          <div className="flex-1 overflow-y-auto p-8">
+            <div className="mb-8">
+              <h2 className="text-4xl font-black tracking-tight text-white">
+                {ClientsV2.Content.Title}
+              </h2>
+              <p className="mt-1 text-slate-400">
+                {ClientsV2.Content.Description}
+              </p>
+            </div>
 
-              <div className="border-t border-slate-800 p-4">
-                <div className="flex items-center gap-3 p-2">
-                  <div className="h-8 w-8 rounded-full border border-slate-600 bg-slate-700" />
-                  <div className="overflow-hidden">
-                    <p className="truncate text-sm font-medium">
-                      Marcus Barber
-                    </p>
-                    <p className="truncate text-xs text-slate-400">Owner</p>
-                  </div>
-                </div>
+            <div className="mb-8 grid grid-cols-4 gap-6">
+              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  {ClientsV2.Stats.TotalClients}
+                </p>
+                <p className="mt-1 text-2xl font-bold">{totalClients}</p>
               </div>
-            </aside>
+              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  {ClientsV2.Stats.NewThisMonth}
+                </p>
+                <p className="mt-1 text-2xl font-bold text-emerald-500">
+                  +{newThisMonth}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  {ClientsV2.Stats.ReturningRate}
+                </p>
+                <p className="mt-1 text-2xl font-bold">{returningRate}%</p>
+              </div>
+              <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  {ClientsV2.Stats.TopTierClients}
+                </p>
+                <p className="mt-1 text-2xl font-bold">{topTierClients}</p>
+              </div>
+            </div>
 
-            <section className="flex min-w-0 flex-1 flex-col bg-[#191919]">
-              <header className="flex h-16 items-center justify-between border-b border-slate-800 px-8">
-                <div className="flex flex-1 items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <Search className="h-4 w-4 text-slate-400" />
-                    <input
-                      type="search"
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
-                      className="w-96 border-none bg-transparent text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none"
-                      placeholder={ClientsV2.Header.SearchPlaceholder}
-                    />
-                  </div>
-                </div>
+            <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-slate-800 bg-slate-800/50">
+                      <th className="w-1/3 px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        {ClientsV2.Table.Name}
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        {ClientsV2.Table.TotalAppointments}
+                      </th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                        {ClientsV2.Table.LastVisit}
+                      </th>
+                      <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
+                        {ClientsV2.Table.Actions}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {visibleDesktopCustomers.map((customer) => {
+                      const stats = customerStatsMap.get(customer.id);
+                      const visits = stats?.appointmentCount ?? 0;
+                      const vip = visits >= 20;
 
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:opacity-90"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {ClientsV2.Actions.NewClient}
-                  </button>
-                  <div className="mx-2 h-8 w-px bg-slate-800" />
-                  <button
-                    type="button"
-                    className="p-2 text-slate-400 transition hover:text-white"
-                    aria-label={ClientsV2.Header.Notifications}
-                  >
-                    <Bell className="h-4 w-4" />
-                  </button>
-                </div>
-              </header>
-
-              <div className="flex-1 overflow-y-auto p-8">
-                <div className="mb-8">
-                  <h2 className="text-4xl font-black tracking-tight text-white">
-                    {ClientsV2.Content.Title}
-                  </h2>
-                  <p className="mt-1 text-slate-400">
-                    {ClientsV2.Content.Description}
-                  </p>
-                </div>
-
-                <div className="mb-8 grid grid-cols-4 gap-6">
-                  <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      {ClientsV2.Stats.TotalClients}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold">{totalClients}</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      {ClientsV2.Stats.NewThisMonth}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold text-emerald-500">
-                      +{newThisMonth}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      {ClientsV2.Stats.ReturningRate}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold">{returningRate}%</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-800 bg-slate-800/50 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      {ClientsV2.Stats.TopTierClients}
-                    </p>
-                    <p className="mt-1 text-2xl font-bold">{topTierClients}</p>
-                  </div>
-                </div>
-
-                <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900 shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse text-left">
-                      <thead>
-                        <tr className="border-b border-slate-800 bg-slate-800/50">
-                          <th className="w-1/3 px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                            {ClientsV2.Table.Name}
-                          </th>
-                          <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                            {ClientsV2.Table.TotalAppointments}
-                          </th>
-                          <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
-                            {ClientsV2.Table.LastVisit}
-                          </th>
-                          <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">
-                            {ClientsV2.Table.Actions}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                        {visibleDesktopCustomers.map((customer) => {
-                          const stats = customerStatsMap.get(customer.id);
-                          const visits = stats?.appointmentCount ?? 0;
-                          const vip = visits >= 20;
-
-                          return (
-                            <tr
-                              key={customer.id}
-                              className="transition-colors hover:bg-slate-800/30"
+                      return (
+                        <tr
+                          key={customer.id}
+                          className="transition-colors hover:bg-slate-800/30"
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-700 text-xs font-semibold">
+                                {getCustomerInitials(customer.name)}
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-slate-100">
+                                  {customer.name ?? Common.Status.NoData}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {customer.email ??
+                                    customer.phone ??
+                                    Common.Status.NoData}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                                vip
+                                  ? "bg-emerald-900/30 text-emerald-400"
+                                  : "bg-slate-800 text-slate-300"
+                              }`}
                             >
-                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-700 text-xs font-semibold">
-                                    {getCustomerInitials(customer.name)}
-                                  </div>
-                                  <div>
-                                    <p className="text-sm font-semibold text-slate-100">
-                                      {customer.name ?? Common.Status.NoData}
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      {customer.email ??
-                                        customer.phone ??
-                                        Common.Status.NoData}
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span
-                                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                    vip
-                                      ? "bg-emerald-900/30 text-emerald-400"
-                                      : "bg-slate-800 text-slate-300"
-                                  }`}
-                                >
-                                  {visits}{" "}
-                                  {vip
-                                    ? ClientsV2.Table.VisitsVip
-                                    : ClientsV2.Table.Visits}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <p className="text-sm text-slate-400">
-                                  {formatLastVisit(stats?.lastVisit)}
-                                </p>
-                                <p className="text-[10px] text-slate-500">
-                                  {formatLastVisitDetail(
-                                    stats?.lastVisit,
-                                    stats?.barberName,
-                                  )}
-                                </p>
-                              </td>
-                              <td className="px-6 py-4 text-right">
-                                <div className="flex justify-end gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => setPreviewCustomer(customer)}
-                                    className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
-                                    aria-label={ClientsV2.Actions.View}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingCustomer(customer)}
-                                    className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
-                                    aria-label={ClientsV2.Actions.Edit}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      requestDeleteCustomer(customer)
-                                    }
-                                    className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-red-400"
-                                    aria-label={ClientsV2.Actions.Delete}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-slate-800 bg-slate-800/20 px-6 py-4">
-                    <p className="text-xs text-slate-500">
-                      {ClientsV2.Table.Showing.replace(
-                        "{count}",
-                        `${visibleDesktopCustomers.length}`,
-                      ).replace("{total}", `${filteredCustomers.length}`)}
-                    </p>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        className="rounded-lg p-2 text-slate-400 transition hover:text-white"
-                        disabled
-                      >
-                        <ChevronRight className="h-4 w-4 rotate-180" />
-                      </button>
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-900">
-                        1
-                      </span>
-                      <span className="px-2 text-slate-500">...</span>
-                      <span className="text-xs text-slate-500">250</span>
-                      <button
-                        type="button"
-                        className="rounded-lg p-2 text-slate-400 transition hover:text-white"
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden pb-24 lg:hidden">
-            <header className="sticky top-0 z-10 border-b border-slate-800 bg-[#191919d9] backdrop-blur-md">
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-3">
-                  <Menu className="h-5 w-5 text-slate-400" />
-                  <h1 className="text-xl font-bold tracking-tight">
-                    {ClientsV2.Mobile.Title}
-                  </h1>
-                </div>
-                <button
-                  type="button"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-800"
-                >
-                  <UserRound className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="px-4 pb-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="search"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder={ClientsV2.Mobile.SearchPlaceholder}
-                    className="w-full rounded-xl border border-slate-700 bg-slate-800/40 py-3 pl-10 pr-4 text-sm text-slate-100 placeholder:text-slate-500"
-                  />
-                </div>
-              </div>
-            </header>
-
-            <main className="flex-1 overflow-y-auto px-4 pb-24">
-              <div className="flex items-center justify-between py-6">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-                  {ClientsV2.Mobile.RecentClients}
-                </h2>
-                <button
-                  type="button"
-                  className="flex items-center gap-1 text-sm font-medium text-slate-100"
-                >
-                  {ClientsV2.Mobile.Filter}
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {filteredCustomers.map((customer) => {
-                  const stats = customerStatsMap.get(customer.id);
-
-                  return (
-                    <button
-                      key={`mobile-${customer.id}`}
-                      type="button"
-                      onClick={() => setPreviewCustomer(customer)}
-                      className="flex w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-800/20 p-4 text-left"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold">
-                          {getCustomerInitials(customer.name)}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-slate-100">
-                            {customer.name ?? Common.Status.NoData}
-                          </p>
-                          <div className="flex flex-col text-sm text-slate-400">
-                            <span>
-                              {stats?.appointmentCount ?? 0}{" "}
-                              {ClientsV2.Table.Appointments}
+                              {visits}{" "}
+                              {vip
+                                ? ClientsV2.Table.VisitsVip
+                                : ClientsV2.Table.Visits}
                             </span>
-                            <span>
-                              {ClientsV2.Mobile.LastLabel}{" "}
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-sm text-slate-400">
                               {formatLastVisit(stats?.lastVisit)}
-                            </span>
-                          </div>
+                            </p>
+                            <p className="text-[10px] text-slate-500">
+                              {formatLastVisitDetail(
+                                stats?.lastVisit,
+                                stats?.barberName,
+                              )}
+                            </p>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewCustomer(customer)}
+                                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                                aria-label={ClientsV2.Actions.View}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingCustomer(customer)}
+                                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                                aria-label={ClientsV2.Actions.Edit}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => requestDeleteCustomer(customer)}
+                                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-red-400"
+                                aria-label={ClientsV2.Actions.Delete}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-slate-800 bg-slate-800/20 px-6 py-4">
+                <p className="text-xs text-slate-500">
+                  {ClientsV2.Table.Showing.replace(
+                    "{count}",
+                    `${visibleDesktopCustomers.length}`,
+                  ).replace("{total}", `${filteredCustomers.length}`)}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="rounded-lg p-2 text-slate-400 transition hover:text-white"
+                    disabled
+                  >
+                    <ChevronRight className="h-4 w-4 rotate-180" />
+                  </button>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-900">
+                    1
+                  </span>
+                  <span className="px-2 text-slate-500">...</span>
+                  <span className="text-xs text-slate-500">250</span>
+                  <button
+                    type="button"
+                    className="rounded-lg p-2 text-slate-400 transition hover:text-white"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+        mobileHeader={
+          <header className="sticky top-0 z-10 border-b border-slate-800 bg-[#191919d9] backdrop-blur-md">
+            <div className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold tracking-tight">
+                  {ClientsV2.Mobile.Title}
+                </h1>
+              </div>
+            </div>
+
+            <div className="px-4 pb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder={ClientsV2.Mobile.SearchPlaceholder}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-800/40 py-3 pl-10 pr-4 text-sm text-slate-100 placeholder:text-slate-500"
+                />
+              </div>
+            </div>
+          </header>
+        }
+        mobileBody={
+          <main className="flex-1 overflow-y-auto px-4 pb-24">
+            <div className="flex items-center justify-between py-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+                {ClientsV2.Mobile.RecentClients}
+              </h2>
+              <button
+                type="button"
+                className="flex items-center gap-1 text-sm font-medium text-slate-100"
+              >
+                {ClientsV2.Mobile.Filter}
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {filteredCustomers.map((customer) => {
+                const stats = customerStatsMap.get(customer.id);
+
+                return (
+                  <button
+                    key={`mobile-${customer.id}`}
+                    type="button"
+                    onClick={() => setPreviewCustomer(customer)}
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-700 bg-slate-800/20 p-4 text-left"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold">
+                        {getCustomerInitials(customer.name)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-100">
+                          {customer.name ?? Common.Status.NoData}
+                        </p>
+                        <div className="flex flex-col text-sm text-slate-400">
+                          <span>
+                            {stats?.appointmentCount ?? 0}{" "}
+                            {ClientsV2.Table.Appointments}
+                          </span>
+                          <span>
+                            {ClientsV2.Mobile.LastLabel}{" "}
+                            {formatLastVisit(stats?.lastVisit)}
+                          </span>
                         </div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-slate-400" />
-                    </button>
-                  );
-                })}
-              </div>
-            </main>
-
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                  </button>
+                );
+              })}
+            </div>
+          </main>
+        }
+        mobileFooter={
+          <>
             <button
               type="button"
               onClick={() => setIsCreateModalOpen(true)}
@@ -717,18 +716,22 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => router.push(APP_ROUTES.Dashboard)}
+                  onClick={() => router.push(APP_ROUTES.Payments)}
                   className="flex flex-col items-center gap-1 text-slate-400"
                 >
-                  <Settings className="h-4 w-4" />
+                  <Clock3 className="h-4 w-4" />
                   <span className="text-[10px] font-medium uppercase tracking-tighter">
-                    {ClientsV2.Mobile.Settings}
+                    {ClientsV2.Sidebar.Payments}
                   </span>
                 </button>
               </div>
             </nav>
-          </div>
+          </>
+        }
+      />
 
+      {canOperate ? (
+        <>
           {isCreateModalOpen ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
               <div className="w-full max-w-[520px] overflow-hidden rounded border border-slate-700 bg-[#1c1c1c] shadow-2xl">
@@ -745,25 +748,83 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
                   </button>
                 </div>
                 <form className="space-y-4 p-6" onSubmit={onCreateCustomer}>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    {ClientsV2.Modal.LabelName}
+                    <span className="ml-1 text-red-400">*</span>
+                  </label>
                   <input
-                    className="h-11 w-full rounded border border-slate-700 bg-[#121212] px-3 text-sm text-slate-100 placeholder:text-slate-500"
+                    className={`h-11 w-full rounded border bg-[#121212] px-3 text-sm text-slate-100 placeholder:text-slate-500 ${
+                      createCustomerErrors.name
+                        ? "border-red-500"
+                        : "border-slate-700"
+                    }`}
                     value={customerName}
-                    onChange={(event) => setCustomerName(event.target.value)}
+                    onChange={(event) => {
+                      setCustomerName(event.target.value);
+                      if (createCustomerErrors.name) {
+                        setCreateCustomerErrors({ name: undefined });
+                      }
+                    }}
                     placeholder={Admin.Fields.Name}
                     required
                   />
+                  {createCustomerErrors.name ? (
+                    <p className="text-xs text-red-400">
+                      {createCustomerErrors.name}
+                    </p>
+                  ) : null}
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    {ClientsV2.Modal.LabelEmail}
+                    <span className="ml-1 text-slate-500">
+                      ({ClientsV2.Common.Optional})
+                    </span>
+                  </label>
                   <input
                     className="h-11 w-full rounded border border-slate-700 bg-[#121212] px-3 text-sm text-slate-100 placeholder:text-slate-500"
                     value={customerEmail}
                     onChange={(event) => setCustomerEmail(event.target.value)}
                     placeholder={Admin.Fields.Email}
                   />
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    {ClientsV2.Modal.LabelPhone}
+                    <span className="ml-1 text-red-400">*</span>
+                  </label>
                   <input
-                    className="h-11 w-full rounded border border-slate-700 bg-[#121212] px-3 text-sm text-slate-100 placeholder:text-slate-500"
+                    className={`h-11 w-full rounded border bg-[#121212] px-3 text-sm text-slate-100 placeholder:text-slate-500 ${
+                      createCustomerErrors.phone
+                        ? "border-red-500"
+                        : "border-slate-700"
+                    }`}
                     value={customerPhone}
-                    onChange={(event) => setCustomerPhone(event.target.value)}
+                    onChange={(event) => {
+                      setCustomerPhone(
+                        normalizePhone(event.target.value).slice(
+                          0,
+                          COLOMBIA_PHONE_MAX_LENGTH,
+                        ),
+                      );
+                      if (createCustomerErrors.phone) {
+                        setCreateCustomerErrors((current) => ({
+                          ...current,
+                          phone: undefined,
+                        }));
+                      }
+                    }}
                     placeholder={Admin.Fields.Phone}
+                    inputMode="numeric"
+                    required
                   />
+                  {createCustomerErrors.phone ? (
+                    <p className="text-xs text-red-400">
+                      {createCustomerErrors.phone}
+                    </p>
+                  ) : null}
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    {ClientsV2.Modal.LabelNotes}
+                    <span className="ml-1 text-slate-500">
+                      ({ClientsV2.Common.Optional})
+                    </span>
+                  </label>
                   <textarea
                     className="w-full rounded border border-slate-700 bg-[#121212] p-3 text-sm text-slate-100 placeholder:text-slate-500"
                     value={customerNotes}
@@ -774,7 +835,10 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
                   <div className="flex items-center justify-end gap-3 border-t border-slate-700 pt-4">
                     <button
                       type="button"
-                      onClick={() => setIsCreateModalOpen(false)}
+                      onClick={() => {
+                        setIsCreateModalOpen(false);
+                        setCreateCustomerErrors({});
+                      }}
                       className="px-4 py-2 text-sm text-slate-400 transition hover:text-white"
                     >
                       {ClientsV2.Actions.Back}
@@ -810,21 +874,37 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
                 <form className="space-y-4 p-6" onSubmit={onUpdateCustomer}>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                     {ClientsV2.Modal.LabelName}
+                    <span className="ml-1 text-red-400">*</span>
                   </label>
                   <input
-                    className="h-11 w-full rounded border border-slate-700 bg-[#121212] px-3 text-sm text-slate-100"
+                    className={`h-11 w-full rounded border bg-[#121212] px-3 text-sm text-slate-100 ${
+                      editCustomerErrors.name
+                        ? "border-red-500"
+                        : "border-slate-700"
+                    }`}
                     value={editingCustomer.name ?? ""}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setEditingCustomer({
                         ...editingCustomer,
                         name: event.target.value,
-                      })
-                    }
+                      });
+                      if (editCustomerErrors.name) {
+                        setEditCustomerErrors({ name: undefined });
+                      }
+                    }}
                     placeholder={Admin.Fields.Name}
                     required
                   />
+                  {editCustomerErrors.name ? (
+                    <p className="text-xs text-red-400">
+                      {editCustomerErrors.name}
+                    </p>
+                  ) : null}
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                     {ClientsV2.Modal.LabelEmail}
+                    <span className="ml-1 text-slate-500">
+                      ({ClientsV2.Common.Optional})
+                    </span>
                   </label>
                   <input
                     className="h-11 w-full rounded border border-slate-700 bg-[#121212] px-3 text-sm text-slate-100"
@@ -839,20 +919,44 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
                   />
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                     {ClientsV2.Modal.LabelPhone}
+                    <span className="ml-1 text-red-400">*</span>
                   </label>
                   <input
-                    className="h-11 w-full rounded border border-slate-700 bg-[#121212] px-3 text-sm text-slate-100"
+                    className={`h-11 w-full rounded border bg-[#121212] px-3 text-sm text-slate-100 ${
+                      editCustomerErrors.phone
+                        ? "border-red-500"
+                        : "border-slate-700"
+                    }`}
                     value={editingCustomer.phone ?? ""}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setEditingCustomer({
                         ...editingCustomer,
-                        phone: event.target.value,
-                      })
-                    }
+                        phone: normalizePhone(event.target.value).slice(
+                          0,
+                          COLOMBIA_PHONE_MAX_LENGTH,
+                        ),
+                      });
+                      if (editCustomerErrors.phone) {
+                        setEditCustomerErrors((current) => ({
+                          ...current,
+                          phone: undefined,
+                        }));
+                      }
+                    }}
                     placeholder={Admin.Fields.Phone}
+                    inputMode="numeric"
+                    required
                   />
+                  {editCustomerErrors.phone ? (
+                    <p className="text-xs text-red-400">
+                      {editCustomerErrors.phone}
+                    </p>
+                  ) : null}
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
                     {ClientsV2.Modal.LabelNotes}
+                    <span className="ml-1 text-slate-500">
+                      ({ClientsV2.Common.Optional})
+                    </span>
                   </label>
                   <textarea
                     className="w-full rounded border border-slate-700 bg-[#121212] p-3 text-sm text-slate-100"
@@ -876,7 +980,10 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEditingCustomer(null)}
+                      onClick={() => {
+                        setEditingCustomer(null);
+                        setEditCustomerErrors({});
+                      }}
                       className="px-4 py-2 text-sm text-slate-400 transition hover:text-white"
                     >
                       {ClientsV2.Actions.Back}
@@ -988,6 +1095,6 @@ export function CustomersSection({ canOperate }: CustomersSectionProps) {
           ) : null}
         </>
       ) : null}
-    </main>
+    </>
   );
 }
