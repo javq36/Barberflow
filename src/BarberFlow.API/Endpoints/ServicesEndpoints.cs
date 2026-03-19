@@ -66,13 +66,14 @@ internal static class ServicesEndpoints
             });
         }).RequireAuthorization();
 
-        app.MapGet(ApiConstants.Routes.Services, async (ClaimsPrincipal user, CancellationToken ct) =>
+        app.MapGet(ApiConstants.Routes.Services, async (ClaimsPrincipal user, string? search, CancellationToken ct) =>
         {
             if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
             {
                 return error!;
             }
 
+            var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
             var rows = new List<object>();
 
             await using var conn = new NpgsqlConnection(connectionString);
@@ -82,8 +83,10 @@ internal static class ServicesEndpoints
                 SELECT id, name, duration_minutes, price, active, image_url
                 FROM services
                 WHERE barbershop_id = @barbershopId
+                  AND (@searchPattern IS NULL OR name ILIKE @searchPattern)
                 ORDER BY name", conn);
             cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            cmd.Parameters.AddWithValue("searchPattern", (object?)searchPattern ?? DBNull.Value);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))

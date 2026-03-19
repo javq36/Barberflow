@@ -82,13 +82,14 @@ internal static class BarbersEndpoints
             });
         }).RequireAuthorization();
 
-        app.MapGet(ApiConstants.Routes.Barbers, async (ClaimsPrincipal user, CancellationToken ct) =>
+        app.MapGet(ApiConstants.Routes.Barbers, async (ClaimsPrincipal user, string? search, CancellationToken ct) =>
         {
             if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
             {
                 return error!;
             }
 
+            var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
             var rows = new List<object>();
 
             await using var conn = new NpgsqlConnection(connectionString);
@@ -98,8 +99,10 @@ internal static class BarbersEndpoints
                 SELECT id, name, email, phone, active, created_at
                 FROM users
                 WHERE barbershop_id = @barbershopId AND role = {(int)UserRole.Barber}
+                  AND (@searchPattern IS NULL OR name ILIKE @searchPattern)
                 ORDER BY name", conn);
             cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            cmd.Parameters.AddWithValue("searchPattern", (object?)searchPattern ?? DBNull.Value);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -111,7 +114,7 @@ internal static class BarbersEndpoints
                     email = reader.IsDBNull(2) ? null : reader.GetString(2),
                     phone = reader.IsDBNull(3) ? null : reader.GetString(3),
                     isActive = reader.GetBoolean(4),
-                    createdAt = reader.GetDateTime(5)
+                    createdAt = reader.GetFieldValue<DateTimeOffset>(5)
                 });
             }
 

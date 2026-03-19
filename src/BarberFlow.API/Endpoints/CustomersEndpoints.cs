@@ -116,7 +116,7 @@ internal static class CustomersEndpoints
                     email = reader.IsDBNull(3) ? null : reader.GetString(3),
                     notes = reader.IsDBNull(4) ? null : reader.GetString(4),
                     isActive = reader.GetBoolean(5),
-                    createdAt = reader.GetDateTime(6)
+                    createdAt = reader.GetFieldValue<DateTimeOffset>(6)
                 });
             }
 

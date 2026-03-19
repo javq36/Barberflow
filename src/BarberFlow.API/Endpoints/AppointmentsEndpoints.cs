@@ -143,15 +143,15 @@ internal static class AppointmentsEndpoints
             });
         }).RequireAuthorization();
 
-        app.MapGet(ApiConstants.Routes.Appointments, async (ClaimsPrincipal user, DateTime? from, DateTime? to, CancellationToken ct) =>
+        app.MapGet(ApiConstants.Routes.Appointments, async (ClaimsPrincipal user, DateTimeOffset? from, DateTimeOffset? to, int? status, CancellationToken ct) =>
         {
             if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
             {
                 return error!;
             }
 
-            var fromTime = from ?? DateTime.UtcNow.AddDays(-7);
-            var toTime = to ?? DateTime.UtcNow.AddDays(30);
+            var fromTime = from ?? DateTimeOffset.UtcNow.AddDays(-7);
+            var toTime = to ?? DateTimeOffset.UtcNow.AddDays(30);
 
             if (toTime <= fromTime)
             {
@@ -173,11 +173,13 @@ internal static class AppointmentsEndpoints
                 WHERE a.barbershop_id = @barbershopId
                   AND a.appointment_time >= @fromTime
                   AND a.appointment_time < @toTime
+                  AND (@status IS NULL OR a.status = @status)
                 ORDER BY a.appointment_time", conn);
 
             cmd.Parameters.AddWithValue("barbershopId", barbershopId);
             cmd.Parameters.AddWithValue("fromTime", fromTime);
             cmd.Parameters.AddWithValue("toTime", toTime);
+            cmd.Parameters.AddWithValue("status", (object?)status ?? DBNull.Value);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -188,8 +190,8 @@ internal static class AppointmentsEndpoints
                     barberId = reader.GetGuid(1),
                     serviceId = reader.GetGuid(2),
                     customerId = reader.GetGuid(3),
-                    appointmentTime = reader.GetDateTime(4),
-                    endTime = reader.GetDateTime(5),
+                    appointmentTime = reader.GetFieldValue<DateTimeOffset>(4),
+                    endTime = reader.GetFieldValue<DateTimeOffset>(5),
                     status = reader.GetInt32(6),
                     notes = reader.IsDBNull(7) ? null : reader.GetString(7),
                     barberName = reader.GetString(8),
@@ -415,8 +417,8 @@ internal static class AppointmentsEndpoints
                 id,
                 barberId = nextBarberId,
                 serviceId = nextServiceId,
-                appointmentTime = nextStart,
-                endTime = nextEnd,
+                appointmentTime = (DateTimeOffset)nextStart,
+                endTime = (DateTimeOffset)nextEnd,
                 notes = request.Notes
             });
         }).RequireAuthorization();
