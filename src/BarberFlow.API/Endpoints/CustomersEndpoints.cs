@@ -26,14 +26,23 @@ internal static class CustomersEndpoints
                 ? string.Empty
                 : new string(request.Phone.Where(char.IsDigit).ToArray());
 
-            if (string.IsNullOrWhiteSpace(request.Name))
+            if (!EndpointHelpers.IsValidName(request.Name))
             {
-                return Results.BadRequest(new { message = "Customer name is required." });
+                return Results.BadRequest(new { message = "Customer name is required and must not exceed 100 characters." });
             }
 
             if (normalizedPhone.Length != 10)
             {
                 return Results.BadRequest(new { message = "Customer phone must contain exactly 10 digits." });
+            }
+
+            var normalizedCustomerEmail = string.IsNullOrWhiteSpace(request.Email)
+                ? null
+                : request.Email.Trim().ToLowerInvariant();
+
+            if (normalizedCustomerEmail is not null && !EndpointHelpers.IsValidEmail(normalizedCustomerEmail))
+            {
+                return Results.BadRequest(new { message = "Invalid email format." });
             }
 
             var customerId = Guid.NewGuid();
@@ -49,7 +58,7 @@ internal static class CustomersEndpoints
             cmd.Parameters.AddWithValue("barbershopId", barbershopId);
             cmd.Parameters.AddWithValue("name", request.Name.Trim());
             cmd.Parameters.AddWithValue("phone", normalizedPhone);
-            cmd.Parameters.AddWithValue("email", (object?)request.Email?.Trim().ToLowerInvariant() ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("email", (object?)normalizedCustomerEmail ?? DBNull.Value);
             cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
             cmd.Parameters.AddWithValue("active", request.IsActive);
 
@@ -130,14 +139,23 @@ internal static class CustomersEndpoints
                 ? string.Empty
                 : new string(request.Phone.Where(char.IsDigit).ToArray());
 
-            if (string.IsNullOrWhiteSpace(request.Name))
+            if (!EndpointHelpers.IsValidName(request.Name))
             {
-                return Results.BadRequest(new { message = "Customer name is required." });
+                return Results.BadRequest(new { message = "Customer name is required and must not exceed 100 characters." });
             }
 
             if (normalizedPhone.Length != 10)
             {
                 return Results.BadRequest(new { message = "Customer phone must contain exactly 10 digits." });
+            }
+
+            var normalizedCustomerEmail = string.IsNullOrWhiteSpace(request.Email)
+                ? null
+                : request.Email.Trim().ToLowerInvariant();
+
+            if (normalizedCustomerEmail is not null && !EndpointHelpers.IsValidEmail(normalizedCustomerEmail))
+            {
+                return Results.BadRequest(new { message = "Invalid email format." });
             }
 
             await using var conn = new NpgsqlConnection(connectionString);
@@ -156,7 +174,7 @@ internal static class CustomersEndpoints
             cmd.Parameters.AddWithValue("barbershopId", barbershopId);
             cmd.Parameters.AddWithValue("name", request.Name.Trim());
             cmd.Parameters.AddWithValue("phone", normalizedPhone);
-            cmd.Parameters.AddWithValue("email", (object?)request.Email?.Trim().ToLowerInvariant() ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("email", (object?)normalizedCustomerEmail ?? DBNull.Value);
             cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
             cmd.Parameters.AddWithValue("active", request.IsActive);
 

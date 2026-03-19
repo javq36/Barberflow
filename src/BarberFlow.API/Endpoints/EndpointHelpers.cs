@@ -71,4 +71,18 @@ internal static class EndpointHelpers
                (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
                (bytes[0] == 192 && bytes[1] == 168);
     }
+
+    internal static bool IsValidEmail(string email)
+    {
+        try { _ = new System.Net.Mail.MailAddress(email); return true; }
+        catch { return false; }
+    }
+
+    internal static bool IsValidPassword(string password) =>
+        password.Length >= 8 &&
+        password.Any(char.IsLetter) &&
+        password.Any(char.IsDigit);
+
+    internal static bool IsValidName(string name, int maxLength = 100) =>
+        !string.IsNullOrWhiteSpace(name) && name.Trim().Length <= maxLength;
 }
