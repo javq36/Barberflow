@@ -1,6 +1,6 @@
-using BarberFlow.Domain.Domain.Enums;
+using BarberFlow.Domain.Enums;
 
-namespace BarberFlow.Domain.Domain.Entities;
+namespace BarberFlow.Domain.Entities;
 
 /// <summary>
 /// Representa al profesional que presta los servicios en una barberia.

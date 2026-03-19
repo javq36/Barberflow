@@ -41,3 +41,7 @@ supabase/.temp/
 
 # Local roadmap board
 ROADMAP.local.md
+
+# Local agent/session artifacts
+.gga
+AGENTS.md

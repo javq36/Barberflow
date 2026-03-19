@@ -45,6 +45,7 @@ export type AppointmentItem = {
 export type GetAppointmentsRange = {
   from?: string;
   to?: string;
+  status?: number;
 };
 
 export type CreateAppointmentRequest = {
@@ -165,6 +166,9 @@ function makeDateRangeQuery(range?: GetAppointmentsRange | void) {
   const params = new URLSearchParams();
   params.set("from", range?.from ?? fallbackFrom.toISOString());
   params.set("to", range?.to ?? fallbackTo.toISOString());
+  if (range?.status !== undefined) {
+    params.set("status", String(range.status));
+  }
 
   return params.toString();
 }

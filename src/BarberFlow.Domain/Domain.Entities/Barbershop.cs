@@ -1,4 +1,4 @@
-namespace BarberFlow.Domain.Domain.Entities;
+namespace BarberFlow.Domain.Entities;
 
 /// <summary>
 /// Tenant principal del sistema. Todas las operaciones del negocio se segmentan por barberia.

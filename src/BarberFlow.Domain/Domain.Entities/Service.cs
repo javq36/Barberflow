@@ -1,4 +1,4 @@
-namespace BarberFlow.Domain.Domain.Entities;
+namespace BarberFlow.Domain.Entities;
 
 /// <summary>
 /// Servicio ofrecido por una barberia (corte, barba, combo, etc.).

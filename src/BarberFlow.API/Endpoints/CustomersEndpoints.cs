@@ -1,0 +1,213 @@
+using System.Security.Claims;
+using Npgsql;
+using BarberFlow.API.Constants;
+using BarberFlow.API.Contracts;
+
+namespace BarberFlow.API.Endpoints;
+
+internal static class CustomersEndpoints
+{
+    internal static IEndpointRouteBuilder MapCustomersEndpoints(
+        this IEndpointRouteBuilder app, string connectionString)
+    {
+        app.MapPost(ApiConstants.Routes.Customers, async (CreateCustomerRequest request, ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            if (!EndpointHelpers.IsOwner(user))
+            {
+                return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
+            {
+                return error!;
+            }
+
+            var normalizedPhone = string.IsNullOrWhiteSpace(request.Phone)
+                ? string.Empty
+                : new string(request.Phone.Where(char.IsDigit).ToArray());
+
+            if (!EndpointHelpers.IsValidName(request.Name))
+            {
+                return Results.BadRequest(new { message = "Customer name is required and must not exceed 100 characters." });
+            }
+
+            if (normalizedPhone.Length != 10)
+            {
+                return Results.BadRequest(new { message = "Customer phone must contain exactly 10 digits." });
+            }
+
+            var normalizedCustomerEmail = string.IsNullOrWhiteSpace(request.Email)
+                ? null
+                : request.Email.Trim().ToLowerInvariant();
+
+            if (normalizedCustomerEmail is not null && !EndpointHelpers.IsValidEmail(normalizedCustomerEmail))
+            {
+                return Results.BadRequest(new { message = "Invalid email format." });
+            }
+
+            var customerId = Guid.NewGuid();
+
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = new NpgsqlCommand(@"
+                INSERT INTO customers (id, barbershop_id, name, phone, email, notes, active, created_at)
+                VALUES (@id, @barbershopId, @name, @phone, @email, @notes, @active, NOW())", conn);
+
+            cmd.Parameters.AddWithValue("id", customerId);
+            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            cmd.Parameters.AddWithValue("name", request.Name.Trim());
+            cmd.Parameters.AddWithValue("phone", normalizedPhone);
+            cmd.Parameters.AddWithValue("email", (object?)normalizedCustomerEmail ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("active", request.IsActive);
+
+            await cmd.ExecuteNonQueryAsync(ct);
+
+            return Results.Created($"{ApiConstants.Routes.Customers}/{customerId}", new
+            {
+                id = customerId,
+                barbershopId,
+                name = request.Name.Trim(),
+                phone = normalizedPhone,
+                request.Email,
+                request.Notes,
+                isActive = request.IsActive
+            });
+        }).RequireAuthorization();
+
+        app.MapGet(ApiConstants.Routes.Customers, async (ClaimsPrincipal user, string? query, CancellationToken ct) =>
+        {
+            if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
+            {
+                return error!;
+            }
+
+            var normalizedQuery = string.IsNullOrWhiteSpace(query) ? string.Empty : query.Trim();
+            var queryPattern = string.IsNullOrWhiteSpace(normalizedQuery) ? string.Empty : $"%{normalizedQuery}%";
+
+            var rows = new List<object>();
+
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = new NpgsqlCommand(@"
+                SELECT id, name, phone, email, notes, active, created_at
+                FROM customers
+                WHERE barbershop_id = @barbershopId
+                            AND active = TRUE
+                            AND (
+                                @queryPattern = ''
+                                OR COALESCE(name, '') ILIKE @queryPattern
+                                OR COALESCE(phone, '') ILIKE @queryPattern
+                            )
+                ORDER BY name", conn);
+            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            cmd.Parameters.AddWithValue("queryPattern", queryPattern);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                rows.Add(new
+                {
+                    id = reader.GetGuid(0),
+                    name = reader.IsDBNull(1) ? null : reader.GetString(1),
+                    phone = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    email = reader.IsDBNull(3) ? null : reader.GetString(3),
+                    notes = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    isActive = reader.GetBoolean(5),
+                    createdAt = reader.GetFieldValue<DateTimeOffset>(6)
+                });
+            }
+
+            return Results.Ok(rows);
+        }).RequireAuthorization();
+
+        app.MapPut($"{ApiConstants.Routes.Customers}/{{id:guid}}", async (Guid id, UpdateCustomerRequest request, ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            if (!EndpointHelpers.IsOwner(user))
+            {
+                return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
+            {
+                return error!;
+            }
+
+            var normalizedPhone = string.IsNullOrWhiteSpace(request.Phone)
+                ? string.Empty
+                : new string(request.Phone.Where(char.IsDigit).ToArray());
+
+            if (!EndpointHelpers.IsValidName(request.Name))
+            {
+                return Results.BadRequest(new { message = "Customer name is required and must not exceed 100 characters." });
+            }
+
+            if (normalizedPhone.Length != 10)
+            {
+                return Results.BadRequest(new { message = "Customer phone must contain exactly 10 digits." });
+            }
+
+            var normalizedCustomerEmail = string.IsNullOrWhiteSpace(request.Email)
+                ? null
+                : request.Email.Trim().ToLowerInvariant();
+
+            if (normalizedCustomerEmail is not null && !EndpointHelpers.IsValidEmail(normalizedCustomerEmail))
+            {
+                return Results.BadRequest(new { message = "Invalid email format." });
+            }
+
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = new NpgsqlCommand(@"
+                UPDATE customers
+                SET name = @name,
+                    phone = @phone,
+                    email = @email,
+                    notes = @notes,
+                    active = @active
+                WHERE id = @id AND barbershop_id = @barbershopId", conn);
+
+            cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            cmd.Parameters.AddWithValue("name", request.Name.Trim());
+            cmd.Parameters.AddWithValue("phone", normalizedPhone);
+            cmd.Parameters.AddWithValue("email", (object?)normalizedCustomerEmail ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("active", request.IsActive);
+
+            var affected = await cmd.ExecuteNonQueryAsync(ct);
+            return affected == 0 ? Results.NotFound() : Results.NoContent();
+        }).RequireAuthorization();
+
+        app.MapDelete($"{ApiConstants.Routes.Customers}/{{id:guid}}", async (Guid id, ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            if (!EndpointHelpers.IsOwner(user))
+            {
+                return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
+            {
+                return error!;
+            }
+
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync(ct);
+
+            await using var cmd = new NpgsqlCommand(@"
+                UPDATE customers
+                SET active = FALSE
+                WHERE id = @id AND barbershop_id = @barbershopId", conn);
+            cmd.Parameters.AddWithValue("id", id);
+            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+
+            var affected = await cmd.ExecuteNonQueryAsync(ct);
+            return affected == 0 ? Results.NotFound() : Results.NoContent();
+        }).RequireAuthorization();
+
+        return app;
+    }
+}

@@ -1,4 +1,4 @@
-namespace BarberFlow.Domain.Domain.Entities;
+namespace BarberFlow.Domain.Entities;
 
 /// <summary>
 /// Bloque de horario laboral de un barbero para un dia de semana.
