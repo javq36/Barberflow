@@ -1,16 +1,34 @@
 # BarberFlow
 
-BarberFlow is a SaaS platform for barbershop appointment automation with a .NET backend, a Next.js web app for owners, and planned WhatsApp booking flows.
+BarberFlow is a SaaS platform to manage barbershop operations end-to-end: authentication, barbershop onboarding, services, barbers, customers, scheduling, and payments-ready admin flows.
 
-## Current Stack
+The current product focus is the owner web application, backed by a secure .NET API and PostgreSQL/Supabase persistence.
 
-- Backend: ASP.NET Core Web API (.NET 9)
-- Data access: Entity Framework Core + Npgsql
+## Architecture Overview
+
+BarberFlow follows a modular monorepo with clear backend/frontend boundaries:
+
+- Backend API: authentication, business rules, authorization, and data access.
+- Frontend web app: owner dashboard UX, protected routes, and API consumption.
+- Database layer: SQL-first migrations in Supabase as source of truth.
+
+High-level flow:
+
+1. User logs in via web app.
+2. API returns JWT.
+3. Web stores JWT in HttpOnly cookie and calls protected proxy routes.
+4. Proxy forwards authorized requests to backend endpoints.
+5. Backend validates token, applies domain rules, and executes SQL operations.
+
+## Tech Stack
+
+- Backend: ASP.NET Core Minimal APIs (.NET 9)
+- Data access: Npgsql + EF Core mapping support
 - Database: PostgreSQL (Supabase)
-- Architecture: API + Application + Domain + Infrastructure projects
-- Frontend: Next.js 16 + Tailwind + shadcn/ui + Redux Toolkit + RTK Query
-- API docs: Swagger (Swashbuckle)
-- Auth: JWT bearer + HttpOnly cookie session flow (via web proxy routes)
+- Frontend: Next.js 16 App Router + React 19 + Tailwind 4 + shadcn/ui
+- State management: Redux Toolkit + RTK Query
+- Security: JWT bearer auth, HttpOnly cookie session flow, CORS, rate limiting
+- Docs/observability: Swagger (dev), health checks, global exception handling
 
 ## Solution Structure
 
@@ -18,198 +36,191 @@ BarberFlow is a SaaS platform for barbershop appointment automation with a .NET 
 BarberFlow.sln
 package.json
 src/
-  BarberFlow.API/
-  BarberFlow.Application/
-  BarberFlow.Domain/
-  BarberFlow.Infrastructure/
-  barberflow-web/
+  BarberFlow.API/            # Minimal API endpoints and platform config
+  BarberFlow.Application/    # Application layer (expanding)
+  BarberFlow.Domain/         # Entities/enums and core domain concepts
+  BarberFlow.Infrastructure/ # EF Core DbContext and persistence mapping
+  barberflow-web/            # Next.js owner application
 supabase/
-  migrations/
-tests/
+  migrations/                # SQL-first schema evolution
+docs/
+  DB_WORKFLOW.md
 ```
 
-## Git Branch Strategy
+## Backend Architecture (.NET)
 
-- `main`: stable production-ready baseline
-- `stage`: code that already passed tests/validation
-- `dev`: integration branch for active development
-- `feature/*` or task branches (`BBF-XX`): created from `stage`
+The backend is implemented as Minimal APIs grouped by business module:
 
-Current convention in use:
+- Auth endpoints: owner registration/login, token-based identity checks.
+- Barbershops, services, barbers, customers endpoints: owner-scoped CRUD.
+- Appointments endpoints: scheduling, status transitions, rescheduling.
+- Availability endpoint: slot computation for booking UX.
 
-- `BBF-01`, `BBF-02`, etc.
+### Runtime pipeline and platform concerns
 
-## Prerequisites
+Core platform concerns are centralized in `Program.cs`:
+
+- Strict JWT configuration validation at startup.
+- Connection string resolution with fallback support for `DATABASE_URL`.
+- CORS policy for local frontend origins and configurable allowed origins.
+- Auth-sensitive rate limiting (anti-bruteforce for login/register).
+- Global exception and status code JSON responses (consistent error shape).
+- Security headers (`X-Frame-Options`, `X-Content-Type-Options`, etc.).
+- Health checks endpoint for readiness monitoring.
+
+### Data access approach
+
+The current implementation combines:
+
+- Direct Npgsql SQL commands in endpoint handlers (explicit control over queries).
+- EF Core `BarberFlowDbContext` as runtime mapping layer aligned to SQL schema.
+
+This hybrid approach keeps endpoint behavior explicit while preserving model consistency and enabling progressive evolution toward richer Application/Infrastructure patterns.
+
+## Frontend Architecture (Next.js)
+
+The owner app uses App Router with role-focused workspaces and shared UI primitives.
+
+### Web structure and navigation
+
+- Protected areas: `/dashboard`, `/admin`, operations modules.
+- Operations modules: `/services`, `/barbers`, `/customers`, `/schedule`, `/payments`.
+- Shared workspace shell for consistent sidebar/topbar behavior.
+
+### Auth and API boundary (BFF-style proxy)
+
+Frontend enforces session and API boundaries through:
+
+- Route protection middleware-like proxy logic for auth pages and owner pages.
+- Protected API proxy route (`/api/protected/[...path]`) that:
+  - reads HttpOnly cookie token,
+  - validates expiration before forwarding,
+  - forwards safe request headers,
+  - safely handles no-body upstream responses (`204/205/304`).
+
+This avoids exposing raw access tokens to client-side JavaScript and keeps backend auth semantics centralized.
+
+### State and data-fetching patterns
+
+- Redux Toolkit store composition for shared app state.
+- RTK Query for backend communication and cache consistency.
+- Reusable loading and workspace components to standardize UX and reduce duplication.
+- Centralized Spanish text catalog to keep UI copy maintainable.
+
+## Good Practices Applied
+
+The project already applies several production-oriented engineering practices:
+
+- Security by default:
+  - JWT key strength validation.
+  - Rate limiting on auth-sensitive endpoints.
+  - HttpOnly cookie session flow in web app.
+  - Defensive response headers and strict CORS setup.
+- Input hardening:
+  - endpoint-level validation for names, emails, passwords, phone normalization.
+  - owner-only access checks for restricted operations.
+- Reliability and operability:
+  - health checks and standardized JSON error responses.
+  - startup compatibility check for `services.image_url` migration gap.
+- Data governance:
+  - SQL-first migration workflow as source of truth.
+  - soft-delete semantics (`active`) for barbers/customers.
+- Frontend maintainability:
+  - role-based shared shell and modular pages.
+  - centralized localized content.
+  - consistent loading and protected-routing behavior.
+
+## Recent Changes Included
+
+Latest implemented changes reflected in this README:
+
+- Services now support optional `imageUrl` and image uploads to Supabase Storage.
+- API startup ensures `services.image_url` exists when possible.
+- Customer create/update normalizes and validates 10-digit phone numbers.
+- Protected proxy now safely handles no-body HTTP statuses (`204/205/304`).
+- Owner panel remains consolidated with dashboard, operations modules, and payments workspace.
+
+## Local Setup
+
+### Prerequisites
 
 - .NET SDK 9
+- Node.js + npm
 - Git
-- Optional: GitHub CLI (`gh`)
 
-## Initial Configuration
-
-### 1) Database connection
-
-`src/BarberFlow.API/appsettings.json` contains a placeholder by design:
-
-- `ConnectionStrings:DefaultConnection = SET_ME_IN_USER_SECRETS_OR_ENV`
-
-Recommended for local dev:
-
-- Use `appsettings.Development.json`, environment variables, or user-secrets.
-- Do not commit real credentials.
-
-Cross-platform local setup (recommended):
+### 1) Configure backend environment
 
 1. Copy `env/backend.example` to `.env.backend` in repository root.
-2. Set either `ConnectionStrings__DefaultConnection` or `DATABASE_URL` in `.env.backend`.
-3. Run `npm run dev` from repo root.
+2. Set one of the following:
+   - `ConnectionStrings__DefaultConnection` (Npgsql format), or
+   - `DATABASE_URL` (PostgreSQL URL format).
 
-`npm run dev:api` now loads `.env.backend` automatically on Linux/WSL/Windows.
+Notes:
 
-Cross-platform environment variable options (Windows, Linux/WSL, Railway):
+- `src/BarberFlow.API/appsettings.json` intentionally uses a placeholder connection string.
+- Do not commit real credentials.
 
-- `ConnectionStrings__DefaultConnection` with a regular Npgsql connection string.
-- `DATABASE_URL` with PostgreSQL URL format (`postgres://...`) is also supported.
+### 2) Configure JWT settings
 
-Examples:
-
-```bash
-# Linux / WSL
-export ConnectionStrings__DefaultConnection="Host=...;Port=5432;Database=...;Username=...;Password=...;Ssl Mode=Require;Trust Server Certificate=true"
-```
-
-```powershell
-# Windows PowerShell
-$env:ConnectionStrings__DefaultConnection = "Host=...;Port=5432;Database=...;Username=...;Password=...;Ssl Mode=Require;Trust Server Certificate=true"
-```
-
-### 2) JWT config
-
-JWT settings are in:
-
-- `src/BarberFlow.API/appsettings.json`
-- `src/BarberFlow.API/appsettings.Development.json`
-
-Keys used:
+Set these keys in development configuration/environment:
 
 - `Jwt:Issuer`
 - `Jwt:Audience`
 - `Jwt:Key`
 - `Jwt:ExpirationMinutes`
 
-Use a real secret key with at least 32 chars in development and production.
+Use a strong secret (minimum 32 bytes of entropy).
 
-## Run Commands
+### 3) Run project
 
-From repo root (`C:\Proyectos\BarberFlow`):
+From repository root:
 
 ```bash
 dotnet restore
 dotnet build BarberFlow.sln
-```
-
-Run API:
-
-```bash
-dotnet run --project src/BarberFlow.API
-```
-
-Run API in watch mode only:
-
-```bash
-npm run dev:api
-```
-
-Run API + frontend together (single command):
-
-```bash
 npm run dev
 ```
 
-`npm run dev` automatically cleans stale local locks/ports before starting both services.
-
 This starts:
 
-- API on `https://localhost:7095` (and `http://localhost:5164`)
-- Web on `http://localhost:3000`
+- API: `https://localhost:7095` (and `http://localhost:5164`)
+- Web: `http://localhost:3000`
 
-Run API watch manually (alternative):
+Useful alternatives:
 
-```bash
-dotnet watch --project src/BarberFlow.API run --launch-profile https
-```
+- API only (watch): `npm run dev:api`
+- Web only: `npm run dev:web`
 
-Important local rule:
-
-- Do not run `npm run dev` and `dotnet watch` for API at the same time.
-- Both start the API and can cause `address already in use` on ports `5164/7095`.
-
-Swagger URL (development):
+Swagger (development):
 
 - `http://localhost:5164/swagger`
 
-## Current Status
+Important local rule:
 
-Backend:
+- Do not run `npm run dev` and another manual API watcher simultaneously, or ports can conflict.
 
-- Owner auth flow implemented (`/auth/register-owner`, `/auth/login`, `/auth/me`)
-- Barbershop onboarding and profile implemented (`POST /barbershops`, `GET/PUT /barbershops/me`)
-- Owner CRUD implemented for services, barbers, customers
-- Soft delete by status implemented for barbers and customers (`active` flag)
-- Appointments API implemented:
-  - `POST /appointments`
-  - `GET /appointments`
-  - `PATCH /appointments/{id}/status`
-  - `PATCH /appointments/{id}/reschedule`
-  - `PATCH /appointments/{id}/cancel`
-- Availability slots implemented (`GET /availability/slots`)
+## Database Workflow
 
-Frontend (Owner web app):
+- Strategy: SQL-first with Supabase migrations.
+- Source of truth: `supabase/migrations/*.sql`.
+- EF Core is used as runtime mapping/alignment layer.
 
-- Login/register + session guards
-- Route-based owner panel with shared shell (sidebar + topbar)
-- Dedicated pages for operations: `/services`, `/barbers`, `/customers`, `/schedule`
-- Dashboard overview at `/dashboard` and legacy `/admin` redirected to dashboard
-- Barbershop view/update flow and owner onboarding without initial barbershop
-- Loading UX standardized (`LoadingIndicator` + `LoadingButton`)
-- Schedule UX connected to backend (day/week/month range, drag/drop reschedule, status actions)
-- Schedule conflict validation per barber (same slot allowed for different barbers)
-- Customer suggestions shown only after typing and receiving API matches
-- Defensive datetime parsing for timezone-less API values (treated as UTC in UI)
-- Visual unification for operations modules using reusable role-based workspace shell
-- Dedicated payments workspace at `/payments` with role-based navigation
-- Centralized Spanish UI copy expanded (`texts.es.json`) across dashboard/admin/operations/schedule
-- Services module supports image upload to Supabase Storage through server route
-
-Recent backend/API updates:
-
-- Services contracts and endpoints now support optional `imageUrl`
-- Startup check to ensure `services.image_url` column exists in database
-- Customers create/update now normalize and validate 10-digit phone numbers
-- Protected web proxy handles no-body statuses (`204/205/304`) safely
-
-## Database Workflow (Official)
-
-- Strategy: SQL-first with Supabase migrations
-- Source of truth: `supabase/migrations/*.sql`
-- EF Core is used as runtime mapping layer (`BarberFlowDbContext`)
-
-Detailed guide:
+Detailed process:
 
 - `docs/DB_WORKFLOW.md`
 
-## Notes
+## Git Branch Strategy
 
-- The default `weatherforecast` template endpoint was removed.
-- Swagger UI is enabled in development.
-- If `dotnet build` fails with locked files, stop running API/watch process first.
-- If you get `column "active" does not exist` for customers, apply latest SQL migrations in `supabase/migrations`.
+- `main`: production-ready baseline.
+- `stage`: validated and tested integration baseline.
+- `dev`: active integration branch.
+- Feature/task branches: from `stage` (for example `BBF-01`, `BBF-02`).
 
 ## Next MVP Focus
 
-- Add frontend integration/regression tests for owner panel critical flows (operations + schedule + payments)
-- Add advanced filtering/search UX for large datasets (services/barbers/customers/appointments)
-- Normalize API appointment datetime responses with explicit timezone offset/UTC suffix
-- Replace remaining ad-hoc confirmations with consistent dialog patterns
-- Harden observability/logging around storage uploads and scheduling mutations
-- Define multi-branch owner model (multiple barbershops per owner) as next architecture increment
+- Add integration/regression tests for critical owner flows.
+- Improve filtering/search for larger datasets.
+- Normalize appointment datetime responses with explicit timezone/UTC format.
+- Replace ad-hoc confirmations with consistent dialog patterns.
+- Improve observability around uploads and scheduling mutations.
+- Define multi-branch owner model as next architecture increment.
