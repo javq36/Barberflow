@@ -1,0 +1,11 @@
+# Copy this file to .env.backend at repository root.
+# .env.backend is ignored by git and works for Linux, WSL, and Windows.
+
+# Option 1 (recommended): standard .NET key
+ConnectionStrings__DefaultConnection=Host=YOUR_DB_HOST;Port=5432;Database=postgres;Username=postgres;Password=YOUR_PASSWORD;Ssl Mode=Require
+
+# Option 2: Railway/Postgres URL (if you prefer URL style)
+# DATABASE_URL=postgres://postgres:YOUR_PASSWORD@YOUR_DB_HOST:5432/postgres?sslmode=require
+
+# Optional: local development JWT override
+# Jwt__Key=YOUR_AT_LEAST_32_CHAR_SECRET
