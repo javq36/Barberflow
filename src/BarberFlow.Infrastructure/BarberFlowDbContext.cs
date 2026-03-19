@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using BarberFlow.Domain.Domain.Entities;
-using BarberFlow.Domain.Domain.Enums;
+using BarberFlow.Domain.Entities;
+using BarberFlow.Domain.Enums;
 
 namespace BarberFlow.Infrastructure
 {

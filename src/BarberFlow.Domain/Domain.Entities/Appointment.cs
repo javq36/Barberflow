@@ -1,6 +1,6 @@
-using BarberFlow.Domain.Domain.Enums;
+using BarberFlow.Domain.Enums;
 
-namespace BarberFlow.Domain.Domain.Entities;
+namespace BarberFlow.Domain.Entities;
 
 /// <summary>
 /// Reserva de un cliente para un servicio con un barbero en una fecha/hora concreta.

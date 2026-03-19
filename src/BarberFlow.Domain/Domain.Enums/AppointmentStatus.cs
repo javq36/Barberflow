@@ -1,5 +1,5 @@
 ﻿
-namespace BarberFlow.Domain.Domain.Enums;
+namespace BarberFlow.Domain.Enums;
 
 /// <summary>
 /// Representa los estados posibles de una cita en la barbería

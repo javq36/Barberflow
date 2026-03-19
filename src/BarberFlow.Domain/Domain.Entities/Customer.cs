@@ -1,4 +1,4 @@
-namespace BarberFlow.Domain.Domain.Entities;
+namespace BarberFlow.Domain.Entities;
 
 /// <summary>
 /// Cliente de una barberia. Solo existe dentro del tenant al que pertenece.

@@ -1,4 +1,4 @@
-﻿namespace BarberFlow.Domain.Domain.Enums;
+﻿namespace BarberFlow.Domain.Enums;
 
 /// <summary>
 /// Roles disponibles en el sistema BarberFlow
