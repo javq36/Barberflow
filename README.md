@@ -58,6 +58,31 @@ Recommended for local dev:
 - Use `appsettings.Development.json`, environment variables, or user-secrets.
 - Do not commit real credentials.
 
+Cross-platform local setup (recommended):
+
+1. Copy `env/backend.example` to `.env.backend` in repository root.
+2. Set either `ConnectionStrings__DefaultConnection` or `DATABASE_URL` in `.env.backend`.
+3. Run `npm run dev` from repo root.
+
+`npm run dev:api` now loads `.env.backend` automatically on Linux/WSL/Windows.
+
+Cross-platform environment variable options (Windows, Linux/WSL, Railway):
+
+- `ConnectionStrings__DefaultConnection` with a regular Npgsql connection string.
+- `DATABASE_URL` with PostgreSQL URL format (`postgres://...`) is also supported.
+
+Examples:
+
+```bash
+# Linux / WSL
+export ConnectionStrings__DefaultConnection="Host=...;Port=5432;Database=...;Username=...;Password=...;Ssl Mode=Require;Trust Server Certificate=true"
+```
+
+```powershell
+# Windows PowerShell
+$env:ConnectionStrings__DefaultConnection = "Host=...;Port=5432;Database=...;Username=...;Password=...;Ssl Mode=Require;Trust Server Certificate=true"
+```
+
 ### 2) JWT config
 
 JWT settings are in:

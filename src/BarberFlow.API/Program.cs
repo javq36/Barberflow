@@ -19,7 +19,7 @@ using System.Threading.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
 
 // Configura DbContext con la cadena de conexi�n de appsettings.json
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = ResolveDefaultConnectionString(builder.Configuration);
 builder.Services.AddDbContext<BarberFlowDbContext>(options =>
     options.UseNpgsql(connectionString));
 
@@ -194,6 +194,99 @@ bool IsInsecureJwtKey(string jwtKey)
     };
 
     return knownPlaceholders.Contains(normalized, StringComparer.Ordinal);
+}
+
+string ResolveDefaultConnectionString(IConfiguration configuration)
+{
+    var configured = configuration.GetConnectionString("DefaultConnection");
+    if (IsValidConfiguredConnectionString(configured))
+    {
+        return configured!.Trim();
+    }
+
+    var railwayDatabaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+    if (!string.IsNullOrWhiteSpace(railwayDatabaseUrl))
+    {
+        return ConvertDatabaseUrlToNpgsqlConnectionString(railwayDatabaseUrl.Trim());
+    }
+
+    throw new InvalidOperationException(
+        "Database connection is not configured. Set ConnectionStrings:DefaultConnection " +
+        "(or env var ConnectionStrings__DefaultConnection) or set DATABASE_URL.");
+}
+
+bool IsValidConfiguredConnectionString(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        return false;
+    }
+
+    return !string.Equals(
+        value.Trim(),
+        "SET_ME_IN_USER_SECRETS_OR_ENV",
+        StringComparison.OrdinalIgnoreCase);
+}
+
+string ConvertDatabaseUrlToNpgsqlConnectionString(string databaseUrl)
+{
+    if (databaseUrl.StartsWith("Host=", StringComparison.OrdinalIgnoreCase))
+    {
+        return databaseUrl;
+    }
+
+    if (!Uri.TryCreate(databaseUrl, UriKind.Absolute, out var uri) ||
+        !(string.Equals(uri.Scheme, "postgres", StringComparison.OrdinalIgnoreCase) ||
+          string.Equals(uri.Scheme, "postgresql", StringComparison.OrdinalIgnoreCase)))
+    {
+        return databaseUrl;
+    }
+
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.IsDefaultPort ? 5432 : uri.Port,
+        Database = uri.AbsolutePath.Trim('/'),
+    };
+
+    if (!string.IsNullOrWhiteSpace(uri.UserInfo))
+    {
+        var parts = uri.UserInfo.Split(':', 2);
+        builder.Username = Uri.UnescapeDataString(parts[0]);
+        if (parts.Length > 1)
+        {
+            builder.Password = Uri.UnescapeDataString(parts[1]);
+        }
+    }
+
+    if (!string.IsNullOrWhiteSpace(uri.Query))
+    {
+        var query = uri.Query.TrimStart('?');
+        foreach (var pair in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = pair.Split('=', 2);
+            var key = Uri.UnescapeDataString(kv[0]);
+            var value = kv.Length > 1 ? Uri.UnescapeDataString(kv[1]) : string.Empty;
+
+            switch (key.ToLowerInvariant())
+            {
+                case "sslmode":
+                    if (Enum.TryParse<SslMode>(value, ignoreCase: true, out var sslMode))
+                    {
+                        builder.SslMode = sslMode;
+                    }
+                    break;
+                case "trust server certificate":
+                case "trustservercertificate":
+                    // Accepted for compatibility with legacy connection strings.
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    return builder.ConnectionString;
 }
 
 bool IsOwner(ClaimsPrincipal user) =>

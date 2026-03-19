@@ -2,12 +2,13 @@
   "name": "barberflow-workspace",
   "private": true,
   "scripts": {
-    "predev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
+    "predev": "node -e \"const {spawnSync}=require('node:child_process'); const isWin=process.platform==='win32'; const cmd=isWin?'powershell':'bash'; const args=isWin?['-NoProfile','-ExecutionPolicy','Bypass','-File','scripts/dev-clean.ps1']:['scripts/dev-clean.sh']; const r=spawnSync(cmd,args,{stdio:'inherit'}); process.exit(r.status ?? 0);\"",
     "dev": "concurrently -k -n API,WEB -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "dotnet watch --project src/BarberFlow.API run --launch-profile https",
+    "dev:api": "node scripts/run-dev-api.cjs",
     "dev:web": "cd src/barberflow-web && npm run dev"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "dotenv": "^16.6.1"
   }
 }
