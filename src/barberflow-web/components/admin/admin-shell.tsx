@@ -15,6 +15,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -201,6 +202,9 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
   );
   const [catalogView, setCatalogView] = useState<CatalogView>("quick");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [pendingDeleteServiceId, setPendingDeleteServiceId] = useState<string | null>(null);
+  const [pendingDeleteBarberId, setPendingDeleteBarberId] = useState<string | null>(null);
+  const [pendingDeleteCustomerId, setPendingDeleteCustomerId] = useState<string | null>(null);
 
   const stats = useMemo(
     () => ({
@@ -337,9 +341,11 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
   }
 
   async function onDeleteService(id: string) {
-    if (!window.confirm(Admin.Messages.ConfirmDeleteService)) {
-      return;
-    }
+    setPendingDeleteServiceId(id);
+  }
+
+  async function performDeleteService(id: string) {
+    setPendingDeleteServiceId(null);
 
     try {
       await deleteService(id).unwrap();
@@ -391,9 +397,11 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
   }
 
   async function onDeleteBarber(id: string) {
-    if (!window.confirm(Admin.Messages.ConfirmDeleteBarber)) {
-      return;
-    }
+    setPendingDeleteBarberId(id);
+  }
+
+  async function performDeleteBarber(id: string) {
+    setPendingDeleteBarberId(null);
 
     try {
       await deleteBarber(id).unwrap();
@@ -446,9 +454,11 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
   }
 
   async function onDeleteCustomer(id: string) {
-    if (!window.confirm(Admin.Messages.ConfirmDeleteCustomer)) {
-      return;
-    }
+    setPendingDeleteCustomerId(id);
+  }
+
+  async function performDeleteCustomer(id: string) {
+    setPendingDeleteCustomerId(null);
 
     try {
       await deleteCustomer(id).unwrap();
@@ -1855,6 +1865,34 @@ export function AdminShell({ role, barbershopId }: AdminShellProps) {
           </section>
         </div>
       </section>
+
+      <ConfirmDialog
+        open={pendingDeleteServiceId !== null}
+        title="Eliminar servicio"
+        description={Admin.Messages.ConfirmDeleteService}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={() => pendingDeleteServiceId && performDeleteService(pendingDeleteServiceId)}
+        onCancel={() => setPendingDeleteServiceId(null)}
+      />
+      <ConfirmDialog
+        open={pendingDeleteBarberId !== null}
+        title="Desactivar barbero"
+        description={Admin.Messages.ConfirmDeleteBarber}
+        confirmLabel="Desactivar"
+        cancelLabel="Cancelar"
+        onConfirm={() => pendingDeleteBarberId && performDeleteBarber(pendingDeleteBarberId)}
+        onCancel={() => setPendingDeleteBarberId(null)}
+      />
+      <ConfirmDialog
+        open={pendingDeleteCustomerId !== null}
+        title="Eliminar cliente"
+        description={Admin.Messages.ConfirmDeleteCustomer}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onConfirm={() => pendingDeleteCustomerId && performDeleteCustomer(pendingDeleteCustomerId)}
+        onCancel={() => setPendingDeleteCustomerId(null)}
+      />
     </main>
   );
 }
