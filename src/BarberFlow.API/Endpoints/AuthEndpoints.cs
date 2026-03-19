@@ -21,11 +21,19 @@ internal static class AuthEndpoints
     {
         app.MapPost(ApiConstants.Routes.AuthRegisterOwner, async (RegisterOwnerRequest request, CancellationToken ct) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Name) ||
-                string.IsNullOrWhiteSpace(request.Email) ||
-                string.IsNullOrWhiteSpace(request.Password))
+            if (!EndpointHelpers.IsValidName(request.Name))
             {
-                return Results.BadRequest(new { message = "Name, email and password are required." });
+                return Results.BadRequest(new { message = "Name must be between 1 and 100 characters." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Email) || !EndpointHelpers.IsValidEmail(request.Email))
+            {
+                return Results.BadRequest(new { message = "Invalid email format." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Password) || !EndpointHelpers.IsValidPassword(request.Password))
+            {
+                return Results.BadRequest(new { message = "Password must be at least 8 characters and contain at least one letter and one digit." });
             }
 
             await using var conn = new NpgsqlConnection(connectionString);
@@ -74,7 +82,8 @@ internal static class AuthEndpoints
 
         app.MapPost(ApiConstants.Routes.AuthLogin, async (LoginRequest request, CancellationToken ct) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            if (string.IsNullOrWhiteSpace(request.Email) || !EndpointHelpers.IsValidEmail(request.Email) ||
+                string.IsNullOrWhiteSpace(request.Password))
             {
                 return Results.BadRequest(new { message = "Email and password are required." });
             }

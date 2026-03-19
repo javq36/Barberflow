@@ -23,19 +23,24 @@ internal static class BarbersEndpoints
                 return error!;
             }
 
-            if (string.IsNullOrWhiteSpace(request.Name))
+            if (!EndpointHelpers.IsValidName(request.Name))
             {
-                return Results.BadRequest(new { message = "Barber name is required." });
+                return Results.BadRequest(new { message = "Barber name is required and must not exceed 100 characters." });
             }
-
-            await using var conn = new NpgsqlConnection(connectionString);
-            await conn.OpenAsync(ct);
 
             var normalizedEmail = string.IsNullOrWhiteSpace(request.Email)
                 ? null
                 : request.Email.Trim().ToLowerInvariant();
 
-            if (!string.IsNullOrWhiteSpace(normalizedEmail))
+            if (normalizedEmail is not null && !EndpointHelpers.IsValidEmail(normalizedEmail))
+            {
+                return Results.BadRequest(new { message = "Invalid email format." });
+            }
+
+            await using var conn = new NpgsqlConnection(connectionString);
+            await conn.OpenAsync(ct);
+
+            if (normalizedEmail is not null)
             {
                 await using var existsCmd = new NpgsqlCommand("SELECT 1 FROM users WHERE email = @email LIMIT 1", conn);
                 existsCmd.Parameters.AddWithValue("email", normalizedEmail);
@@ -125,19 +130,24 @@ internal static class BarbersEndpoints
                 return error!;
             }
 
-            if (string.IsNullOrWhiteSpace(request.Name))
+            if (!EndpointHelpers.IsValidName(request.Name))
             {
-                return Results.BadRequest(new { message = "Barber name is required." });
+                return Results.BadRequest(new { message = "Barber name is required and must not exceed 100 characters." });
             }
 
             var normalizedEmail = string.IsNullOrWhiteSpace(request.Email)
                 ? null
                 : request.Email.Trim().ToLowerInvariant();
 
+            if (normalizedEmail is not null && !EndpointHelpers.IsValidEmail(normalizedEmail))
+            {
+                return Results.BadRequest(new { message = "Invalid email format." });
+            }
+
             await using var conn = new NpgsqlConnection(connectionString);
             await conn.OpenAsync(ct);
 
-            if (!string.IsNullOrWhiteSpace(normalizedEmail))
+            if (normalizedEmail is not null)
             {
                 await using var existsCmd = new NpgsqlCommand("SELECT 1 FROM users WHERE email = @email AND id <> @id LIMIT 1", conn);
                 existsCmd.Parameters.AddWithValue("email", normalizedEmail);
