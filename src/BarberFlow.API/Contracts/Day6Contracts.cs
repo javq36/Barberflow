@@ -1,3 +1,5 @@
+using BarberFlow.Domain.Enums;
+
 namespace BarberFlow.API.Contracts;
 
 public sealed record CreateAppointmentRequest(
@@ -8,7 +10,7 @@ public sealed record CreateAppointmentRequest(
     string? Notes);
 
 public sealed record UpdateAppointmentStatusRequest(
-    int Status,
+    AppointmentStatus Status,
     string? Notes);
 
 public sealed record RescheduleAppointmentRequest(

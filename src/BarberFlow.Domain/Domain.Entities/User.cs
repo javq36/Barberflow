@@ -1,6 +1,6 @@
-﻿using BarberFlow.Domain.Domain.Enums;
+﻿using BarberFlow.Domain.Enums;
 
-namespace BarberFlow.Domain.Domain.Entities;
+namespace BarberFlow.Domain.Entities;
 
 /// <summary>
 /// Representa un usuario del sistema BarberFlow (multi-tenant)
