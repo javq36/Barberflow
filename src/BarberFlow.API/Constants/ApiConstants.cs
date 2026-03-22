@@ -20,6 +20,7 @@ public static class ApiConstants
         public const string AppointmentsCancelSuffix = "/cancel";
         public const string AvailabilitySlots = "/availability/slots";
         public const string WorkingHours = "working-hours";
+        public const string BarberCredentials = "/barbers/{barberId:guid}/credentials";
     }
 
     public static class Messages
@@ -39,5 +40,8 @@ public static class ApiConstants
         public const string AppointmentRescheduleCollision = "Barber is not available at the selected reschedule time.";
         public const string ResourceOutOfTenantScope = "Resource does not belong to this barbershop or is inactive.";
         public const string AppointmentTimeCollision = "Barber is not available at the selected time.";
+        public const string BarberCredentialsAlreadySet = "Barber credentials are already set. Use PUT /barbers/{id}/credentials to reset the password.";
+        public const string BarberCredentialsNotFound = "Barber not found in this barbershop.";
+        public const string PasswordTooShort = "Password must be at least 8 characters.";
     }
 }

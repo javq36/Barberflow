@@ -5,7 +5,7 @@ export type DashboardNavItem = {
   id: string;
   label: string;
   href: string;
-  icon: "dashboard" | "schedule" | "operations" | "platform";
+  icon: "dashboard" | "schedule" | "operations" | "platform" | "settings";
 };
 
 type DashboardNavigationTexts = {
@@ -16,6 +16,9 @@ type DashboardNavigationTexts = {
   Barbers: string;
   Customers: string;
   Platform: string;
+  WorkingHours: string;
+  TimeOff: string;
+  BookingRules: string;
 };
 
 export function selectDashboardNavItems(
@@ -83,6 +86,29 @@ export function selectDashboardNavItems(
       label: labels.Customers,
       href: APP_ROUTES.Customers,
       icon: "operations",
+    });
+  }
+
+  if (hasPermission(role, "settings.manage")) {
+    items.push({
+      id: "working-hours",
+      label: labels.WorkingHours,
+      href: APP_ROUTES.WorkingHours,
+      icon: "settings",
+    });
+
+    items.push({
+      id: "time-off",
+      label: labels.TimeOff,
+      href: APP_ROUTES.TimeOff,
+      icon: "settings",
+    });
+
+    items.push({
+      id: "booking-rules",
+      label: labels.BookingRules,
+      href: APP_ROUTES.BookingRules,
+      icon: "settings",
     });
   }
 

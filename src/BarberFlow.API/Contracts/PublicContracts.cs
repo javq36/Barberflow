@@ -20,10 +20,15 @@ public sealed record PublicBarberResponse(
     string? ImageUrl);
 
 /// <summary>A single bookable slot returned by the public availability endpoint.</summary>
+/// <param name="BarberId">
+///   Set when the slot was computed for a specific barber (e.g. "any barber" aggregate
+///   mode). Null when the barber was specified explicitly by the caller.
+/// </param>
 public sealed record PublicSlotResponse(
     DateTimeOffset Start,
     DateTimeOffset End,
-    bool Available);
+    bool Available,
+    Guid? BarberId = null);
 
 /// <summary>
 /// Request body for creating a public appointment (no authentication required).

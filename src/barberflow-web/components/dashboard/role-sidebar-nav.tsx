@@ -5,6 +5,7 @@ import {
   CalendarDays,
   LayoutDashboard,
   Scissors,
+  Settings,
   ShieldCheck,
   Wallet,
 } from "lucide-react";
@@ -35,6 +36,14 @@ function iconByItem(itemId: string) {
     return <Wallet className="h-4 w-4" />;
   }
 
+  if (
+    itemId === "working-hours" ||
+    itemId === "time-off" ||
+    itemId === "booking-rules"
+  ) {
+    return <Settings className="h-4 w-4" />;
+  }
+
   return <LayoutDashboard className="h-4 w-4" />;
 }
 
@@ -55,15 +64,21 @@ export function RoleSidebarNav({
         Barbers: Dashboard.Navigation.Barbers,
         Customers: Dashboard.Navigation.Customers,
         Platform: Dashboard.Navigation.Platform,
+        WorkingHours: Dashboard.Navigation.WorkingHours,
+        TimeOff: Dashboard.Navigation.TimeOff,
+        BookingRules: Dashboard.Navigation.BookingRules,
       }),
     [
       Dashboard.Navigation.Barbers,
+      Dashboard.Navigation.BookingRules,
       Dashboard.Navigation.Customers,
       Dashboard.Navigation.Overview,
       Dashboard.Navigation.Payments,
       Dashboard.Navigation.Platform,
       Dashboard.Navigation.Schedule,
       Dashboard.Navigation.Services,
+      Dashboard.Navigation.TimeOff,
+      Dashboard.Navigation.WorkingHours,
       role,
     ],
   );

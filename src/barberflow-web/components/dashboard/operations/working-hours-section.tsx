@@ -25,17 +25,20 @@ import { APP_ROUTES } from "@/lib/config/app";
 import { useAppToast } from "@/lib/toast/toast-provider";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Texts } from "@/lib/content/texts";
+
+const { WorkingHours: T, Common, SharedShell } = Texts;
 
 // ─── Day Configuration ────────────────────────────────────────────────────────
 
 const DAYS_OF_WEEK = [
-  { value: 1, label: "Lunes" },
-  { value: 2, label: "Martes" },
-  { value: 3, label: "Miércoles" },
-  { value: 4, label: "Jueves" },
-  { value: 5, label: "Viernes" },
-  { value: 6, label: "Sábado" },
-  { value: 0, label: "Domingo" },
+  { value: 1, label: T.Days.Monday },
+  { value: 2, label: T.Days.Tuesday },
+  { value: 3, label: T.Days.Wednesday },
+  { value: 4, label: T.Days.Thursday },
+  { value: 5, label: T.Days.Friday },
+  { value: 6, label: T.Days.Saturday },
+  { value: 0, label: T.Days.Sunday },
 ] as const;
 
 type DayValue = (typeof DAYS_OF_WEEK)[number]["value"];
@@ -107,17 +110,17 @@ function validateScheduleMap(scheduleMap: ScheduleMap): ValidationMap {
 
     if (day.isActive) {
       if (!day.startTime) {
-        dayErrors.startTime = "La hora de inicio es requerida.";
+        dayErrors.startTime = T.Validation.StartRequired;
       }
       if (!day.endTime) {
-        dayErrors.endTime = "La hora de fin es requerida.";
+        dayErrors.endTime = T.Validation.EndRequired;
       }
       if (
         day.startTime &&
         day.endTime &&
         timeToMinutes(day.endTime) <= timeToMinutes(day.startTime)
       ) {
-        dayErrors.endTime = "La hora de fin debe ser posterior al inicio.";
+        dayErrors.endTime = T.Validation.EndAfterStart;
       }
     }
 
@@ -171,7 +174,7 @@ function DayRow({
       <button
         type="button"
         onClick={onToggle}
-        aria-label={`${isDisabled ? "Activar" : "Desactivar"} ${label}`}
+        aria-label={`${isDisabled ? T.Aria.Activate : T.Aria.Deactivate} ${label}`}
         className={cn(
           "relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
           isDisabled ? "bg-slate-700" : "bg-emerald-500",
@@ -240,7 +243,7 @@ function BarberSelector({ barbers, selectedId, onSelect }: BarberSelectorProps) 
   return (
     <div className="mb-6">
       <label className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-slate-500">
-        Barbero
+        {T.BarberLabel}
       </label>
       <select
         value={selectedId ?? ""}
@@ -248,7 +251,7 @@ function BarberSelector({ barbers, selectedId, onSelect }: BarberSelectorProps) 
         className="h-10 w-full max-w-xs rounded border border-slate-700 bg-[#121212] px-3 text-sm text-slate-100 focus:border-slate-500 focus:outline-none"
       >
         <option value="" disabled>
-          Seleccionar barbero...
+          {T.BarberSelectorPlaceholder}
         </option>
         {barbers.map((barber) => (
           <option key={barber.id} value={barber.id}>
@@ -288,16 +291,16 @@ function WeeklyScheduleGrid({
       {/* Column headers */}
       <div className="grid grid-cols-[140px_56px_1fr_1fr] gap-4 border-b border-slate-800 px-5 py-3">
         <span className="text-xs font-black uppercase tracking-widest text-slate-500">
-          Día
+          {T.Grid.HeaderDay}
         </span>
         <span className="text-xs font-black uppercase tracking-widest text-slate-500">
-          Activo
+          {T.Grid.HeaderActive}
         </span>
         <span className="text-xs font-black uppercase tracking-widest text-slate-500">
-          Apertura
+          {T.Grid.HeaderOpen}
         </span>
         <span className="text-xs font-black uppercase tracking-widest text-slate-500">
-          Cierre
+          {T.Grid.HeaderClose}
         </span>
       </div>
 
@@ -321,18 +324,18 @@ function WeeklyScheduleGrid({
         {hasErrors ? (
           <p className="flex items-center gap-2 text-xs text-red-400">
             <AlertCircle className="h-4 w-4" />
-            Corrige los errores antes de guardar.
+            {T.Footer.ErrorHint}
           </p>
         ) : (
           <p className="text-xs text-slate-500">
-            Los cambios se aplicarán a los turnos futuros.
+            {T.Footer.SuccessHint}
           </p>
         )}
         <LoadingButton
           type="button"
           onClick={onSave}
           isLoading={isSaving}
-          loadingText="Guardando..."
+          loadingText={T.Actions.Saving}
           disabled={hasErrors}
           className={cn(
             "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-bold",
@@ -342,7 +345,7 @@ function WeeklyScheduleGrid({
           )}
         >
           <Save className="h-4 w-4" />
-          Guardar horarios
+          {T.Actions.Save}
         </LoadingButton>
       </div>
     </div>
@@ -449,8 +452,8 @@ export function WorkingHoursSection({
 
     if (hasValidationErrors(errors)) {
       showToast({
-        title: "Operacion fallida",
-        description: "Corrige los errores antes de guardar.",
+        title: Common.Toasts.ErrorTitle,
+        description: T.Toast.ValidationError,
         variant: "error",
       });
       return;
@@ -474,17 +477,17 @@ export function WorkingHoursSection({
 
       setScheduleOverride(null); // Reset to server data after successful save
       showToast({
-        title: "Operacion completada",
-        description: "Horarios guardados correctamente.",
+        title: Common.Toasts.SuccessTitle,
+        description: T.Toast.SaveSuccess,
         variant: "success",
       });
     } catch (error) {
       // Rollback to snapshot
       setScheduleOverride(snapshot);
       showToast({
-        title: "Operacion fallida",
+        title: Common.Toasts.ErrorTitle,
         description:
-          getApiErrorMessage(error) ?? "No se pudieron guardar los horarios.",
+          getApiErrorMessage(error) ?? T.Toast.SaveError,
         variant: "error",
       });
     }
@@ -498,21 +501,20 @@ export function WorkingHoursSection({
   const desktopBody = (
     <div className="flex-1 overflow-y-auto p-8">
       <div className="mb-8">
-        <h2 className="mb-2 text-3xl font-black">Horarios de trabajo</h2>
+        <h2 className="mb-2 text-3xl font-black">{T.PageTitle}</h2>
         <p className="text-slate-400">
-          Configurá los horarios de atención de cada barbero para cada día de la
-          semana.
+          {T.PageDescription}
         </p>
       </div>
 
       {isLoadingBarbers ? (
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Cargando barberos...
+          {T.LoadingBarbers}
         </div>
       ) : activeBarbers.length === 0 ? (
         <div className="rounded-xl border border-slate-800 bg-slate-800/10 p-8 text-center text-sm text-slate-400">
-          No hay barberos activos. Creá un barbero primero.
+          {T.NoActiveBarbers}
         </div>
       ) : (
         <>
@@ -525,7 +527,7 @@ export function WorkingHoursSection({
           {isLoadingHours ? (
             <div className="flex items-center gap-2 text-sm text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Cargando horarios...
+              {T.LoadingHours}
             </div>
           ) : (
             <WeeklyScheduleGrid
@@ -548,19 +550,19 @@ export function WorkingHoursSection({
   const mobileBody = (
     <main className="flex-1 overflow-y-auto pb-24">
       <div className="p-4">
-        <h2 className="mb-1 text-2xl font-bold">Horarios</h2>
+        <h2 className="mb-1 text-2xl font-bold">{T.MobileTitle}</h2>
         <p className="mb-6 text-sm text-slate-400">
-          Configurá la disponibilidad por día.
+          {T.MobileDescription}
         </p>
 
         {isLoadingBarbers ? (
           <div className="flex items-center gap-2 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando...
+            {Common.Actions.Loading}
           </div>
         ) : activeBarbers.length === 0 ? (
           <div className="rounded-xl border border-slate-800 bg-slate-800/10 p-6 text-center text-sm text-slate-400">
-            No hay barberos activos.
+            {T.NoActiveBarbersShort}
           </div>
         ) : (
           <>
@@ -573,7 +575,7 @@ export function WorkingHoursSection({
             {isLoadingHours ? (
               <div className="flex items-center gap-2 text-sm text-slate-400">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Cargando horarios...
+                {T.LoadingHours}
               </div>
             ) : (
               <div className="space-y-2">
@@ -597,7 +599,7 @@ export function WorkingHoursSection({
                         <button
                           type="button"
                           onClick={() => handleToggleDay(value)}
-                          aria-label={`${!day.isActive ? "Activar" : "Desactivar"} ${label}`}
+                          aria-label={`${!day.isActive ? T.Aria.Activate : T.Aria.Deactivate} ${label}`}
                           className={cn(
                             "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors",
                             !day.isActive ? "bg-slate-700" : "bg-emerald-500",
@@ -616,7 +618,7 @@ export function WorkingHoursSection({
                         <div className="grid grid-cols-2 gap-3">
                           <div className="flex flex-col gap-1">
                             <label className="text-xs text-slate-500">
-                              Apertura
+                              {T.Mobile.OpenLabel}
                             </label>
                             <input
                               type="time"
@@ -639,7 +641,7 @@ export function WorkingHoursSection({
                           </div>
                           <div className="flex flex-col gap-1">
                             <label className="text-xs text-slate-500">
-                              Cierre
+                              {T.Mobile.CloseLabel}
                             </label>
                             <input
                               type="time"
@@ -662,7 +664,7 @@ export function WorkingHoursSection({
                           </div>
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-500">Día cerrado</p>
+                        <p className="text-xs text-slate-500">{T.DayClosed}</p>
                       )}
                     </div>
                   );
@@ -673,11 +675,11 @@ export function WorkingHoursSection({
                     type="button"
                     onClick={handleSave}
                     isLoading={upsertState.isLoading}
-                    loadingText="Guardando..."
+                    loadingText={T.Actions.Saving}
                     disabled={hasValidationErrors(validationErrors)}
                     className="w-full rounded-lg bg-slate-100 py-3 text-sm font-bold text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Guardar horarios
+                    {T.Actions.Save}
                   </LoadingButton>
                 </div>
               </div>
@@ -691,19 +693,19 @@ export function WorkingHoursSection({
   return (
     <RoleWorkspaceShell
       canOperate={canOperate}
-      disabledMessage="Necesitás una barbería activa para configurar horarios."
+      disabledMessage={T.DisabledMessage}
       role={role}
       activeItemId="working-hours"
       onNavigate={(href) => router.push(href)}
-      brandTitle="BarberFlow"
-      brandSubtitle="Configuración"
+      brandTitle={SharedShell.BrandName}
+      brandSubtitle={T.BrandSubtitle}
       desktopHeader={
         <header className="flex h-16 items-center gap-3 border-b border-slate-800 bg-[#191919]/50 px-8 backdrop-blur-md">
           <Clock className="h-5 w-5 text-slate-400" />
           <div>
-            <h1 className="text-sm font-bold">Horarios de trabajo</h1>
+            <h1 className="text-sm font-bold">{T.PageTitle}</h1>
             <p className="text-xs text-slate-500">
-              Administrá la disponibilidad por barbero
+              {T.HeaderDescription}
             </p>
           </div>
         </header>
@@ -718,7 +720,7 @@ export function WorkingHoursSection({
           >
             <ChevronRight className="h-5 w-5 rotate-180" />
           </button>
-          <h1 className="text-xl font-bold">Horarios</h1>
+          <h1 className="text-xl font-bold">{T.MobileTitle}</h1>
         </header>
       }
       mobileBody={mobileBody}
@@ -730,7 +732,7 @@ export function WorkingHoursSection({
             className="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400"
           >
             <Clock className="h-4 w-4" />
-            <p className="text-[10px] font-medium">Dashboard</p>
+            <p className="text-[10px] font-medium">{T.Mobile.DashboardNav}</p>
           </button>
         </nav>
       }
