@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Npgsql;
+using NpgsqlTypes;
 using BarberFlow.API.Constants;
 using BarberFlow.API.Contracts;
 using BarberFlow.Application.Services;
@@ -331,7 +332,7 @@ internal static class AppointmentsEndpoints
             WHERE id = @barbershopId
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result is string tz && !string.IsNullOrWhiteSpace(tz) ? tz : "UTC";

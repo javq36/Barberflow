@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
+using NpgsqlTypes;
 using BarberFlow.API.Constants;
 using BarberFlow.API.Contracts;
 using BarberFlow.Domain.Enums;
@@ -41,7 +42,7 @@ internal static class AuthEndpoints
 
             await using (var existsCmd = new NpgsqlCommand("SELECT 1 FROM users WHERE email = @email LIMIT 1", conn))
             {
-                existsCmd.Parameters.AddWithValue("email", request.Email.Trim().ToLowerInvariant());
+                existsCmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = request.Email.Trim().ToLowerInvariant() });
                 var exists = await existsCmd.ExecuteScalarAsync(ct);
                 if (exists is not null)
                 {
@@ -58,12 +59,12 @@ internal static class AuthEndpoints
                     INSERT INTO users (id, barbershop_id, name, email, phone, role, password_hash, active, created_at)
                     VALUES (@id, NULL, @name, @email, @phone, @role, @passwordHash, TRUE, NOW())", conn);
 
-                insertCmd.Parameters.AddWithValue("id", userId);
-                insertCmd.Parameters.AddWithValue("name", request.Name.Trim());
-                insertCmd.Parameters.AddWithValue("email", request.Email.Trim().ToLowerInvariant());
-                insertCmd.Parameters.AddWithValue("phone", (object?)request.Phone?.Trim() ?? DBNull.Value);
-                insertCmd.Parameters.AddWithValue("role", (int)UserRole.Owner);
-                insertCmd.Parameters.AddWithValue("passwordHash", passwordHash);
+                insertCmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = userId });
+                insertCmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = request.Name.Trim() });
+                insertCmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = request.Email.Trim().ToLowerInvariant() });
+                insertCmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = (object?)request.Phone?.Trim() ?? DBNull.Value });
+                insertCmd.Parameters.Add(new NpgsqlParameter("role", NpgsqlDbType.Integer) { Value = (int)UserRole.Owner });
+                insertCmd.Parameters.Add(new NpgsqlParameter("passwordHash", NpgsqlDbType.Text) { Value = passwordHash });
 
                 await insertCmd.ExecuteNonQueryAsync(ct);
             }
@@ -105,7 +106,7 @@ internal static class AuthEndpoints
                 WHERE email = @email AND active = TRUE
                 LIMIT 1", conn))
             {
-                cmd.Parameters.AddWithValue("email", request.Email.Trim().ToLowerInvariant());
+                cmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = request.Email.Trim().ToLowerInvariant() });
                 await using var reader = await cmd.ExecuteReaderAsync(ct);
 
                 if (!await reader.ReadAsync(ct))

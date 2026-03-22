@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 
 namespace BarberFlow.Application.Services;
 
@@ -70,7 +71,7 @@ public sealed class BookingRulesService : IBookingRulesService
             WHERE barbershop_id = @barbershopId
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -99,7 +100,7 @@ public sealed class BookingRulesService : IBookingRulesService
             WHERE barbershop_id = @barbershopId
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -136,11 +137,11 @@ public sealed class BookingRulesService : IBookingRulesService
             RETURNING id, barbershop_id, slot_interval_minutes, max_days_in_future,
                       min_notice_minutes, buffer_minutes", conn);
 
-        updateCmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        updateCmd.Parameters.AddWithValue("slotInterval", request.SlotDurationMinutes);
-        updateCmd.Parameters.AddWithValue("maxDays", request.MaxDaysInAdvance);
-        updateCmd.Parameters.AddWithValue("minNotice", minNoticeMinutes);
-        updateCmd.Parameters.AddWithValue("buffer", request.BufferMinutes);
+        updateCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        updateCmd.Parameters.Add(new NpgsqlParameter("slotInterval", NpgsqlDbType.Integer) { Value = request.SlotDurationMinutes });
+        updateCmd.Parameters.Add(new NpgsqlParameter("maxDays", NpgsqlDbType.Integer) { Value = request.MaxDaysInAdvance });
+        updateCmd.Parameters.Add(new NpgsqlParameter("minNotice", NpgsqlDbType.Integer) { Value = minNoticeMinutes });
+        updateCmd.Parameters.Add(new NpgsqlParameter("buffer", NpgsqlDbType.Integer) { Value = request.BufferMinutes });
 
         await using var updateReader = await updateCmd.ExecuteReaderAsync(ct);
         if (await updateReader.ReadAsync(ct))
@@ -165,12 +166,12 @@ public sealed class BookingRulesService : IBookingRulesService
             RETURNING id, barbershop_id, slot_interval_minutes, max_days_in_future,
                       min_notice_minutes, buffer_minutes", conn);
 
-        insertCmd.Parameters.AddWithValue("id", id);
-        insertCmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        insertCmd.Parameters.AddWithValue("slotInterval", request.SlotDurationMinutes);
-        insertCmd.Parameters.AddWithValue("maxDays", request.MaxDaysInAdvance);
-        insertCmd.Parameters.AddWithValue("minNotice", minNoticeMinutes);
-        insertCmd.Parameters.AddWithValue("buffer", request.BufferMinutes);
+        insertCmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = id });
+        insertCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        insertCmd.Parameters.Add(new NpgsqlParameter("slotInterval", NpgsqlDbType.Integer) { Value = request.SlotDurationMinutes });
+        insertCmd.Parameters.Add(new NpgsqlParameter("maxDays", NpgsqlDbType.Integer) { Value = request.MaxDaysInAdvance });
+        insertCmd.Parameters.Add(new NpgsqlParameter("minNotice", NpgsqlDbType.Integer) { Value = minNoticeMinutes });
+        insertCmd.Parameters.Add(new NpgsqlParameter("buffer", NpgsqlDbType.Integer) { Value = request.BufferMinutes });
 
         await using var insertReader = await insertCmd.ExecuteReaderAsync(ct);
         await insertReader.ReadAsync(ct);
@@ -201,10 +202,10 @@ public sealed class BookingRulesService : IBookingRulesService
             RETURNING id, barbershop_id, slot_interval_minutes, max_days_in_future,
                       min_notice_minutes", conn);
 
-        updateCmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        updateCmd.Parameters.AddWithValue("slotInterval", request.SlotDurationMinutes);
-        updateCmd.Parameters.AddWithValue("maxDays", request.MaxDaysInAdvance);
-        updateCmd.Parameters.AddWithValue("minNotice", minNoticeMinutes);
+        updateCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        updateCmd.Parameters.Add(new NpgsqlParameter("slotInterval", NpgsqlDbType.Integer) { Value = request.SlotDurationMinutes });
+        updateCmd.Parameters.Add(new NpgsqlParameter("maxDays", NpgsqlDbType.Integer) { Value = request.MaxDaysInAdvance });
+        updateCmd.Parameters.Add(new NpgsqlParameter("minNotice", NpgsqlDbType.Integer) { Value = minNoticeMinutes });
 
         await using var updateReader = await updateCmd.ExecuteReaderAsync(ct);
         if (await updateReader.ReadAsync(ct))
@@ -228,11 +229,11 @@ public sealed class BookingRulesService : IBookingRulesService
             RETURNING id, barbershop_id, slot_interval_minutes, max_days_in_future,
                       min_notice_minutes", conn);
 
-        insertCmd.Parameters.AddWithValue("id", id);
-        insertCmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        insertCmd.Parameters.AddWithValue("slotInterval", request.SlotDurationMinutes);
-        insertCmd.Parameters.AddWithValue("maxDays", request.MaxDaysInAdvance);
-        insertCmd.Parameters.AddWithValue("minNotice", minNoticeMinutes);
+        insertCmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = id });
+        insertCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        insertCmd.Parameters.Add(new NpgsqlParameter("slotInterval", NpgsqlDbType.Integer) { Value = request.SlotDurationMinutes });
+        insertCmd.Parameters.Add(new NpgsqlParameter("maxDays", NpgsqlDbType.Integer) { Value = request.MaxDaysInAdvance });
+        insertCmd.Parameters.Add(new NpgsqlParameter("minNotice", NpgsqlDbType.Integer) { Value = minNoticeMinutes });
 
         await using var insertReader = await insertCmd.ExecuteReaderAsync(ct);
         await insertReader.ReadAsync(ct);
@@ -259,8 +260,8 @@ public sealed class BookingRulesService : IBookingRulesService
             WHERE table_name = @table AND column_name = @column
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("table", table);
-        cmd.Parameters.AddWithValue("column", column);
+        cmd.Parameters.Add(new NpgsqlParameter("table", NpgsqlDbType.Text) { Value = table });
+        cmd.Parameters.Add(new NpgsqlParameter("column", NpgsqlDbType.Text) { Value = column });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result is not null;
