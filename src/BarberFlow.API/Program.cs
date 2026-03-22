@@ -12,6 +12,7 @@ using System.Threading.RateLimiting;
 using BarberFlow.API.Endpoints;
 // Application service interfaces — concrete implementations registered in later tasks (T03–T08)
 using BarberFlow.Application.Services;
+using BarberFlow.Infrastructure.WhatsApp;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -137,6 +138,25 @@ builder.Services.AddHealthChecks()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// ── Twilio / WhatsApp ─────────────────────────────────────────────────────────
+builder.Services.Configure<TwilioSettings>(builder.Configuration.GetSection("Twilio"));
+builder.Services.AddScoped<IWhatsAppOutboxService>(sp =>
+    new WhatsAppOutboxService(sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<WhatsAppOutboxService>>()));
+builder.Services.AddScoped<IWhatsAppService, TwilioWhatsAppService>();
+builder.Services.AddHostedService(sp =>
+    new OutboxProcessorService(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<OutboxProcessorService>>(),
+        connectionString));
+var reminderIntervalMinutes = builder.Configuration.GetValue<int?>("WhatsApp:ReminderIntervalMinutes") ?? 30;
+builder.Services.AddHostedService(sp =>
+    new AppointmentReminderService(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AppointmentReminderService>>(),
+        connectionString,
+        intervalMinutes: reminderIntervalMinutes));
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ── Application Service Layer (DI seams) ─────────────────────────────────────
 // Concrete implementations are introduced in later tasks. Each registration is
 // marked with the task that provides the implementation so the TODOs are
@@ -147,7 +167,8 @@ builder.Services.AddScoped<ITimeOffService>(_ => new TimeOffService(connectionSt
 builder.Services.AddScoped<IBookingRulesService>(_ => new BookingRulesService(connectionString));
 builder.Services.AddScoped<IAvailabilityService>(sp =>
     new AvailabilityService(connectionString, sp.GetRequiredService<IBookingRulesService>()));
-builder.Services.AddScoped<IBookingService>(_ => new BookingService(connectionString));
+builder.Services.AddScoped<IBookingService>(sp =>
+    new BookingService(connectionString, sp.GetRequiredService<IWhatsAppOutboxService>()));
 // ─────────────────────────────────────────────────────────────────────────────
 
 var app = builder.Build();

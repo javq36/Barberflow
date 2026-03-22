@@ -17,6 +17,12 @@ public class Customer
 
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Indica si el cliente consintió recibir notificaciones por WhatsApp.
+    /// Solo se envían mensajes cuando este campo es <c>true</c>.
+    /// </summary>
+    public bool OptInWhatsApp { get; set; } = false;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Barbershop? Barbershop { get; set; }
