@@ -10,5 +10,6 @@ export const APP_ROUTES = {
   Login: "/login",
   Register: "/register",
   WorkingHours: "/settings/working-hours",
+  TimeOff: "/settings/time-off",
   BookingRules: "/settings/booking-rules",
 } as const;

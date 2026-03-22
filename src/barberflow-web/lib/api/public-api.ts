@@ -20,6 +20,8 @@ export interface PublicSlot {
   start: string;
   end: string;
   available: boolean;
+  /** Present when the slot was returned by the "any barber" aggregate endpoint. */
+  barberId?: string;
 }
 
 export interface PublicBookingRequest {
@@ -47,7 +49,8 @@ interface SlugArg {
 
 interface AvailabilityArg {
   slug: string;
-  barberId: string;
+  /** Pass "any" or omit to get merged availability across all barbers. */
+  barberId?: string;
   serviceId: string;
   date: string;
 }
@@ -81,10 +84,14 @@ export const publicApi = createApi({
     getPublicAvailability: builder.query<PublicSlot[], AvailabilityArg>({
       query: ({ slug, barberId, serviceId, date }) => ({
         url: `/${slug}/availability`,
-        params: { barberId, serviceId, date },
+        params: {
+          ...(barberId && barberId !== "any" ? { barberId } : {}),
+          serviceId,
+          date,
+        },
       }),
       providesTags: (_result, _error, { slug, barberId, date }) => [
-        { type: "PublicAvailability", id: `${slug}-${barberId}-${date}` },
+        { type: "PublicAvailability", id: `${slug}-${barberId ?? "any"}-${date}` },
       ],
     }),
 

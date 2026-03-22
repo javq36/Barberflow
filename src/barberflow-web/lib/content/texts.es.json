@@ -182,7 +182,10 @@
       "Services": "Servicios",
       "Barbers": "Barberos",
       "Customers": "Clientes",
-      "Platform": "Plataforma"
+      "Platform": "Plataforma",
+      "WorkingHours": "Horarios de trabajo",
+      "TimeOff": "Dias libres",
+      "BookingRules": "Reglas de reserva"
     },
     "Stats": {
       "AppointmentsToday": {
@@ -707,6 +710,151 @@
       "Settings": "Configuracion"
     }
   },
+  "WorkingHours": {
+    "PageTitle": "Horarios de trabajo",
+    "PageDescription": "Configurá los horarios de atención de cada barbero para cada día de la semana.",
+    "MobileTitle": "Horarios",
+    "MobileDescription": "Configurá la disponibilidad por día.",
+    "HeaderDescription": "Administrá la disponibilidad por barbero",
+    "DisabledMessage": "Necesitás una barbería activa para configurar horarios.",
+    "BrandSubtitle": "Configuración",
+    "BarberLabel": "Barbero",
+    "BarberSelectorPlaceholder": "Seleccionar barbero...",
+    "LoadingBarbers": "Cargando barberos...",
+    "LoadingHours": "Cargando horarios...",
+    "NoActiveBarbers": "No hay barberos activos. Creá un barbero primero.",
+    "NoActiveBarbersShort": "No hay barberos activos.",
+    "DayClosed": "Día cerrado",
+    "Grid": {
+      "HeaderDay": "Día",
+      "HeaderActive": "Activo",
+      "HeaderOpen": "Apertura",
+      "HeaderClose": "Cierre"
+    },
+    "Aria": {
+      "Activate": "Activar",
+      "Deactivate": "Desactivar"
+    },
+    "Validation": {
+      "StartRequired": "La hora de inicio es requerida.",
+      "EndRequired": "La hora de fin es requerida.",
+      "EndAfterStart": "La hora de fin debe ser posterior al inicio."
+    },
+    "Actions": {
+      "Save": "Guardar horarios",
+      "Saving": "Guardando..."
+    },
+    "Footer": {
+      "ErrorHint": "Corrige los errores antes de guardar.",
+      "SuccessHint": "Los cambios se aplicarán a los turnos futuros."
+    },
+    "Toast": {
+      "SaveSuccess": "Horarios guardados correctamente.",
+      "SaveError": "No se pudieron guardar los horarios.",
+      "ValidationError": "Corrige los errores antes de guardar."
+    },
+    "Days": {
+      "Monday": "Lunes",
+      "Tuesday": "Martes",
+      "Wednesday": "Miércoles",
+      "Thursday": "Jueves",
+      "Friday": "Viernes",
+      "Saturday": "Sábado",
+      "Sunday": "Domingo"
+    },
+    "Mobile": {
+      "OpenLabel": "Apertura",
+      "CloseLabel": "Cierre",
+      "DashboardNav": "Dashboard"
+    }
+  },
+  "TimeOff": {
+    "PageTitle": "Días libres",
+    "PageDescription": "Gestiona los períodos de ausencia de cada barbero.",
+    "DisabledMessage": "Debes configurar una barbería para gestionar los días libres.",
+    "BrandSubtitle": "Panel de gestión",
+    "BarberLabel": "Barbero",
+    "AddFormTitle": "Agregar días libres",
+    "StartDateLabel": "Fecha inicio",
+    "EndDateLabel": "Fecha fin",
+    "ReasonLabel": "Motivo",
+    "ReasonOptional": "(opcional)",
+    "ReasonPlaceholder": "Ej: Vacaciones, enfermedad...",
+    "Loading": "Cargando...",
+    "ListTitle": "Días libres registrados",
+    "Empty": "No hay días libres registrados para este barbero.",
+    "Validation": {
+      "StartRequired": "La fecha de inicio es obligatoria.",
+      "StartFuture": "La fecha de inicio debe ser hoy o en el futuro.",
+      "EndRequired": "La fecha de fin es obligatoria.",
+      "EndAfterStart": "La fecha de fin debe ser igual o posterior al inicio.",
+      "InvalidData": "Datos inválidos."
+    },
+    "Actions": {
+      "Add": "Agregar",
+      "Saving": "Guardando...",
+      "Delete": "Eliminar",
+      "Cancel": "Cancelar"
+    },
+    "Dialog": {
+      "Title": "Eliminar días libres",
+      "Description": "¿Estás seguro de que querés eliminar este período de días libres? Esta acción no se puede deshacer."
+    },
+    "Toast": {
+      "CreateSuccess": "Días libres registrados correctamente.",
+      "CreateConflict": "El período seleccionado se superpone con días libres ya existentes.",
+      "CreateError": "No se pudo registrar el tiempo libre.",
+      "DeleteSuccess": "Días libres eliminados.",
+      "DeleteError": "No se pudo eliminar."
+    }
+  },
+  "BookingRules": {
+    "PageTitle": "Reglas de reserva",
+    "PageDescription": "Configurá la duración de los turnos, el aviso mínimo y el límite de días para reservar.",
+    "MobileTitle": "Reglas de reserva",
+    "MobileDescription": "Configurá la disponibilidad y los límites de reserva.",
+    "HeaderDescription": "Configurá turnos, aviso mínimo y límite de días",
+    "DisabledMessage": "Necesitás una barbería activa para configurar las reglas de reserva.",
+    "BrandSubtitle": "Configuración",
+    "LoadingDesktop": "Cargando reglas...",
+    "Fields": {
+      "SlotDurationLabel": "Duración del turno",
+      "SlotDurationHint": "Duración de cada bloque de tiempo reservable.",
+      "MaxDaysLabel": "Anticipación máxima",
+      "MaxDaysHint": "Cuántos días en el futuro pueden reservar los clientes.",
+      "MaxDaysMobileLabel": "Días máximos en adelanto",
+      "MaxDaysMobileHint": "Cuántos días a futuro pueden reservar.",
+      "MinNoticeLabel": "Aviso mínimo (horas)",
+      "MinNoticeHint": "Cuántas horas de antelación requiere una reserva.",
+      "MinNoticeMobileHint": "Horas de antelación requeridas.",
+      "BufferLabel": "Buffer entre turnos (minutos)",
+      "BufferHint": "Tiempo de descanso suave entre citas (solo para el flujo público).",
+      "BufferMobileLabel": "Buffer (minutos)",
+      "BufferMobileHint": "Tiempo entre citas (flujo público)."
+    },
+    "Validation": {
+      "SlotDurationInvalid": "Duración inválida. Elegí 15, 30, 45 o 60 minutos.",
+      "MaxDaysMin": "Debe ser al menos 1 día.",
+      "MinNoticeMin": "Debe ser 0 o más horas.",
+      "BufferMin": "Debe ser 0 o más minutos."
+    },
+    "Actions": {
+      "Save": "Guardar reglas",
+      "Saving": "Guardando..."
+    },
+    "Footer": {
+      "ErrorHint": "Corrige los errores antes de guardar.",
+      "SuccessHint": "Los cambios se aplican a los turnos futuros."
+    },
+    "Toast": {
+      "SaveSuccess": "Reglas de reserva guardadas correctamente.",
+      "SaveError": "No se pudieron guardar las reglas de reserva.",
+      "ValidationError": "Corrige los errores antes de guardar."
+    },
+    "Mobile": {
+      "DashboardNav": "Dashboard"
+    }
+  },
   "ServicesV2": {
     "DisabledMessage": "Primero crea/asigna una barberia para habilitar operaciones de servicios.",
     "Sidebar": {
@@ -801,6 +949,94 @@
       "Shave": "Afeitado",
       "Kids": "Ninos",
       "Styling": "Estilizado"
+    }
+  },
+  "Booking": {
+    "Page": {
+      "Title": "Reservá tu turno",
+      "Subtitle": "Rápido, fácil y sin llamadas",
+      "FooterNote": "Tu información es privada y solo se usa para confirmar tu turno",
+      "Loading": "Cargando..."
+    },
+    "Steps": {
+      "Service": "Servicio",
+      "Barber": "Barbero",
+      "DateTime": "Fecha y hora",
+      "Contact": "Tus datos",
+      "Confirmation": "Confirmación"
+    },
+    "Common": {
+      "Next": "Continuar →",
+      "Back": "← Volver",
+      "BackIcon": "Volver",
+      "Today": "HOY"
+    },
+    "ServiceStep": {
+      "Title": "¿Qué servicio buscás?",
+      "Subtitle": "Seleccioná el servicio que querés reservar",
+      "ErrorTitle": "No pudimos cargar los servicios",
+      "ErrorBody": "Intentá recargar la página o contactá a la barbería",
+      "EmptyTitle": "No hay servicios disponibles",
+      "EmptyBody": "Esta barbería no tiene servicios activos por el momento"
+    },
+    "BarberStep": {
+      "Title": "¿Con quién querés sacar turno?",
+      "Subtitle": "Elegí un barbero o dejá que te asignemos uno disponible",
+      "AnyBarberName": "Cualquier barbero disponible",
+      "AnyBarberHint": "Se asigna automáticamente",
+      "ErrorTitle": "No pudimos cargar los barberos",
+      "ErrorBody": "Intentá recargar la página o contactá a la barbería"
+    },
+    "DateTimeStep": {
+      "Title": "¿Cuándo querés venir?",
+      "Subtitle": "Elegí una fecha y un horario disponible",
+      "DateLabel": "Fecha",
+      "TimeLabel": "Horario disponible",
+      "PickDatePrompt": "Seleccioná una fecha para ver los horarios disponibles",
+      "BarberRequiredTitle": "Necesitás seleccionar un barbero específico",
+      "BarberRequiredBody": "Para ver los horarios disponibles, volvé al paso anterior y elegí un barbero.",
+      "SlotErrorTitle": "No pudimos cargar los horarios",
+      "SlotErrorBody": "Intentá nuevamente o elegí otra fecha",
+      "SlotEmptyTitle": "No hay horarios disponibles",
+      "SlotEmptyBody": "Probá con otra fecha o barbero"
+    },
+    "ContactStep": {
+      "Title": "Tus datos de contacto",
+      "Subtitle": "Los usamos para confirmar tu turno",
+      "NameLabel": "Nombre completo",
+      "NamePlaceholder": "Juan García",
+      "PhoneLabel": "Teléfono",
+      "PhonePlaceholder": "+54 9 11 1234-5678",
+      "PrivacyNote": "Tu información es privada y solo se usa para gestionar tu reserva.",
+      "Validation": {
+        "NameRequired": "El nombre es requerido",
+        "NameMinLength": "El nombre debe tener al menos 2 caracteres",
+        "PhoneRequired": "El teléfono es requerido",
+        "PhoneMinDigits": "El teléfono debe tener al menos 8 dígitos",
+        "PhoneInvalid": "Formato de teléfono inválido"
+      }
+    },
+    "ConfirmationStep": {
+      "Title": "Confirmá tu reserva",
+      "Subtitle": "Revisá los detalles y confirmá",
+      "LabelService": "Servicio",
+      "LabelBarber": "Barbero",
+      "LabelDate": "Fecha",
+      "LabelTime": "Horario",
+      "LabelName": "Nombre",
+      "LabelPhone": "Teléfono",
+      "Submit": "Confirmar reserva",
+      "Submitting": "Confirmando...",
+      "ConflictTitle": "Este horario ya fue reservado",
+      "ConflictBody": "Por favor, elegí otro horario para continuar.",
+      "ConflictAction": "Elegir otro horario",
+      "ErrorTitle": "Ocurrió un error al confirmar tu reserva",
+      "ErrorBody": "Intentá nuevamente o contactá a la barbería.",
+      "RetryAction": "Reintentar",
+      "SuccessTitle": "¡Turno reservado!",
+      "SuccessSubtitle": "Te esperamos el día y horario indicado",
+      "SuccessStatus": "Pendiente de confirmación",
+      "BookingIdPrefix": "Reserva #"
     }
   }
 }

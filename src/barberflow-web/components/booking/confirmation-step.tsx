@@ -9,6 +9,7 @@ import {
   type PublicSlot,
   type PublicBookingResponse,
 } from "@/lib/api/public-api";
+import { Texts } from "@/lib/content/texts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,7 @@ type SuccessScreenProps = {
 };
 
 function SuccessScreen({ booking, selectedDate, selectedSlot }: SuccessScreenProps) {
+  const { ConfirmationStep: CS } = Texts.Booking;
   const startLabel = formatTime(selectedSlot.start);
   const endLabel = formatTime(selectedSlot.end);
 
@@ -137,10 +139,10 @@ function SuccessScreen({ booking, selectedDate, selectedSlot }: SuccessScreenPro
       {/* Heading */}
       <div>
         <h2 className="text-2xl font-black" style={{ color: "var(--bf-text-strong)" }}>
-          ¡Turno reservado!
+          {CS.SuccessTitle}
         </h2>
         <p className="mt-1 text-sm" style={{ color: "var(--bf-text-soft)" }}>
-          Te esperamos el día y horario indicado
+          {CS.SuccessSubtitle}
         </p>
       </div>
 
@@ -155,22 +157,22 @@ function SuccessScreen({ booking, selectedDate, selectedSlot }: SuccessScreenPro
         <div className="space-y-4">
           <SummaryRow
             icon={<Scissors className="h-4 w-4" />}
-            label="Servicio"
+            label={CS.LabelService}
             value={booking.serviceName}
           />
           <SummaryRow
             icon={<User2 className="h-4 w-4" />}
-            label="Barbero"
+            label={CS.LabelBarber}
             value={booking.barberName}
           />
           <SummaryRow
             icon={<CalendarDays className="h-4 w-4" />}
-            label="Fecha"
+            label={CS.LabelDate}
             value={formatFullDate(selectedDate)}
           />
           <SummaryRow
             icon={<Clock className="h-4 w-4" />}
-            label="Horario"
+            label={CS.LabelTime}
             value={`${startLabel} – ${endLabel}`}
           />
         </div>
@@ -186,13 +188,13 @@ function SuccessScreen({ booking, selectedDate, selectedSlot }: SuccessScreenPro
       >
         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: "var(--bf-brand-copper)" }} />
         <span className="text-xs font-semibold" style={{ color: "var(--bf-brand-copper)" }}>
-          Pendiente de confirmación
+          {CS.SuccessStatus}
         </span>
       </div>
 
       {/* Appointment ID */}
       <p className="text-xs" style={{ color: "var(--bf-text-soft)" }}>
-        Reserva #{booking.appointmentId.slice(0, 8).toUpperCase()}
+        {CS.BookingIdPrefix}{booking.appointmentId.slice(0, 8).toUpperCase()}
       </p>
     </div>
   );
@@ -211,6 +213,7 @@ export function ConfirmationStep({
   onBack,
   onGoToStep,
 }: ConfirmationStepProps) {
+  const { ConfirmationStep: CS, Common: BC } = Texts.Booking;
   const [createBooking, { isLoading, data: booking, error, reset }] =
     useCreatePublicBookingMutation();
 
@@ -247,10 +250,10 @@ export function ConfirmationStep({
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold" style={{ color: "var(--bf-text-strong)" }}>
-          Confirmá tu reserva
+          {CS.Title}
         </h2>
         <p className="mt-1 text-sm" style={{ color: "var(--bf-text-soft)" }}>
-          Revisá los detalles y confirmá
+          {CS.Subtitle}
         </p>
       </div>
 
@@ -264,22 +267,22 @@ export function ConfirmationStep({
       >
         <SummaryRow
           icon={<Scissors className="h-4 w-4" />}
-          label="Servicio"
+          label={CS.LabelService}
           value={`${selectedService.name} · ${formatDuration(selectedService.durationMinutes)} · ${formatPrice(selectedService.price)}`}
         />
         <SummaryRow
           icon={<User2 className="h-4 w-4" />}
-          label="Barbero"
+          label={CS.LabelBarber}
           value={selectedBarber.name}
         />
         <SummaryRow
           icon={<CalendarDays className="h-4 w-4" />}
-          label="Fecha"
+          label={CS.LabelDate}
           value={formatFullDate(selectedDate)}
         />
         <SummaryRow
           icon={<Clock className="h-4 w-4" />}
-          label="Horario"
+          label={CS.LabelTime}
           value={`${startLabel} – ${endLabel}`}
         />
 
@@ -288,12 +291,12 @@ export function ConfirmationStep({
 
         <SummaryRow
           icon={<User className="h-4 w-4" />}
-          label="Nombre"
+          label={CS.LabelName}
           value={customerName}
         />
         <SummaryRow
           icon={<Phone className="h-4 w-4" />}
-          label="Teléfono"
+          label={CS.LabelPhone}
           value={customerPhone}
         />
       </div>
@@ -314,10 +317,10 @@ export function ConfirmationStep({
             />
             <div>
               <p className="text-sm font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-                Este horario ya fue reservado
+                {CS.ConflictTitle}
               </p>
               <p className="mt-0.5 text-xs" style={{ color: "var(--bf-text-soft)" }}>
-                Por favor, elegí otro horario para continuar.
+                {CS.ConflictBody}
               </p>
             </div>
           </div>
@@ -330,7 +333,7 @@ export function ConfirmationStep({
             className="self-start rounded-xl px-5 py-2.5 text-xs font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
             style={{ backgroundColor: "var(--bf-brand-copper)", color: "white" }}
           >
-            Elegir otro horario
+            {CS.ConflictAction}
           </button>
         </div>
       )}
@@ -350,10 +353,10 @@ export function ConfirmationStep({
             />
             <div>
               <p className="text-sm font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-                Ocurrió un error al confirmar tu reserva
+                {CS.ErrorTitle}
               </p>
               <p className="mt-0.5 text-xs" style={{ color: "var(--bf-text-soft)" }}>
-                Intentá nuevamente o contactá a la barbería.
+                {CS.ErrorBody}
               </p>
             </div>
           </div>
@@ -366,7 +369,7 @@ export function ConfirmationStep({
             className="self-start rounded-xl px-5 py-2.5 text-xs font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
             style={{ backgroundColor: "var(--bf-brand-copper)", color: "white" }}
           >
-            Reintentar
+            {CS.RetryAction}
           </button>
         </div>
       )}
@@ -384,7 +387,7 @@ export function ConfirmationStep({
           style={{ color: "var(--bf-text-body)" }}
         >
           <ChevronLeft className="h-4 w-4" />
-          Volver
+          {BC.BackIcon}
         </button>
 
         <button
@@ -403,7 +406,7 @@ export function ConfirmationStep({
           }}
         >
           {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-          {isLoading ? "Confirmando..." : "Confirmar reserva"}
+          {isLoading ? CS.Submitting : CS.Submit}
         </button>
       </div>
     </div>

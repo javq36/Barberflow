@@ -21,6 +21,9 @@ import { APP_ROUTES } from "@/lib/config/app";
 import { useAppToast } from "@/lib/toast/toast-provider";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Texts } from "@/lib/content/texts";
+
+const { BookingRules: T, Common, SharedShell } = Texts;
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -62,19 +65,19 @@ function validateForm(state: BookingRulesFormState): FormValidationErrors {
   const errors: FormValidationErrors = {};
 
   if (!SLOT_DURATION_OPTIONS.includes(state.slotDurationMinutes)) {
-    errors.slotDurationMinutes = "Duración inválida. Elegí 15, 30, 45 o 60 minutos.";
+    errors.slotDurationMinutes = T.Validation.SlotDurationInvalid;
   }
 
   if (!Number.isInteger(state.maxDaysInAdvance) || state.maxDaysInAdvance < 1) {
-    errors.maxDaysInAdvance = "Debe ser al menos 1 día.";
+    errors.maxDaysInAdvance = T.Validation.MaxDaysMin;
   }
 
   if (!Number.isInteger(state.minNoticeHours) || state.minNoticeHours < 0) {
-    errors.minNoticeHours = "Debe ser 0 o más horas.";
+    errors.minNoticeHours = T.Validation.MinNoticeMin;
   }
 
   if (!Number.isInteger(state.bufferMinutes) || state.bufferMinutes < 0) {
-    errors.bufferMinutes = "Debe ser 0 o más minutos.";
+    errors.bufferMinutes = T.Validation.BufferMin;
   }
 
   return errors;
@@ -138,7 +141,7 @@ function SlotDurationSelect({ value, error, onChange }: SlotDurationSelectProps)
   return (
     <div className="flex flex-col gap-1">
       <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-        Duración del turno
+        {T.Fields.SlotDurationLabel}
       </label>
       <select
         value={value}
@@ -161,7 +164,7 @@ function SlotDurationSelect({ value, error, onChange }: SlotDurationSelectProps)
         </p>
       ) : (
         <p className="text-xs text-slate-500">
-          Duración de cada bloque de tiempo reservable.
+          {T.Fields.SlotDurationHint}
         </p>
       )}
     </div>
@@ -203,8 +206,8 @@ function BookingRulesForm({
         />
 
         <NumberField
-          label="Anticipación máxima"
-          hint="Cuántos días en el futuro pueden reservar los clientes."
+          label={T.Fields.MaxDaysLabel}
+          hint={T.Fields.MaxDaysHint}
           value={formState.maxDaysInAdvance}
           min={1}
           error={errors.maxDaysInAdvance}
@@ -212,8 +215,8 @@ function BookingRulesForm({
         />
 
         <NumberField
-          label="Aviso mínimo (horas)"
-          hint="Cuántas horas de antelación requiere una reserva."
+          label={T.Fields.MinNoticeLabel}
+          hint={T.Fields.MinNoticeHint}
           value={formState.minNoticeHours}
           min={0}
           error={errors.minNoticeHours}
@@ -221,8 +224,8 @@ function BookingRulesForm({
         />
 
         <NumberField
-          label="Buffer entre turnos (minutos)"
-          hint="Tiempo de descanso suave entre citas (solo para el flujo público)."
+          label={T.Fields.BufferLabel}
+          hint={T.Fields.BufferHint}
           value={formState.bufferMinutes}
           min={0}
           error={errors.bufferMinutes}
@@ -234,18 +237,18 @@ function BookingRulesForm({
         {hasErrors ? (
           <p className="flex items-center gap-2 text-xs text-red-400">
             <AlertCircle className="h-4 w-4" />
-            Corrige los errores antes de guardar.
+            {T.Footer.ErrorHint}
           </p>
         ) : (
           <p className="text-xs text-slate-500">
-            Los cambios se aplican a los turnos futuros.
+            {T.Footer.SuccessHint}
           </p>
         )}
         <LoadingButton
           type="button"
           onClick={onSave}
           isLoading={isSaving}
-          loadingText="Guardando..."
+          loadingText={T.Actions.Saving}
           disabled={hasErrors}
           className={cn(
             "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-bold",
@@ -255,7 +258,7 @@ function BookingRulesForm({
           )}
         >
           <Save className="h-4 w-4" />
-          Guardar reglas
+          {T.Actions.Save}
         </LoadingButton>
       </div>
     </div>
@@ -302,8 +305,8 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
 
     if (hasValidationErrors(errors)) {
       showToast({
-        title: "Operacion fallida",
-        description: "Corrige los errores antes de guardar.",
+        title: Common.Toasts.ErrorTitle,
+        description: T.Toast.ValidationError,
         variant: "error",
       });
       return;
@@ -321,8 +324,8 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
 
       setFormOverride(null);
       showToast({
-        title: "Operacion completada",
-        description: "Reglas de reserva guardadas correctamente.",
+        title: Common.Toasts.SuccessTitle,
+        description: T.Toast.SaveSuccess,
         variant: "success",
       });
     } catch (error) {
@@ -330,9 +333,9 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
         setFormOverride(snapshot);
       }
       showToast({
-        title: "Operacion fallida",
+        title: Common.Toasts.ErrorTitle,
         description:
-          getApiErrorMessage(error) ?? "No se pudieron guardar las reglas de reserva.",
+          getApiErrorMessage(error) ?? T.Toast.SaveError,
         variant: "error",
       });
     }
@@ -345,17 +348,16 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
   const desktopBody = (
     <div className="flex-1 overflow-y-auto p-8">
       <div className="mb-8">
-        <h2 className="mb-2 text-3xl font-black">Reglas de reserva</h2>
+        <h2 className="mb-2 text-3xl font-black">{T.PageTitle}</h2>
         <p className="text-slate-400">
-          Configurá la duración de los turnos, el aviso mínimo y el límite de días para
-          reservar.
+          {T.PageDescription}
         </p>
       </div>
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Cargando reglas...
+          {T.LoadingDesktop}
         </div>
       ) : (
         <div className="max-w-lg">
@@ -379,15 +381,15 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
   const mobileBody = (
     <main className="flex-1 overflow-y-auto pb-24">
       <div className="p-4">
-        <h2 className="mb-1 text-2xl font-bold">Reglas de reserva</h2>
+        <h2 className="mb-1 text-2xl font-bold">{T.MobileTitle}</h2>
         <p className="mb-6 text-sm text-slate-400">
-          Configurá la disponibilidad y los límites de reserva.
+          {T.MobileDescription}
         </p>
 
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-slate-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Cargando...
+            {Common.Actions.Loading}
           </div>
         ) : (
           <>
@@ -399,8 +401,8 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
               />
 
               <NumberField
-                label="Días máximos en adelanto"
-                hint="Cuántos días a futuro pueden reservar."
+                label={T.Fields.MaxDaysMobileLabel}
+                hint={T.Fields.MaxDaysMobileHint}
                 value={formState.maxDaysInAdvance}
                 min={1}
                 error={validationErrors.maxDaysInAdvance}
@@ -408,8 +410,8 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
               />
 
               <NumberField
-                label="Aviso mínimo (horas)"
-                hint="Horas de antelación requeridas."
+                label={T.Fields.MinNoticeLabel}
+                hint={T.Fields.MinNoticeMobileHint}
                 value={formState.minNoticeHours}
                 min={0}
                 error={validationErrors.minNoticeHours}
@@ -417,8 +419,8 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
               />
 
               <NumberField
-                label="Buffer (minutos)"
-                hint="Tiempo entre citas (flujo público)."
+                label={T.Fields.BufferMobileLabel}
+                hint={T.Fields.BufferMobileHint}
                 value={formState.bufferMinutes}
                 min={0}
                 error={validationErrors.bufferMinutes}
@@ -431,11 +433,11 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
                 type="button"
                 onClick={handleSave}
                 isLoading={updateState.isLoading}
-                loadingText="Guardando..."
+                loadingText={T.Actions.Saving}
                 disabled={hasValidationErrors(validationErrors)}
                 className="w-full rounded-lg bg-slate-100 py-3 text-sm font-bold text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Guardar reglas
+                {T.Actions.Save}
               </LoadingButton>
             </div>
           </>
@@ -447,19 +449,19 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
   return (
     <RoleWorkspaceShell
       canOperate={canOperate}
-      disabledMessage="Necesitás una barbería activa para configurar las reglas de reserva."
+      disabledMessage={T.DisabledMessage}
       role={role}
       activeItemId="booking-rules"
       onNavigate={(href) => router.push(href)}
-      brandTitle="BarberFlow"
-      brandSubtitle="Configuración"
+      brandTitle={SharedShell.BrandName}
+      brandSubtitle={T.BrandSubtitle}
       desktopHeader={
         <header className="flex h-16 items-center gap-3 border-b border-slate-800 bg-[#191919]/50 px-8 backdrop-blur-md">
           <Settings className="h-5 w-5 text-slate-400" />
           <div>
-            <h1 className="text-sm font-bold">Reglas de reserva</h1>
+            <h1 className="text-sm font-bold">{T.PageTitle}</h1>
             <p className="text-xs text-slate-500">
-              Configurá turnos, aviso mínimo y límite de días
+              {T.HeaderDescription}
             </p>
           </div>
         </header>
@@ -474,7 +476,7 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
           >
             <ChevronRight className="h-5 w-5 rotate-180" />
           </button>
-          <h1 className="text-xl font-bold">Reglas de reserva</h1>
+          <h1 className="text-xl font-bold">{T.MobileTitle}</h1>
         </header>
       }
       mobileBody={mobileBody}
@@ -486,7 +488,7 @@ export function BookingRulesSection({ canOperate, role }: BookingRulesSectionPro
             className="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400"
           >
             <Settings className="h-4 w-4" />
-            <p className="text-[10px] font-medium">Dashboard</p>
+            <p className="text-[10px] font-medium">{T.Mobile.DashboardNav}</p>
           </button>
         </nav>
       }

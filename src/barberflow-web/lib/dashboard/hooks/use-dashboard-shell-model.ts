@@ -24,10 +24,14 @@ export function useDashboardShellModel({ role }: UseDashboardShellModelInput) {
       selectDashboardNavItems(role, {
         Overview: Dashboard.Navigation.Overview,
         Schedule: Dashboard.Navigation.Schedule,
+        Payments: Dashboard.Navigation.Payments,
         Services: Dashboard.Navigation.Services,
         Barbers: Dashboard.Navigation.Barbers,
         Customers: Dashboard.Navigation.Customers,
         Platform: Dashboard.Navigation.Platform,
+        WorkingHours: Dashboard.Navigation.WorkingHours,
+        TimeOff: Dashboard.Navigation.TimeOff,
+        BookingRules: Dashboard.Navigation.BookingRules,
       }),
     [Dashboard.Navigation, role],
   );

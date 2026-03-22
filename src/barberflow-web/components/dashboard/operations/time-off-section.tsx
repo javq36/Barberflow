@@ -17,6 +17,9 @@ import { AppRole } from "@/lib/auth/permissions";
 import { getApiErrorMessage } from "@/lib/api/error";
 import { APP_ROUTES } from "@/lib/config/app";
 import { useAppToast } from "@/lib/toast/toast-provider";
+import { Texts } from "@/lib/content/texts";
+
+const { TimeOff: T, Common, SharedShell } = Texts;
 
 type TimeOffSectionProps = {
   canOperate: boolean;
@@ -52,15 +55,15 @@ function validateForm(startDate: string, endDate: string): FormErrors {
   const today = getTodayString();
 
   if (!startDate) {
-    errors.startDate = "La fecha de inicio es obligatoria.";
+    errors.startDate = T.Validation.StartRequired;
   } else if (startDate < today) {
-    errors.startDate = "La fecha de inicio debe ser hoy o en el futuro.";
+    errors.startDate = T.Validation.StartFuture;
   }
 
   if (!endDate) {
-    errors.endDate = "La fecha de fin es obligatoria.";
+    errors.endDate = T.Validation.EndRequired;
   } else if (startDate && endDate < startDate) {
-    errors.endDate = "La fecha de fin debe ser igual o posterior al inicio.";
+    errors.endDate = T.Validation.EndAfterStart;
   }
 
   return errors;
@@ -111,8 +114,8 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
     if (errors.startDate || errors.endDate) {
       setFormErrors(errors);
       showToast({
-        title: "Operacion fallida",
-        description: errors.startDate ?? errors.endDate ?? "Datos inválidos.",
+        title: Common.Toasts.ErrorTitle,
+        description: errors.startDate ?? errors.endDate ?? T.Validation.InvalidData,
         variant: "error",
       });
       return;
@@ -130,8 +133,8 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
 
       resetForm();
       showToast({
-        title: "Operacion completada",
-        description: "Días libres registrados correctamente.",
+        title: Common.Toasts.SuccessTitle,
+        description: T.Toast.CreateSuccess,
         variant: "success",
       });
     } catch (error) {
@@ -144,11 +147,11 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
 
       const message =
         status === 409
-          ? "El período seleccionado se superpone con días libres ya existentes."
-          : (getApiErrorMessage(error) ?? "No se pudo registrar el tiempo libre.");
+          ? T.Toast.CreateConflict
+          : (getApiErrorMessage(error) ?? T.Toast.CreateError);
 
       showToast({
-        title: "Operacion fallida",
+        title: Common.Toasts.ErrorTitle,
         description: message,
         variant: "error",
       });
@@ -166,15 +169,15 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
 
       setDeleteCandidateId(null);
       showToast({
-        title: "Operacion completada",
-        description: "Días libres eliminados.",
+        title: Common.Toasts.SuccessTitle,
+        description: T.Toast.DeleteSuccess,
         variant: "success",
       });
     } catch (error) {
       setDeleteCandidateId(null);
       showToast({
-        title: "Operacion fallida",
-        description: getApiErrorMessage(error) ?? "No se pudo eliminar.",
+        title: Common.Toasts.ErrorTitle,
+        description: getApiErrorMessage(error) ?? T.Toast.DeleteError,
         variant: "error",
       });
     }
@@ -185,7 +188,7 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
   const barberSelectorBlock = (
     <div className="mb-6">
       <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-400">
-        Barbero
+        {T.BarberLabel}
       </label>
       <select
         value={activeBarberId}
@@ -203,12 +206,12 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
 
   const addFormBlock = (
     <div className="mb-8 rounded-xl border border-slate-800 bg-slate-800/10 p-6">
-      <h3 className="mb-4 text-lg font-bold">Agregar días libres</h3>
+      <h3 className="mb-4 text-lg font-bold">{T.AddFormTitle}</h3>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-semibold">
-              Fecha inicio <span className="text-red-400">*</span>
+              {T.StartDateLabel} <span className="text-red-400">*</span>
             </label>
             <input
               type="date"
@@ -232,7 +235,7 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold">
-              Fecha fin <span className="text-red-400">*</span>
+              {T.EndDateLabel} <span className="text-red-400">*</span>
             </label>
             <input
               type="date"
@@ -257,14 +260,14 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-semibold">
-            Motivo{" "}
-            <span className="text-xs font-normal text-slate-500">(opcional)</span>
+            {T.ReasonLabel}{" "}
+            <span className="text-xs font-normal text-slate-500">{T.ReasonOptional}</span>
           </label>
           <input
             type="text"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Ej: Vacaciones, enfermedad..."
+            placeholder={T.ReasonPlaceholder}
             className="w-full rounded-lg border border-slate-700 bg-slate-800/50 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
           />
         </div>
@@ -272,11 +275,11 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
           <LoadingButton
             type="submit"
             isLoading={createTimeOffState.isLoading}
-            loadingText="Guardando..."
+            loadingText={T.Actions.Saving}
             className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-900"
           >
             <Plus className="h-4 w-4" />
-            Agregar
+            {T.Actions.Add}
           </LoadingButton>
         </div>
       </form>
@@ -287,7 +290,7 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
     <div className="rounded-xl border border-slate-800 bg-slate-800/10">
       <div className="border-b border-slate-800 px-6 py-4">
         <h3 className="text-lg font-bold">
-          Días libres registrados
+          {T.ListTitle}
           {selectedBarber ? (
             <span className="ml-2 text-sm font-normal text-slate-400">
               — {selectedBarber.name}
@@ -298,13 +301,13 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
 
       {timeOffQuery.isLoading ? (
         <div className="px-6 py-8 text-center text-sm text-slate-400">
-          Cargando...
+          {T.Loading}
         </div>
       ) : timeOffEntries.length === 0 ? (
         <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
           <CalendarOff className="h-10 w-10 text-slate-600" />
           <p className="text-sm text-slate-400">
-            No hay días libres registrados para este barbero.
+            {T.Empty}
           </p>
         </div>
       ) : (
@@ -340,9 +343,9 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
   const desktopBody = (
     <div className="flex-1 overflow-y-auto p-8">
       <div className="mb-8">
-        <h2 className="mb-2 text-3xl font-black">Días libres</h2>
+        <h2 className="mb-2 text-3xl font-black">{T.PageTitle}</h2>
         <p className="text-slate-400">
-          Gestiona los períodos de ausencia de cada barbero.
+          {T.PageDescription}
         </p>
       </div>
       {barberSelectorBlock}
@@ -355,15 +358,15 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
     <>
       <RoleWorkspaceShell
         canOperate={canOperate}
-        disabledMessage="Debes configurar una barbería para gestionar los días libres."
+        disabledMessage={T.DisabledMessage}
         role={role}
         activeItemId="time-off"
         onNavigate={(href) => router.push(href)}
-        brandTitle="BarberFlow"
-        brandSubtitle="Panel de gestión"
+        brandTitle={SharedShell.BrandName}
+        brandSubtitle={T.BrandSubtitle}
         desktopHeader={
           <header className="flex h-16 items-center justify-between border-b border-slate-800 bg-[#191919]/50 px-8 backdrop-blur-md">
-            <h1 className="text-xl font-bold">Días libres</h1>
+            <h1 className="text-xl font-bold">{T.PageTitle}</h1>
           </header>
         }
         desktopBody={desktopBody}
@@ -377,7 +380,7 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
               >
                 <ChevronRight className="h-5 w-5 rotate-180" />
               </button>
-              <h1 className="text-xl font-bold">Días libres</h1>
+              <h1 className="text-xl font-bold">{T.PageTitle}</h1>
             </div>
           </header>
         }
@@ -393,10 +396,10 @@ export function TimeOffSection({ canOperate, role }: TimeOffSectionProps) {
 
       <ConfirmDialog
         open={Boolean(deleteCandidateId)}
-        title="Eliminar días libres"
-        description="¿Estás seguro de que querés eliminar este período de días libres? Esta acción no se puede deshacer."
-        confirmLabel="Eliminar"
-        cancelLabel="Cancelar"
+        title={T.Dialog.Title}
+        description={T.Dialog.Description}
+        confirmLabel={T.Actions.Delete}
+        cancelLabel={T.Actions.Cancel}
         onConfirm={onConfirmDelete}
         onCancel={() => setDeleteCandidateId(null)}
       />

@@ -29,6 +29,9 @@ export function useOwnerPanelShellModel({
         Barbers: Dashboard.Navigation.Barbers,
         Customers: Dashboard.Navigation.Customers,
         Platform: Dashboard.Navigation.Platform,
+        WorkingHours: Dashboard.Navigation.WorkingHours,
+        TimeOff: Dashboard.Navigation.TimeOff,
+        BookingRules: Dashboard.Navigation.BookingRules,
       }),
     [Dashboard.Navigation, role],
   );
