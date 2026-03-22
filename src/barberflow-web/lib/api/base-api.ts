@@ -12,6 +12,9 @@ export const baseApi = createApi({
     "Appointments",
     "DashboardSummary",
     "Barbershop",
+    "WorkingHours",
+    "TimeOff",
+    "BookingRules",
   ],
   endpoints: () => ({}),
 });
