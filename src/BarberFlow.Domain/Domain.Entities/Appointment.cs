@@ -25,6 +25,13 @@ public class Appointment
 
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Marca de tiempo en que se envió el recordatorio de 24h.
+    /// <c>null</c> indica que aún no se ha enviado el recordatorio.
+    /// Se resetea a <c>null</c> cuando se reprograma la cita.
+    /// </summary>
+    public DateTime? ReminderSentAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Barbershop? Barbershop { get; set; }
