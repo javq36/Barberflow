@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { User, Phone, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Texts } from "@/lib/content/texts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,17 +20,19 @@ type ContactStepProps = {
 
 const PHONE_REGEX = /^\+?[\d\s\-]{8,}$/;
 
+const { Validation } = Texts.Booking.ContactStep;
+
 function validateName(value: string): string | null {
-  if (!value.trim()) return "El nombre es requerido";
-  if (value.trim().length < 2) return "El nombre debe tener al menos 2 caracteres";
+  if (!value.trim()) return Validation.NameRequired;
+  if (value.trim().length < 2) return Validation.NameMinLength;
   return null;
 }
 
 function validatePhone(value: string): string | null {
-  if (!value.trim()) return "El teléfono es requerido";
+  if (!value.trim()) return Validation.PhoneRequired;
   const digitsOnly = value.replace(/\D/g, "");
-  if (digitsOnly.length < 8) return "El teléfono debe tener al menos 8 dígitos";
-  if (!PHONE_REGEX.test(value.trim())) return "Formato de teléfono inválido";
+  if (digitsOnly.length < 8) return Validation.PhoneMinDigits;
+  if (!PHONE_REGEX.test(value.trim())) return Validation.PhoneInvalid;
   return null;
 }
 
@@ -127,6 +130,7 @@ export function ContactStep({
   onNext,
   onBack,
 }: ContactStepProps) {
+  const { ContactStep: CS, Common: BC } = Texts.Booking;
   const [nameTouched, setNameTouched] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
 
@@ -148,10 +152,10 @@ export function ContactStep({
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold" style={{ color: "var(--bf-text-strong)" }}>
-          Tus datos de contacto
+          {CS.Title}
         </h2>
         <p className="mt-1 text-sm" style={{ color: "var(--bf-text-soft)" }}>
-          Los usamos para confirmar tu turno
+          {CS.Subtitle}
         </p>
       </div>
 
@@ -159,10 +163,10 @@ export function ContactStep({
       <div className="space-y-4">
         <Field
           id="customer-name"
-          label="Nombre completo"
+          label={CS.NameLabel}
           type="text"
           value={customerName}
-          placeholder="Juan García"
+          placeholder={CS.NamePlaceholder}
           icon={<User className="h-4 w-4" />}
           error={nameError}
           touched={nameTouched}
@@ -172,10 +176,10 @@ export function ContactStep({
 
         <Field
           id="customer-phone"
-          label="Teléfono"
+          label={CS.PhoneLabel}
           type="tel"
           value={customerPhone}
-          placeholder="+54 9 11 1234-5678"
+          placeholder={CS.PhonePlaceholder}
           icon={<Phone className="h-4 w-4" />}
           error={phoneError}
           touched={phoneTouched}
@@ -186,7 +190,7 @@ export function ContactStep({
 
       {/* Privacy note */}
       <p className="text-xs" style={{ color: "var(--bf-text-soft)" }}>
-        Tu información es privada y solo se usa para gestionar tu reserva.
+        {CS.PrivacyNote}
       </p>
 
       {/* Navigation */}
@@ -198,7 +202,7 @@ export function ContactStep({
           style={{ color: "var(--bf-text-body)" }}
         >
           <ChevronLeft className="h-4 w-4" />
-          Volver
+          {BC.BackIcon}
         </button>
 
         <button
@@ -216,7 +220,7 @@ export function ContactStep({
             color: "white",
           }}
         >
-          Continuar →
+          {BC.Next}
         </button>
       </div>
     </div>

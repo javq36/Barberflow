@@ -5,10 +5,12 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useGetPublicAvailabilityQuery,
+  useGetPublicBarbersQuery,
   type PublicBarber,
   type PublicService,
   type PublicSlot,
 } from "@/lib/api/public-api";
+import { Texts } from "@/lib/content/texts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,6 +22,12 @@ type DateTimeStepProps = {
   selectedSlot: PublicSlot | undefined;
   onSelectDate: (date: string) => void;
   onSelectSlot: (slot: PublicSlot) => void;
+  /**
+   * Called when the user picks a slot in "any barber" mode and the slot carries
+   * a barberId. The wizard updates its selectedBarber so the correct barber is
+   * passed to the confirmation step.
+   */
+  onAutoSelectBarber: (barber: PublicBarber) => void;
   onNext: () => void;
   onBack: () => void;
 };
@@ -140,7 +148,7 @@ function DatePill({ dateStr, isSelected, onSelect }: DatePillProps) {
             color: isSelected ? "white" : "var(--bf-text-soft)",
           }}
         >
-          HOY
+          {Texts.Booking.Common.Today}
         </span>
       )}
     </button>
@@ -203,6 +211,10 @@ function SlotButton({ slot, isSelected, onSelect }: SlotButtonProps) {
 
 type SlotSectionProps = {
   slug: string;
+  /**
+   * Pass the barber's GUID string for a specific barber, or "any" to get
+   * merged availability across all barbers.
+   */
   barberId: string;
   serviceId: string;
   selectedDate: string;
@@ -218,9 +230,11 @@ function SlotSection({
   selectedSlot,
   onSelectSlot,
 }: SlotSectionProps) {
+  const queryBarberId = barberId === "any" ? undefined : barberId;
+
   const { data: slots, isLoading, isError } = useGetPublicAvailabilityQuery({
     slug,
-    barberId,
+    barberId: queryBarberId,
     serviceId,
     date: selectedDate,
   });
@@ -242,10 +256,10 @@ function SlotSection({
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <AlertCircle className="h-8 w-8" style={{ color: "var(--bf-status-error-fg)" }} />
         <p className="text-sm font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-          No pudimos cargar los horarios
+          {Texts.Booking.DateTimeStep.SlotErrorTitle}
         </p>
         <p className="text-xs" style={{ color: "var(--bf-text-soft)" }}>
-          Intentá nuevamente o elegí otra fecha
+          {Texts.Booking.DateTimeStep.SlotErrorBody}
         </p>
       </div>
     );
@@ -258,10 +272,10 @@ function SlotSection({
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <Clock className="h-8 w-8" style={{ color: "var(--bf-text-soft)" }} />
         <p className="text-sm font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-          No hay horarios disponibles
+          {Texts.Booking.DateTimeStep.SlotEmptyTitle}
         </p>
         <p className="text-xs" style={{ color: "var(--bf-text-soft)" }}>
-          Probá con otra fecha o barbero
+          {Texts.Booking.DateTimeStep.SlotEmptyBody}
         </p>
       </div>
     );
@@ -281,6 +295,55 @@ function SlotSection({
   );
 }
 
+// ─── "Any barber" slot handler ────────────────────────────────────────────────
+
+/**
+ * Inner component that handles slot selection in "any barber" mode.
+ * It fetches the barber list so it can resolve a barberId → PublicBarber when
+ * the user picks a slot.
+ */
+type AnyBarberSlotSectionProps = {
+  slug: string;
+  serviceId: string;
+  selectedDate: string;
+  selectedSlot: PublicSlot | undefined;
+  onSelectSlot: (slot: PublicSlot) => void;
+  onAutoSelectBarber: (barber: PublicBarber) => void;
+};
+
+function AnyBarberSlotSection({
+  slug,
+  serviceId,
+  selectedDate,
+  selectedSlot,
+  onSelectSlot,
+  onAutoSelectBarber,
+}: AnyBarberSlotSectionProps) {
+  const { data: barbers } = useGetPublicBarbersQuery({ slug });
+
+  function handleSlotSelect(slot: PublicSlot) {
+    onSelectSlot(slot);
+    // If the slot carries a barberId, resolve and auto-assign the barber.
+    if (slot.barberId && barbers) {
+      const match = barbers.find((b) => b.id === slot.barberId);
+      if (match) {
+        onAutoSelectBarber(match);
+      }
+    }
+  }
+
+  return (
+    <SlotSection
+      slug={slug}
+      barberId="any"
+      serviceId={serviceId}
+      selectedDate={selectedDate}
+      selectedSlot={selectedSlot}
+      onSelectSlot={handleSlotSelect}
+    />
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const DATES_TO_SHOW = 14;
@@ -293,121 +356,112 @@ export function DateTimeStep({
   selectedSlot,
   onSelectDate,
   onSelectSlot,
+  onAutoSelectBarber,
   onNext,
   onBack,
 }: DateTimeStepProps) {
+  const { DateTimeStep: DT, Common: BC } = Texts.Booking;
   const dates = getUpcomingDates(DATES_TO_SHOW);
   const isAnyBarber = selectedBarber.id === "any";
-  const canProceed = Boolean(selectedDate && selectedSlot);
+  // In "any barber" mode, also require that the slot carries a barberId so we
+  // know which barber will be assigned (auto-set via onAutoSelectBarber).
+  const canProceed = Boolean(
+    selectedDate &&
+    selectedSlot &&
+    (!isAnyBarber || selectedSlot.barberId)
+  );
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold" style={{ color: "var(--bf-text-strong)" }}>
-          ¿Cuándo querés venir?
+          {DT.Title}
         </h2>
         <p className="mt-1 text-sm" style={{ color: "var(--bf-text-soft)" }}>
-          Elegí una fecha y un horario disponible
+          {DT.Subtitle}
         </p>
       </div>
 
-      {/* "Any barber" warning — MVP: require specific barber */}
-      {isAnyBarber && (
-        <div
-          className="flex items-start gap-3 rounded-2xl border p-4"
-          style={{
-            borderColor: "var(--bf-status-warning-border, var(--bf-border-soft))",
-            backgroundColor: "color-mix(in srgb, var(--bf-brand-copper) 6%, var(--background))",
-          }}
-        >
-          <AlertCircle
-            className="mt-0.5 h-4 w-4 shrink-0"
-            style={{ color: "var(--bf-brand-copper)" }}
-          />
-          <div>
-            <p className="text-sm font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-              Necesitás seleccionar un barbero específico
-            </p>
-            <p className="mt-0.5 text-xs" style={{ color: "var(--bf-text-soft)" }}>
-              Para ver los horarios disponibles, volvé al paso anterior y elegí un barbero.
-            </p>
+      {/* Date picker */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4" style={{ color: "var(--bf-brand-copper)" }} />
+          <span className="text-sm font-semibold" style={{ color: "var(--bf-text-strong)" }}>
+            {DT.DateLabel}
+          </span>
+        </div>
+
+        {/* Horizontally scrollable date strip */}
+        <div className="relative">
+          <div
+            className="flex gap-2 overflow-x-auto pb-2"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {dates.map((d) => (
+              <DatePill
+                key={d}
+                dateStr={d}
+                isSelected={selectedDate === d}
+                onSelect={() => {
+                  onSelectDate(d);
+                  // Clear slot when date changes
+                  if (selectedSlot) {
+                    onSelectSlot({ start: "", end: "", available: false });
+                  }
+                }}
+              />
+            ))}
           </div>
+        </div>
+      </div>
+
+      {/* Time slots */}
+      {selectedDate && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4" style={{ color: "var(--bf-brand-copper)" }} />
+            <span className="text-sm font-semibold" style={{ color: "var(--bf-text-strong)" }}>
+              {DT.TimeLabel}
+            </span>
+          </div>
+
+          {isAnyBarber ? (
+            <AnyBarberSlotSection
+              slug={slug}
+              serviceId={selectedService.id}
+              selectedDate={selectedDate}
+              selectedSlot={selectedSlot}
+              onSelectSlot={onSelectSlot}
+              onAutoSelectBarber={onAutoSelectBarber}
+            />
+          ) : (
+            <SlotSection
+              slug={slug}
+              barberId={selectedBarber.id}
+              serviceId={selectedService.id}
+              selectedDate={selectedDate}
+              selectedSlot={selectedSlot}
+              onSelectSlot={onSelectSlot}
+            />
+          )}
         </div>
       )}
 
-      {!isAnyBarber && (
-        <>
-          {/* Date picker */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4" style={{ color: "var(--bf-brand-copper)" }} />
-              <span className="text-sm font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-                Fecha
-              </span>
-            </div>
-
-            {/* Horizontally scrollable date strip */}
-            <div className="relative">
-              <div
-                className="flex gap-2 overflow-x-auto pb-2"
-                style={{ scrollbarWidth: "none" }}
-              >
-                {dates.map((d) => (
-                  <DatePill
-                    key={d}
-                    dateStr={d}
-                    isSelected={selectedDate === d}
-                    onSelect={() => {
-                      onSelectDate(d);
-                      // Clear slot when date changes
-                      if (selectedSlot) {
-                        onSelectSlot({ start: "", end: "", available: false });
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Time slots */}
-          {selectedDate && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4" style={{ color: "var(--bf-brand-copper)" }} />
-                <span className="text-sm font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-                  Horario disponible
-                </span>
-              </div>
-
-              <SlotSection
-                slug={slug}
-                barberId={selectedBarber.id}
-                serviceId={selectedService.id}
-                selectedDate={selectedDate}
-                selectedSlot={selectedSlot}
-                onSelectSlot={onSelectSlot}
-              />
-            </div>
-          )}
-
-          {/* Prompt to pick a date first */}
-          {!selectedDate && (
-            <div
-              className="flex items-center gap-2 rounded-2xl border border-dashed p-4"
-              style={{ borderColor: "var(--bf-border-soft)" }}
-            >
-              <ChevronRight
-                className="h-4 w-4 shrink-0"
-                style={{ color: "var(--bf-text-soft)" }}
-              />
-              <p className="text-sm" style={{ color: "var(--bf-text-soft)" }}>
-                Seleccioná una fecha para ver los horarios disponibles
-              </p>
-            </div>
-          )}
-        </>
+      {/* Prompt to pick a date first */}
+      {!selectedDate && (
+        <div
+          className="flex items-center gap-2 rounded-2xl border border-dashed p-4"
+          style={{ borderColor: "var(--bf-border-soft)" }}
+        >
+          <ChevronRight
+            className="h-4 w-4 shrink-0"
+            style={{ color: "var(--bf-text-soft)" }}
+          />
+          <p className="text-sm" style={{ color: "var(--bf-text-soft)" }}>
+            {DT.PickDatePrompt}
+          </p>
+        </div>
       )}
 
       {/* Navigation */}
@@ -419,7 +473,7 @@ export function DateTimeStep({
           style={{ color: "var(--bf-text-body)" }}
         >
           <ChevronLeft className="h-4 w-4" />
-          Volver
+          {BC.BackIcon}
         </button>
 
         <button
@@ -437,7 +491,7 @@ export function DateTimeStep({
             color: "white",
           }}
         >
-          Continuar →
+          {BC.Next}
         </button>
       </div>
     </div>

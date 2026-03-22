@@ -7,6 +7,7 @@ import {
   useGetPublicServicesQuery,
   type PublicService,
 } from "@/lib/api/public-api";
+import { Texts } from "@/lib/content/texts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ export function ServiceStep({
   onSelect,
   onNext,
 }: ServiceStepProps) {
+  const { ServiceStep: S, Common: BC } = Texts.Booking;
   const { data: services, isLoading, isError } = useGetPublicServicesQuery({ slug });
 
   // ── Loading state ──
@@ -69,10 +71,10 @@ export function ServiceStep({
       <div className="space-y-4">
         <div className="mb-6">
           <h2 className="text-xl font-bold" style={{ color: "var(--bf-text-strong)" }}>
-            ¿Qué servicio buscás?
+            {S.Title}
           </h2>
           <p className="mt-1 text-sm" style={{ color: "var(--bf-text-soft)" }}>
-            Seleccioná el servicio que querés reservar
+            {S.Subtitle}
           </p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -90,10 +92,10 @@ export function ServiceStep({
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <AlertCircle className="h-10 w-10" style={{ color: "var(--bf-status-error-fg)" }} />
         <p className="text-base font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-          No pudimos cargar los servicios
+          {S.ErrorTitle}
         </p>
         <p className="text-sm" style={{ color: "var(--bf-text-soft)" }}>
-          Intentá recargar la página o contactá a la barbería
+          {S.ErrorBody}
         </p>
       </div>
     );
@@ -105,10 +107,10 @@ export function ServiceStep({
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <Scissors className="h-10 w-10" style={{ color: "var(--bf-text-soft)" }} />
         <p className="text-base font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-          No hay servicios disponibles
+          {S.EmptyTitle}
         </p>
         <p className="text-sm" style={{ color: "var(--bf-text-soft)" }}>
-          Esta barbería no tiene servicios activos por el momento
+          {S.EmptyBody}
         </p>
       </div>
     );
@@ -119,10 +121,10 @@ export function ServiceStep({
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold" style={{ color: "var(--bf-text-strong)" }}>
-          ¿Qué servicio buscás?
+          {S.Title}
         </h2>
         <p className="mt-1 text-sm" style={{ color: "var(--bf-text-soft)" }}>
-          Seleccioná el servicio que querés reservar
+          {S.Subtitle}
         </p>
       </div>
 
@@ -244,7 +246,7 @@ export function ServiceStep({
             color: "white",
           }}
         >
-          Continuar →
+          {BC.Next}
         </button>
       </div>
     </div>

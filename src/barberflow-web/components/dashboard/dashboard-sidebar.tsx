@@ -4,6 +4,7 @@ import {
   CalendarDays,
   LayoutDashboard,
   Scissors,
+  Settings,
   ShieldCheck,
 } from "lucide-react";
 import { Texts } from "@/lib/content/texts";
@@ -23,6 +24,8 @@ function getItemIcon(icon: DashboardNavItem["icon"]) {
       return <Scissors className="h-4 w-4" />;
     case "platform":
       return <ShieldCheck className="h-4 w-4" />;
+    case "settings":
+      return <Settings className="h-4 w-4" />;
     default:
       return <LayoutDashboard className="h-4 w-4" />;
   }

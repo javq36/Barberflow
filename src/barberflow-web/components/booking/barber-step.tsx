@@ -7,13 +7,14 @@ import {
   useGetPublicBarbersQuery,
   type PublicBarber,
 } from "@/lib/api/public-api";
+import { Texts } from "@/lib/content/texts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 // Sentinel value representing "any available barber"
 export const ANY_BARBER: PublicBarber = {
   id: "any",
-  name: "Cualquier barbero disponible",
+  name: Texts.Booking.BarberStep.AnyBarberName,
 };
 
 type BarberStepProps = {
@@ -153,7 +154,7 @@ function BarberCard({ barber, isSelected, onSelect, isAny = false }: BarberCardP
           </p>
           {isAny && (
             <p className="mt-0.5 text-xs" style={{ color: "var(--bf-text-soft)" }}>
-              Se asigna automáticamente
+              {Texts.Booking.BarberStep.AnyBarberHint}
             </p>
           )}
         </div>
@@ -171,6 +172,7 @@ export function BarberStep({
   onNext,
   onBack,
 }: BarberStepProps) {
+  const { BarberStep: BS, Common: BC } = Texts.Booking;
   const { data: barbers, isLoading, isError } = useGetPublicBarbersQuery({ slug });
 
   // ── Loading state ──
@@ -179,10 +181,10 @@ export function BarberStep({
       <div className="space-y-4">
         <div className="mb-6">
           <h2 className="text-xl font-bold" style={{ color: "var(--bf-text-strong)" }}>
-            ¿Con quién querés sacar turno?
+            {BS.Title}
           </h2>
           <p className="mt-1 text-sm" style={{ color: "var(--bf-text-soft)" }}>
-            Elegí un barbero o dejá que te asignemos uno disponible
+            {BS.Subtitle}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -200,10 +202,10 @@ export function BarberStep({
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <AlertCircle className="h-10 w-10" style={{ color: "var(--bf-status-error-fg)" }} />
         <p className="text-base font-semibold" style={{ color: "var(--bf-text-strong)" }}>
-          No pudimos cargar los barberos
+          {BS.ErrorTitle}
         </p>
         <p className="text-sm" style={{ color: "var(--bf-text-soft)" }}>
-          Intentá recargar la página o contactá a la barbería
+          {BS.ErrorBody}
         </p>
       </div>
     );
@@ -214,10 +216,10 @@ export function BarberStep({
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold" style={{ color: "var(--bf-text-strong)" }}>
-          ¿Con quién querés sacar turno?
+          {BS.Title}
         </h2>
         <p className="mt-1 text-sm" style={{ color: "var(--bf-text-soft)" }}>
-          Elegí un barbero o dejá que te asignemos uno disponible
+          {BS.Subtitle}
         </p>
       </div>
 
@@ -249,7 +251,7 @@ export function BarberStep({
           className="rounded-xl px-6 py-3 text-sm font-medium transition-all duration-150 hover:opacity-80"
           style={{ color: "var(--bf-text-body)" }}
         >
-          ← Volver
+          {BC.Back}
         </button>
 
         <button
@@ -267,7 +269,7 @@ export function BarberStep({
             color: "white",
           }}
         >
-          Continuar →
+          {BC.Next}
         </button>
       </div>
     </div>

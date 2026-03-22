@@ -104,9 +104,11 @@ internal static class PublicEndpoints
         }).RequireRateLimiting("PublicBooking");
 
         // ── GET /public/{slug}/availability?barberId=&serviceId=&date= ────────
+        // barberId is optional: when omitted or "any", slots for ALL active barbers
+        // are merged and each slot carries a BarberId so the frontend knows who to book.
         app.MapGet("/{slug}/availability", async (
             string slug,
-            Guid barberId,
+            string? barberId,
             Guid serviceId,
             DateOnly date,
             IAvailabilityService availabilityService,
@@ -118,17 +120,9 @@ internal static class PublicEndpoints
                 return Results.NotFound(new { message = "Barbershop not found." });
             }
 
-            if (barberId == Guid.Empty || serviceId == Guid.Empty)
+            if (serviceId == Guid.Empty)
             {
-                return Results.BadRequest(new { message = "barberId and serviceId are required." });
-            }
-
-            // Validate barber belongs to this barbershop.
-            var barberValid = await ResourceBelongsToBarbershopAsync(
-                connectionString, shop.BarbershopId, barberId, "users", ct);
-            if (!barberValid)
-            {
-                return Results.BadRequest(new { message = "Barber does not belong to this barbershop." });
+                return Results.BadRequest(new { message = "serviceId is required." });
             }
 
             // Validate service belongs to this barbershop.
@@ -139,12 +133,80 @@ internal static class PublicEndpoints
                 return Results.BadRequest(new { message = "Service does not belong to this barbershop." });
             }
 
-            var slots = await availabilityService.GetAvailableSlotsAsync(
-                shop.BarbershopId, barberId, serviceId, date, shop.Timezone, isPublic: true, ct);
+            // ── "Any barber" mode: barberId omitted, empty, or the sentinel "any" ──
+            bool isAnyBarber =
+                string.IsNullOrWhiteSpace(barberId) ||
+                barberId.Equals("any", StringComparison.OrdinalIgnoreCase) ||
+                barberId == Guid.Empty.ToString();
 
-            var response = slots.Select(s => new PublicSlotResponse(s.Start, s.End, s.Available));
+            if (isAnyBarber)
+            {
+                var allBarbers = await GetAllBarberIdsForShopAsync(connectionString, shop.BarbershopId, ct);
 
-            return Results.Ok(new { slots = response });
+                // Fetch all barbers' slots in parallel, then merge — keeping only
+                // the first available slot per start-time (any one barber will do).
+                var slotTasks = allBarbers
+                    .Select(bid => availabilityService.GetAvailableSlotsAsync(
+                        shop.BarbershopId, bid, serviceId, date, shop.Timezone, isPublic: true, ct)
+                        .ContinueWith(t => (BarberId: bid, Slots: t.Result), ct))
+                    .ToList();
+
+                await Task.WhenAll(slotTasks);
+
+                // Build a merged dictionary: start-time → first available (barber, slot)
+                var merged = new Dictionary<DateTimeOffset, PublicSlotResponse>();
+
+                foreach (var task in slotTasks)
+                {
+                    var (bid, slots) = task.Result;
+                    foreach (var s in slots)
+                    {
+                        if (!merged.ContainsKey(s.Start))
+                        {
+                            // Always add the slot; if available attach barberId so the
+                            // client knows which barber to assign on booking.
+                            merged[s.Start] = new PublicSlotResponse(
+                                s.Start,
+                                s.End,
+                                s.Available,
+                                s.Available ? bid : null);
+                        }
+                        else if (!merged[s.Start].Available && s.Available)
+                        {
+                            // Upgrade an unavailable slot to an available one with a barber.
+                            merged[s.Start] = new PublicSlotResponse(
+                                s.Start,
+                                s.End,
+                                Available: true,
+                                BarberId: bid);
+                        }
+                    }
+                }
+
+                var aggregated = merged.Values.OrderBy(s => s.Start);
+                return Results.Ok(new { slots = aggregated });
+            }
+
+            // ── Single barber mode ────────────────────────────────────────────
+            if (!Guid.TryParse(barberId, out var barberGuid) || barberGuid == Guid.Empty)
+            {
+                return Results.BadRequest(new { message = "barberId must be a valid GUID or 'any'." });
+            }
+
+            // Validate barber belongs to this barbershop.
+            var barberValid = await ResourceBelongsToBarbershopAsync(
+                connectionString, shop.BarbershopId, barberGuid, "users", ct);
+            if (!barberValid)
+            {
+                return Results.BadRequest(new { message = "Barber does not belong to this barbershop." });
+            }
+
+            var singleSlots = await availabilityService.GetAvailableSlotsAsync(
+                shop.BarbershopId, barberGuid, serviceId, date, shop.Timezone, isPublic: true, ct);
+
+            var singleResponse = singleSlots.Select(s => new PublicSlotResponse(s.Start, s.End, s.Available));
+
+            return Results.Ok(new { slots = singleResponse });
         }).RequireRateLimiting("PublicBooking");
 
         // ── POST /public/{slug}/appointments ──────────────────────────────────
@@ -325,6 +387,37 @@ internal static class PublicEndpoints
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return (Guid)result!;
+    }
+
+    /// <summary>
+    /// Returns the IDs of all active barbers for the given barbershop.
+    /// Used by the "any barber" aggregate availability path.
+    /// </summary>
+    private static async Task<IReadOnlyList<Guid>> GetAllBarberIdsForShopAsync(
+        string connectionString,
+        Guid barbershopId,
+        CancellationToken ct)
+    {
+        var ids = new List<Guid>();
+
+        await using var conn = new NpgsqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            SELECT id
+            FROM users
+            WHERE barbershop_id = @barbershopId AND role = 3 AND active = TRUE
+            ORDER BY name", conn);
+
+        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            ids.Add(reader.GetGuid(0));
+        }
+
+        return ids;
     }
 
     /// <summary>Internal DTO for appointment detail lookup.</summary>

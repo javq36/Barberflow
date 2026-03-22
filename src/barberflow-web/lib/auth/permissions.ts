@@ -19,6 +19,7 @@ export type AppPermission =
   | "customers.manage"
   | "appointments.view"
   | "appointments.manage"
+  | "settings.manage"
   | "platform.manage";
 
 const rolePermissions: Record<Exclude<AppRole, null>, AppPermission[]> = {
@@ -49,6 +50,7 @@ const rolePermissions: Record<Exclude<AppRole, null>, AppPermission[]> = {
     "customers.manage",
     "appointments.view",
     "appointments.manage",
+    "settings.manage",
   ],
   Barber: ["appointments.view"],
   Customer: [],

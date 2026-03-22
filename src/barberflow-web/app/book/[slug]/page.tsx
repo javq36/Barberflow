@@ -10,6 +10,7 @@ import { ContactStep } from "@/components/booking/contact-step";
 import { ConfirmationStep } from "@/components/booking/confirmation-step";
 import { useGetPublicServicesQuery, type PublicBarber, type PublicService, type PublicSlot } from "@/lib/api/public-api";
 import { cn } from "@/lib/utils";
+import { Texts } from "@/lib/content/texts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +19,11 @@ type WizardStep = 1 | 2 | 3 | 4 | 5;
 type WizardState = {
   step: WizardStep;
   selectedService?: PublicService;
+  /**
+   * The barber chosen in Step 2. If the user picked "any", this is the ANY_BARBER
+   * sentinel. When they later pick a slot that carries a barberId, this is swapped
+   * out for the actual assigned barber via `autoSelectBarber`.
+   */
   selectedBarber?: PublicBarber;
   selectedDate?: string;
   selectedSlot?: PublicSlot;
@@ -28,11 +34,11 @@ type WizardState = {
 // ─── Step label map ───────────────────────────────────────────────────────────
 
 const STEP_LABELS: Record<WizardStep, string> = {
-  1: "Servicio",
-  2: "Barbero",
-  3: "Fecha y hora",
-  4: "Tus datos",
-  5: "Confirmación",
+  1: Texts.Booking.Steps.Service,
+  2: Texts.Booking.Steps.Barber,
+  3: Texts.Booking.Steps.DateTime,
+  4: Texts.Booking.Steps.Contact,
+  5: Texts.Booking.Steps.Confirmation,
 };
 
 const TOTAL_STEPS = 5;
@@ -129,7 +135,7 @@ function SlugGuard({ slug, children }: SlugGuardProps) {
             style={{ borderColor: "var(--bf-border-soft)", borderTopColor: "var(--bf-brand-copper)" }}
           />
           <p className="text-sm" style={{ color: "var(--bf-text-soft)" }}>
-            Cargando...
+            {Texts.Booking.Page.Loading}
           </p>
         </div>
       </div>
@@ -182,6 +188,14 @@ export default function BookingWizardPage() {
     setWizard((prev) => ({ ...prev, selectedSlot: slot }));
   }
 
+  /**
+   * Called by DateTimeStep when the user selects a slot in "any barber" mode.
+   * Replaces the ANY_BARBER sentinel with the actual barber that owns that slot.
+   */
+  function autoSelectBarber(barber: PublicBarber) {
+    setWizard((prev) => ({ ...prev, selectedBarber: barber }));
+  }
+
   function changeCustomerName(name: string) {
     setWizard((prev) => ({ ...prev, customerName: name }));
   }
@@ -212,10 +226,10 @@ export default function BookingWizardPage() {
             <Scissors className="h-6 w-6" />
           </div>
           <h1 className="text-2xl font-black tracking-tight" style={{ color: "var(--bf-text-strong)" }}>
-            Reservá tu turno
+            {Texts.Booking.Page.Title}
           </h1>
           <p className="text-sm" style={{ color: "var(--bf-text-soft)" }}>
-            Rápido, fácil y sin llamadas
+            {Texts.Booking.Page.Subtitle}
           </p>
         </div>
 
@@ -262,6 +276,7 @@ export default function BookingWizardPage() {
                 selectedSlot={wizard.selectedSlot}
                 onSelectDate={selectDate}
                 onSelectSlot={selectSlot}
+                onAutoSelectBarber={autoSelectBarber}
                 onNext={() => goToStep(4)}
                 onBack={() => goToStep(2)}
               />
@@ -281,6 +296,7 @@ export default function BookingWizardPage() {
             {wizard.step === 5 &&
               wizard.selectedService &&
               wizard.selectedBarber &&
+              wizard.selectedBarber.id !== "any" &&
               wizard.selectedDate &&
               wizard.selectedSlot && (
                 <ConfirmationStep
@@ -300,7 +316,7 @@ export default function BookingWizardPage() {
 
         {/* Footer note */}
         <p className="mt-6 text-center text-xs" style={{ color: "var(--bf-text-soft)" }}>
-          Tu información es privada y solo se usa para confirmar tu turno
+          {Texts.Booking.Page.FooterNote}
         </p>
       </div>
     </div>
