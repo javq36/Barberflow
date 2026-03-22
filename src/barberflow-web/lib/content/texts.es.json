@@ -346,6 +346,7 @@
       "SaveReschedule": "Guardar reprogramacion",
       "Reschedule": "Reagendar",
       "CheckIn": "Check in",
+      "Complete": "Completar",
       "Cancel": "Cancelar",
       "GoBack": "Regresar",
       "CancelAppointment": "Cancelar cita"
@@ -378,6 +379,7 @@
       "Created": "Cita creada correctamente.",
       "Rescheduled": "Cita reprogramada correctamente.",
       "CheckedIn": "La cita quedo confirmada.",
+      "Completed": "La cita fue completada.",
       "Canceled": "La cita fue cancelada.",
       "DropConflict": "Ese barbero ya tiene una cita en ese horario. Elige otro espacio."
     },

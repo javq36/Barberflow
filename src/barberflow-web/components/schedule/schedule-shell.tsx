@@ -60,6 +60,7 @@ const DAY_START_HOUR = 9;
 const DAY_END_HOUR = 18;
 const SLOT_HEIGHT = 64;
 const COLOMBIA_PHONE_MAX_LENGTH = 10;
+const APPOINTMENT_STATUS_COMPLETED = 4;
 
 function getDaySlots() {
   return Array.from(
@@ -503,6 +504,7 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
   const selectedStatus = selectedAppointment?.item.status ?? null;
   const canEditSelected = selectedStatus === 1 || selectedStatus === 2;
   const canCheckInSelected = selectedStatus === 1;
+  const canCompleteSelected = selectedStatus === 2;
   const canCancelSelected =
     selectedStatus !== null && selectedStatus !== 3 && selectedStatus !== 4;
 
@@ -1087,6 +1089,32 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
     }
   }
 
+  async function onCompleteAppointment() {
+    if (!selectedAppointment) {
+      return;
+    }
+
+    try {
+      await updateAppointmentStatus({
+        id: selectedAppointment.item.id,
+        status: APPOINTMENT_STATUS_COMPLETED,
+        notes: selectedAppointment.item.notes,
+      }).unwrap();
+
+      showToast({
+        title: Common.Toasts.SuccessTitle,
+        description: Schedule.Messages.Completed,
+        variant: "success",
+      });
+    } catch (error) {
+      showToast({
+        title: Common.Toasts.ErrorTitle,
+        description: getApiErrorMessage(error) ?? Common.Status.Error,
+        variant: "error",
+      });
+    }
+  }
+
   async function onCancelAppointment() {
     if (!selectedAppointment) {
       return;
@@ -1507,7 +1535,7 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   <button
                     type="button"
                     onClick={onCheckInAppointment}
@@ -1516,6 +1544,16 @@ export function ScheduleShell({ role }: ScheduleShellProps) {
                   >
                     <span className="text-[10px] font-bold uppercase">
                       {Common.Actions.CheckIn}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onCompleteAppointment}
+                    disabled={!canCompleteSelected}
+                    className="flex flex-col items-center justify-center gap-1 rounded-lg border border-[#22c55e66] bg-[#22c55e1a] py-2 text-[#22c55e] transition active:scale-95 disabled:opacity-50"
+                  >
+                    <span className="text-[10px] font-bold uppercase">
+                      {Schedule.Actions.Complete}
                     </span>
                   </button>
                   <button

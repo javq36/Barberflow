@@ -19,6 +19,7 @@ public static class ApiConstants
         public const string AppointmentsRescheduleSuffix = "/reschedule";
         public const string AppointmentsCancelSuffix = "/cancel";
         public const string AvailabilitySlots = "/availability/slots";
+        public const string WorkingHours = "working-hours";
     }
 
     public static class Messages

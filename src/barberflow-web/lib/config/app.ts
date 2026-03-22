@@ -2,10 +2,13 @@ export const APP_ROUTES = {
   Dashboard: "/dashboard",
   Admin: "/admin",
   Schedule: "/schedule",
+  BarberSchedule: "/barber/schedule",
   Payments: "/payments",
   Services: "/services",
   Barbers: "/barbers",
   Customers: "/customers",
   Login: "/login",
   Register: "/register",
+  WorkingHours: "/settings/working-hours",
+  BookingRules: "/settings/booking-rules",
 } as const;
