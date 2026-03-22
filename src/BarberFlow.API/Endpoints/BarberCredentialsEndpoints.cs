@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Npgsql;
+using NpgsqlTypes;
 using BarberFlow.API.Constants;
 using BarberFlow.API.Contracts;
 using BarberFlow.Domain.Enums;
@@ -64,10 +65,10 @@ internal static class BarberCredentialsEndpoints
                 SET email = @email, password_hash = @passwordHash
                 WHERE id = @barberId AND barbershop_id = @barbershopId AND role = {(int)UserRole.Barber}", conn);
 
-            updateCmd.Parameters.AddWithValue("email", normalizedEmail);
-            updateCmd.Parameters.AddWithValue("passwordHash", passwordHash);
-            updateCmd.Parameters.AddWithValue("barberId", barberId);
-            updateCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            updateCmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = normalizedEmail });
+            updateCmd.Parameters.Add(new NpgsqlParameter("passwordHash", NpgsqlDbType.Text) { Value = passwordHash });
+            updateCmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+            updateCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
             await updateCmd.ExecuteNonQueryAsync(ct);
             return Results.Ok(new { message = "Credentials set successfully." });
@@ -110,9 +111,9 @@ internal static class BarberCredentialsEndpoints
                 SET password_hash = @passwordHash
                 WHERE id = @barberId AND barbershop_id = @barbershopId AND role = {(int)UserRole.Barber}", conn);
 
-            updateCmd.Parameters.AddWithValue("passwordHash", passwordHash);
-            updateCmd.Parameters.AddWithValue("barberId", barberId);
-            updateCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            updateCmd.Parameters.Add(new NpgsqlParameter("passwordHash", NpgsqlDbType.Text) { Value = passwordHash });
+            updateCmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+            updateCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
             await updateCmd.ExecuteNonQueryAsync(ct);
             return Results.Ok(new { message = "Password reset successfully." });
@@ -145,8 +146,8 @@ internal static class BarberCredentialsEndpoints
             WHERE id = @barberId AND barbershop_id = @barbershopId AND role = {(int)UserRole.Barber}
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         if (result is null || result == DBNull.Value)
@@ -163,8 +164,8 @@ internal static class BarberCredentialsEndpoints
         await using var cmd = new NpgsqlCommand(
             "SELECT 1 FROM users WHERE email = @email AND id <> @excludeId LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("email", normalizedEmail);
-        cmd.Parameters.AddWithValue("excludeId", excludeId);
+        cmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = normalizedEmail });
+        cmd.Parameters.Add(new NpgsqlParameter("excludeId", NpgsqlDbType.Uuid) { Value = excludeId });
 
         var exists = await cmd.ExecuteScalarAsync(ct);
         return exists is not null;

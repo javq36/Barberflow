@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 
 namespace BarberFlow.Application.Services;
 
@@ -31,9 +32,6 @@ public sealed class TimeOffService : ITimeOffService
             return Array.Empty<TimeOffDto>();
         }
 
-        var fromTs = from.HasValue ? (object)from.Value.ToDateTime(TimeOnly.MinValue) : DBNull.Value;
-        var toTs = to.HasValue ? (object)to.Value.ToDateTime(TimeOnly.MaxValue) : DBNull.Value;
-
         await using var cmd = new NpgsqlCommand(@"
             SELECT id, barber_id, start_date, end_date, reason
             FROM time_off
@@ -42,9 +40,9 @@ public sealed class TimeOffService : ITimeOffService
               AND (@to IS NULL OR start_date <= @to)
             ORDER BY start_date", conn);
 
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("from", fromTs);
-        cmd.Parameters.AddWithValue("to", toTs);
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.Timestamp) { Value = from.HasValue ? (object)from.Value.ToDateTime(TimeOnly.MinValue) : DBNull.Value });
+        cmd.Parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.Timestamp) { Value = to.HasValue ? (object)to.Value.ToDateTime(TimeOnly.MaxValue) : DBNull.Value });
 
         var results = new List<TimeOffDto>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -103,11 +101,11 @@ public sealed class TimeOffService : ITimeOffService
             INSERT INTO time_off (id, barber_id, start_date, end_date, reason)
             VALUES (@id, @barberId, @startDate, @endDate, @reason)", conn);
 
-        insertCmd.Parameters.AddWithValue("id", id);
-        insertCmd.Parameters.AddWithValue("barberId", barberId);
-        insertCmd.Parameters.AddWithValue("startDate", startTs);
-        insertCmd.Parameters.AddWithValue("endDate", endTs);
-        insertCmd.Parameters.AddWithValue("reason", (object?)request.Reason ?? DBNull.Value);
+        insertCmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = id });
+        insertCmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        insertCmd.Parameters.Add(new NpgsqlParameter("startDate", NpgsqlDbType.Timestamp) { Value = startTs });
+        insertCmd.Parameters.Add(new NpgsqlParameter("endDate", NpgsqlDbType.Timestamp) { Value = endTs });
+        insertCmd.Parameters.Add(new NpgsqlParameter("reason", NpgsqlDbType.Text) { Value = (object?)request.Reason ?? DBNull.Value });
 
         await insertCmd.ExecuteNonQueryAsync(ct);
 
@@ -134,8 +132,8 @@ public sealed class TimeOffService : ITimeOffService
             DELETE FROM time_off
             WHERE id = @id AND barber_id = @barberId", conn);
 
-        deleteCmd.Parameters.AddWithValue("id", timeOffId);
-        deleteCmd.Parameters.AddWithValue("barberId", barberId);
+        deleteCmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = timeOffId });
+        deleteCmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
 
         var affected = await deleteCmd.ExecuteNonQueryAsync(ct);
         return affected > 0;
@@ -154,8 +152,8 @@ public sealed class TimeOffService : ITimeOffService
             WHERE id = @barberId AND barbershop_id = @barbershopId
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result is not null;
@@ -175,9 +173,9 @@ public sealed class TimeOffService : ITimeOffService
               AND end_date >= @startDate
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("startDate", startTs);
-        cmd.Parameters.AddWithValue("endDate", endTs);
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("startDate", NpgsqlDbType.Timestamp) { Value = startTs });
+        cmd.Parameters.Add(new NpgsqlParameter("endDate", NpgsqlDbType.Timestamp) { Value = endTs });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result is not null;

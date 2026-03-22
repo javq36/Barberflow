@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Npgsql;
+using NpgsqlTypes;
 using BarberFlow.API.Contracts;
 using BarberFlow.Application.Services;
 
@@ -49,7 +50,7 @@ internal static class PublicEndpoints
                 WHERE barbershop_id = @barbershopId AND active = TRUE
                 ORDER BY name", conn);
 
-            cmd.Parameters.AddWithValue("barbershopId", shop.BarbershopId);
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = shop.BarbershopId });
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -89,7 +90,7 @@ internal static class PublicEndpoints
                 WHERE barbershop_id = @barbershopId AND role = 3 AND active = TRUE
                 ORDER BY name", conn);
 
-            cmd.Parameters.AddWithValue("barbershopId", shop.BarbershopId);
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = shop.BarbershopId });
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -318,7 +319,7 @@ internal static class PublicEndpoints
             WHERE slug = @slug
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("slug", slug.Trim().ToLowerInvariant());
+        cmd.Parameters.Add(new NpgsqlParameter("slug", NpgsqlDbType.Text) { Value = slug.Trim().ToLowerInvariant() });
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -353,8 +354,8 @@ internal static class PublicEndpoints
             : @"SELECT 1 FROM services WHERE id = @id AND barbershop_id = @barbershopId AND active = TRUE LIMIT 1";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("id", resourceId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = resourceId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         return await cmd.ExecuteScalarAsync(ct) is not null;
     }
@@ -381,9 +382,9 @@ internal static class PublicEndpoints
             DO UPDATE SET name = EXCLUDED.name
             RETURNING id", conn);
 
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        cmd.Parameters.AddWithValue("name", name);
-        cmd.Parameters.AddWithValue("phone", phone);
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = name });
+        cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = phone });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return (Guid)result!;
@@ -409,7 +410,7 @@ internal static class PublicEndpoints
             WHERE barbershop_id = @barbershopId AND role = 3 AND active = TRUE
             ORDER BY name", conn);
 
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -447,8 +448,8 @@ internal static class PublicEndpoints
             WHERE id = @serviceId AND barbershop_id = @barbershopId
             LIMIT 1", conn))
         {
-            svcCmd.Parameters.AddWithValue("serviceId", serviceId);
-            svcCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            svcCmd.Parameters.Add(new NpgsqlParameter("serviceId", NpgsqlDbType.Uuid) { Value = serviceId });
+            svcCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
             await using var svcReader = await svcCmd.ExecuteReaderAsync(ct);
             if (await svcReader.ReadAsync(ct))
@@ -464,8 +465,8 @@ internal static class PublicEndpoints
             WHERE id = @barberId AND barbershop_id = @barbershopId
             LIMIT 1", conn))
         {
-            barberCmd.Parameters.AddWithValue("barberId", barberId);
-            barberCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            barberCmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+            barberCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
             await using var barberReader = await barberCmd.ExecuteReaderAsync(ct);
             if (await barberReader.ReadAsync(ct))

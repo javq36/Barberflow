@@ -142,7 +142,7 @@ builder.Services.AddSwaggerGen();
 // marked with the task that provides the implementation so the TODOs are
 // traceable in the backlog.
 //
-builder.Services.AddSingleton<IWorkingHoursService>(_ => new WorkingHoursService(connectionString));
+builder.Services.AddScoped<IWorkingHoursService>(_ => new WorkingHoursService(connectionString));
 builder.Services.AddScoped<ITimeOffService>(_ => new TimeOffService(connectionString));
 builder.Services.AddScoped<IBookingRulesService>(_ => new BookingRulesService(connectionString));
 builder.Services.AddScoped<IAvailabilityService>(sp =>
