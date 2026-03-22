@@ -4,6 +4,7 @@ using BarberFlow.API.Contracts;
 using BarberFlow.Application.Services;
 using BarberFlow.Domain.Enums;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace BarberFlow.API.Endpoints;
 
@@ -126,8 +127,8 @@ internal static class TimeOffEndpoints
               AND role = {(int)UserRole.Barber} AND active = TRUE
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result is not null;

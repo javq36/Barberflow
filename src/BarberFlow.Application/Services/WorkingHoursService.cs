@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 
 namespace BarberFlow.Application.Services;
 
@@ -30,8 +31,8 @@ public sealed class WorkingHoursService : IWorkingHoursService
             SELECT 1 FROM users
             WHERE id = @barberId AND barbershop_id = @barbershopId AND active = TRUE
             LIMIT 1", conn);
-        checkCmd.Parameters.AddWithValue("barberId", barberId);
-        checkCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        checkCmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        checkCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var exists = await checkCmd.ExecuteScalarAsync(ct);
         if (exists is null)
@@ -44,7 +45,7 @@ public sealed class WorkingHoursService : IWorkingHoursService
             FROM working_hours
             WHERE barber_id = @barberId
             ORDER BY day_of_week, start_time", conn);
-        cmd.Parameters.AddWithValue("barberId", barberId);
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
 
         var results = new List<WorkingHourDto>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -77,8 +78,8 @@ public sealed class WorkingHoursService : IWorkingHoursService
             SELECT 1 FROM users
             WHERE id = @barberId AND barbershop_id = @barbershopId AND active = TRUE
             LIMIT 1", conn);
-        checkCmd.Parameters.AddWithValue("barberId", barberId);
-        checkCmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        checkCmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        checkCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var exists = await checkCmd.ExecuteScalarAsync(ct);
         if (exists is null)
@@ -114,12 +115,12 @@ public sealed class WorkingHoursService : IWorkingHoursService
             RETURNING id, barber_id, day_of_week, start_time, end_time, is_active", conn);
 
         var newId = Guid.NewGuid();
-        cmd.Parameters.AddWithValue("id", newId);
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("dayOfWeek", request.DayOfWeek);
-        cmd.Parameters.AddWithValue("startTime", start);
-        cmd.Parameters.AddWithValue("endTime", end);
-        cmd.Parameters.AddWithValue("isActive", request.IsActive);
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = newId });
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("dayOfWeek", NpgsqlDbType.Integer) { Value = request.DayOfWeek });
+        cmd.Parameters.Add(new NpgsqlParameter("startTime", NpgsqlDbType.Time) { Value = start });
+        cmd.Parameters.Add(new NpgsqlParameter("endTime", NpgsqlDbType.Time) { Value = end });
+        cmd.Parameters.Add(new NpgsqlParameter("isActive", NpgsqlDbType.Boolean) { Value = request.IsActive });
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         await reader.ReadAsync(ct);
@@ -152,9 +153,9 @@ public sealed class WorkingHoursService : IWorkingHoursService
               AND wh.barber_id = u.id
               AND u.barbershop_id = @barbershopId", conn);
 
-        cmd.Parameters.AddWithValue("workingHourId", workingHourId);
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("workingHourId", NpgsqlDbType.Uuid) { Value = workingHourId });
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var affected = await cmd.ExecuteNonQueryAsync(ct);
         return affected > 0;

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Npgsql;
+using NpgsqlTypes;
 using BarberFlow.API.Constants;
 using BarberFlow.API.Contracts;
 
@@ -44,13 +45,13 @@ internal static class ServicesEndpoints
                 INSERT INTO services (id, barbershop_id, name, duration_minutes, price, active, image_url)
                 VALUES (@id, @barbershopId, @name, @duration, @price, @active, @imageUrl)", conn);
 
-            cmd.Parameters.AddWithValue("id", serviceId);
-            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-            cmd.Parameters.AddWithValue("name", request.Name.Trim());
-            cmd.Parameters.AddWithValue("duration", normalizedDuration);
-            cmd.Parameters.AddWithValue("price", request.Price);
-            cmd.Parameters.AddWithValue("active", request.Active);
-            cmd.Parameters.AddWithValue("imageUrl", (object?)normalizedImageUrl ?? DBNull.Value);
+            cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = serviceId });
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+            cmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = request.Name.Trim() });
+            cmd.Parameters.Add(new NpgsqlParameter("duration", NpgsqlDbType.Integer) { Value = normalizedDuration });
+            cmd.Parameters.Add(new NpgsqlParameter("price", NpgsqlDbType.Numeric) { Value = request.Price });
+            cmd.Parameters.Add(new NpgsqlParameter("active", NpgsqlDbType.Boolean) { Value = request.Active });
+            cmd.Parameters.Add(new NpgsqlParameter("imageUrl", NpgsqlDbType.Text) { Value = (object?)normalizedImageUrl ?? DBNull.Value });
 
             await cmd.ExecuteNonQueryAsync(ct);
 
@@ -85,8 +86,8 @@ internal static class ServicesEndpoints
                 WHERE barbershop_id = @barbershopId
                   AND (@searchPattern IS NULL OR name ILIKE @searchPattern)
                 ORDER BY name", conn);
-            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-            cmd.Parameters.AddWithValue("searchPattern", (object?)searchPattern ?? DBNull.Value);
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+            cmd.Parameters.Add(new NpgsqlParameter("searchPattern", NpgsqlDbType.Text) { Value = (object?)searchPattern ?? DBNull.Value });
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -142,13 +143,13 @@ internal static class ServicesEndpoints
                     image_url = @imageUrl
                 WHERE id = @id AND barbershop_id = @barbershopId", conn);
 
-            cmd.Parameters.AddWithValue("id", id);
-            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-            cmd.Parameters.AddWithValue("name", request.Name.Trim());
-            cmd.Parameters.AddWithValue("duration", normalizedDuration);
-            cmd.Parameters.AddWithValue("price", request.Price);
-            cmd.Parameters.AddWithValue("active", request.Active);
-            cmd.Parameters.AddWithValue("imageUrl", (object?)normalizedImageUrl ?? DBNull.Value);
+            cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = id });
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+            cmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = request.Name.Trim() });
+            cmd.Parameters.Add(new NpgsqlParameter("duration", NpgsqlDbType.Integer) { Value = normalizedDuration });
+            cmd.Parameters.Add(new NpgsqlParameter("price", NpgsqlDbType.Numeric) { Value = request.Price });
+            cmd.Parameters.Add(new NpgsqlParameter("active", NpgsqlDbType.Boolean) { Value = request.Active });
+            cmd.Parameters.Add(new NpgsqlParameter("imageUrl", NpgsqlDbType.Text) { Value = (object?)normalizedImageUrl ?? DBNull.Value });
 
             var affected = await cmd.ExecuteNonQueryAsync(ct);
             return affected == 0 ? Results.NotFound() : Results.NoContent();
@@ -170,8 +171,8 @@ internal static class ServicesEndpoints
             await conn.OpenAsync(ct);
 
             await using var cmd = new NpgsqlCommand("DELETE FROM services WHERE id = @id AND barbershop_id = @barbershopId", conn);
-            cmd.Parameters.AddWithValue("id", id);
-            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = id });
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
             var affected = await cmd.ExecuteNonQueryAsync(ct);
             return affected == 0 ? Results.NotFound() : Results.NoContent();

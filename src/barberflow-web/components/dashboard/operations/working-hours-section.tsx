@@ -80,7 +80,7 @@ function buildScheduleMap(serverData: WorkingHourItem[]): ScheduleMap {
     ]),
   ) as ScheduleMap;
 
-  for (const item of serverData) {
+  for (const item of serverData ?? []) {
     const day = item.dayOfWeek as DayValue;
     if (day in map) {
       map[day] = {

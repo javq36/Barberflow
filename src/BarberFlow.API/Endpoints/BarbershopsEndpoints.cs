@@ -1,6 +1,7 @@
 using System.Data;
 using System.Security.Claims;
 using Npgsql;
+using NpgsqlTypes;
 using BarberFlow.API.Constants;
 using BarberFlow.API.Contracts;
 
@@ -42,7 +43,7 @@ internal static class BarbershopsEndpoints
                 WHERE id = @ownerId
                 FOR UPDATE", conn, transaction))
             {
-                ownerLockCmd.Parameters.AddWithValue("ownerId", ownerId);
+                ownerLockCmd.Parameters.Add(new NpgsqlParameter("ownerId", NpgsqlDbType.Uuid) { Value = ownerId });
                 var currentValue = await ownerLockCmd.ExecuteScalarAsync(ct);
 
                 existingBarbershopId = currentValue is null || currentValue == DBNull.Value
@@ -62,11 +63,11 @@ internal static class BarbershopsEndpoints
                 INSERT INTO barbershops (id, name, phone, address, timezone, created_at)
                 VALUES (@id, @name, @phone, @address, @timezone, NOW())", conn, transaction))
             {
-                createShopCmd.Parameters.AddWithValue("id", barbershopId);
-                createShopCmd.Parameters.AddWithValue("name", request.Name.Trim());
-                createShopCmd.Parameters.AddWithValue("phone", (object?)request.Phone?.Trim() ?? DBNull.Value);
-                createShopCmd.Parameters.AddWithValue("address", (object?)request.Address?.Trim() ?? DBNull.Value);
-                createShopCmd.Parameters.AddWithValue("timezone", string.IsNullOrWhiteSpace(request.Timezone) ? "UTC" : request.Timezone.Trim());
+                createShopCmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = barbershopId });
+                createShopCmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = request.Name.Trim() });
+                createShopCmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = (object?)request.Phone?.Trim() ?? DBNull.Value });
+                createShopCmd.Parameters.Add(new NpgsqlParameter("address", NpgsqlDbType.Text) { Value = (object?)request.Address?.Trim() ?? DBNull.Value });
+                createShopCmd.Parameters.Add(new NpgsqlParameter("timezone", NpgsqlDbType.Text) { Value = string.IsNullOrWhiteSpace(request.Timezone) ? "UTC" : request.Timezone.Trim() });
 
                 await createShopCmd.ExecuteNonQueryAsync(ct);
             }
@@ -76,8 +77,8 @@ internal static class BarbershopsEndpoints
                 SET barbershop_id = @barbershopId
                 WHERE id = @ownerId", conn, transaction))
             {
-                assignOwnerCmd.Parameters.AddWithValue("barbershopId", barbershopId);
-                assignOwnerCmd.Parameters.AddWithValue("ownerId", ownerId);
+                assignOwnerCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+                assignOwnerCmd.Parameters.Add(new NpgsqlParameter("ownerId", NpgsqlDbType.Uuid) { Value = ownerId });
                 var affected = await assignOwnerCmd.ExecuteNonQueryAsync(ct);
                 if (affected == 0)
                 {
@@ -118,7 +119,7 @@ internal static class BarbershopsEndpoints
                 FROM barbershops
                 WHERE id = @id
                 LIMIT 1", conn);
-            cmd.Parameters.AddWithValue("id", barbershopId);
+            cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = barbershopId });
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             if (!await reader.ReadAsync(ct))
@@ -170,11 +171,11 @@ internal static class BarbershopsEndpoints
                     timezone = @timezone
                 WHERE id = @id", conn);
 
-            cmd.Parameters.AddWithValue("id", barbershopId);
-            cmd.Parameters.AddWithValue("name", normalizedName);
-            cmd.Parameters.AddWithValue("phone", (object?)normalizedPhone ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("address", (object?)normalizedAddress ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("timezone", normalizedTimezone);
+            cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = barbershopId });
+            cmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = normalizedName });
+            cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = (object?)normalizedPhone ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("address", NpgsqlDbType.Text) { Value = (object?)normalizedAddress ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("timezone", NpgsqlDbType.Text) { Value = normalizedTimezone });
 
             var affected = await cmd.ExecuteNonQueryAsync(ct);
             if (affected == 0)

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Npgsql;
+using NpgsqlTypes;
 using BarberFlow.API.Constants;
 using BarberFlow.API.Contracts;
 
@@ -54,13 +55,13 @@ internal static class CustomersEndpoints
                 INSERT INTO customers (id, barbershop_id, name, phone, email, notes, active, created_at)
                 VALUES (@id, @barbershopId, @name, @phone, @email, @notes, @active, NOW())", conn);
 
-            cmd.Parameters.AddWithValue("id", customerId);
-            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-            cmd.Parameters.AddWithValue("name", request.Name.Trim());
-            cmd.Parameters.AddWithValue("phone", normalizedPhone);
-            cmd.Parameters.AddWithValue("email", (object?)normalizedCustomerEmail ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("active", request.IsActive);
+            cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = customerId });
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+            cmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = request.Name.Trim() });
+            cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = normalizedPhone });
+            cmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = (object?)normalizedCustomerEmail ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("notes", NpgsqlDbType.Text) { Value = (object?)request.Notes?.Trim() ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("active", NpgsqlDbType.Boolean) { Value = request.IsActive });
 
             await cmd.ExecuteNonQueryAsync(ct);
 
@@ -102,8 +103,8 @@ internal static class CustomersEndpoints
                                 OR COALESCE(phone, '') ILIKE @queryPattern
                             )
                 ORDER BY name", conn);
-            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-            cmd.Parameters.AddWithValue("queryPattern", queryPattern);
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+            cmd.Parameters.Add(new NpgsqlParameter("queryPattern", NpgsqlDbType.Text) { Value = queryPattern });
 
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             while (await reader.ReadAsync(ct))
@@ -116,7 +117,7 @@ internal static class CustomersEndpoints
                     email = reader.IsDBNull(3) ? null : reader.GetString(3),
                     notes = reader.IsDBNull(4) ? null : reader.GetString(4),
                     isActive = reader.GetBoolean(5),
-                    createdAt = reader.GetFieldValue<DateTimeOffset>(6)
+                    createdAt = reader.GetFieldValue<DateTime>(6)
                 });
             }
 
@@ -170,13 +171,13 @@ internal static class CustomersEndpoints
                     active = @active
                 WHERE id = @id AND barbershop_id = @barbershopId", conn);
 
-            cmd.Parameters.AddWithValue("id", id);
-            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-            cmd.Parameters.AddWithValue("name", request.Name.Trim());
-            cmd.Parameters.AddWithValue("phone", normalizedPhone);
-            cmd.Parameters.AddWithValue("email", (object?)normalizedCustomerEmail ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("notes", (object?)request.Notes?.Trim() ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("active", request.IsActive);
+            cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = id });
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+            cmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = request.Name.Trim() });
+            cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = normalizedPhone });
+            cmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = (object?)normalizedCustomerEmail ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("notes", NpgsqlDbType.Text) { Value = (object?)request.Notes?.Trim() ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("active", NpgsqlDbType.Boolean) { Value = request.IsActive });
 
             var affected = await cmd.ExecuteNonQueryAsync(ct);
             return affected == 0 ? Results.NotFound() : Results.NoContent();
@@ -201,8 +202,8 @@ internal static class CustomersEndpoints
                 UPDATE customers
                 SET active = FALSE
                 WHERE id = @id AND barbershop_id = @barbershopId", conn);
-            cmd.Parameters.AddWithValue("id", id);
-            cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+            cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = id });
+            cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
             var affected = await cmd.ExecuteNonQueryAsync(ct);
             return affected == 0 ? Results.NotFound() : Results.NoContent();

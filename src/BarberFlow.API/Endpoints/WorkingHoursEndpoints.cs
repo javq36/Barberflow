@@ -39,7 +39,7 @@ internal static class WorkingHoursEndpoints
                 var response = hours.Select(h => new WorkingHourResponse(
                     h.Id, h.BarberId, h.DayOfWeek, h.StartTime, h.EndTime, h.IsActive));
 
-                return Results.Ok(new { data = response });
+                return Results.Ok(response);
             }).RequireAuthorization();
 
         // POST /barbers/{barberId}/working-hours

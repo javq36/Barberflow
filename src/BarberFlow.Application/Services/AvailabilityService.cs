@@ -1,4 +1,5 @@
 using Npgsql;
+using NpgsqlTypes;
 
 namespace BarberFlow.Application.Services;
 
@@ -119,8 +120,8 @@ public sealed class AvailabilityService : IAvailabilityService
             WHERE id = @serviceId AND barbershop_id = @barbershopId AND active = TRUE
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("serviceId", serviceId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("serviceId", NpgsqlDbType.Uuid) { Value = serviceId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result is null ? null : Convert.ToInt32(result);
@@ -142,8 +143,8 @@ public sealed class AvailabilityService : IAvailabilityService
               AND is_active = TRUE
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("dayOfWeek", dayOfWeek);
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("dayOfWeek", NpgsqlDbType.Integer) { Value = dayOfWeek });
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -171,8 +172,8 @@ public sealed class AvailabilityService : IAvailabilityService
               AND end_date >= @date
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("date", dateTs);
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("date", NpgsqlDbType.Timestamp) { Value = dateTs });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result is not null;
@@ -196,10 +197,10 @@ public sealed class AvailabilityService : IAvailabilityService
               AND end_time > @dayStart
             ORDER BY appointment_time", conn);
 
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("dayStart", dayStartUtc);
-        cmd.Parameters.AddWithValue("dayEnd", dayEndUtc);
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("dayStart", NpgsqlDbType.TimestampTz) { Value = dayStartUtc });
+        cmd.Parameters.Add(new NpgsqlParameter("dayEnd", NpgsqlDbType.TimestampTz) { Value = dayEndUtc });
 
         var results = new List<(DateTimeOffset, DateTimeOffset)>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);

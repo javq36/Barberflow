@@ -1,5 +1,6 @@
 using BarberFlow.Domain.Enums;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace BarberFlow.Application.Services;
 
@@ -215,8 +216,8 @@ public sealed class BookingService : IBookingService
             WHERE id = @serviceId AND barbershop_id = @barbershopId AND active = TRUE
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("serviceId", serviceId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("serviceId", NpgsqlDbType.Uuid) { Value = serviceId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result is null ? null : Convert.ToInt32(result);
@@ -235,8 +236,8 @@ public sealed class BookingService : IBookingService
               AND role = {(int)UserRole.Barber} AND active = TRUE
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         return await cmd.ExecuteScalarAsync(ct) is not null;
     }
@@ -253,8 +254,8 @@ public sealed class BookingService : IBookingService
             WHERE id = @customerId AND barbershop_id = @barbershopId AND active = TRUE
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("customerId", customerId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("customerId", NpgsqlDbType.Uuid) { Value = customerId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         return await cmd.ExecuteScalarAsync(ct) is not null;
     }
@@ -286,14 +287,14 @@ public sealed class BookingService : IBookingService
                 LIMIT 1";
 
         await using var cmd = new NpgsqlCommand(sql, conn);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("startTime", startTime);
-        cmd.Parameters.AddWithValue("endTime", endTime);
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("startTime", NpgsqlDbType.TimestampTz) { Value = startTime });
+        cmd.Parameters.Add(new NpgsqlParameter("endTime", NpgsqlDbType.TimestampTz) { Value = endTime });
 
         if (excludeId.HasValue)
         {
-            cmd.Parameters.AddWithValue("excludeId", excludeId.Value);
+            cmd.Parameters.Add(new NpgsqlParameter("excludeId", NpgsqlDbType.Uuid) { Value = excludeId.Value });
         }
 
         return await cmd.ExecuteScalarAsync(ct) is not null;
@@ -311,8 +312,8 @@ public sealed class BookingService : IBookingService
             WHERE id = @id AND barbershop_id = @barbershopId
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("id", appointmentId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = appointmentId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         var result = await cmd.ExecuteScalarAsync(ct);
         return result is null ? null : Convert.ToInt32(result);
@@ -332,8 +333,8 @@ public sealed class BookingService : IBookingService
             WHERE id = @id AND barbershop_id = @barbershopId
             LIMIT 1", conn);
 
-        cmd.Parameters.AddWithValue("id", appointmentId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = appointmentId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct))
@@ -371,11 +372,11 @@ public sealed class BookingService : IBookingService
               AND (@barberId IS NULL OR a.barber_id = @barberId)
             ORDER BY a.appointment_time", conn);
 
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        cmd.Parameters.AddWithValue("fromTime", from);
-        cmd.Parameters.AddWithValue("toTime", to);
-        cmd.Parameters.AddWithValue("status", (object?)status ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("barberId", (object?)barberId ?? DBNull.Value);
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("fromTime", NpgsqlDbType.TimestampTz) { Value = from });
+        cmd.Parameters.Add(new NpgsqlParameter("toTime", NpgsqlDbType.TimestampTz) { Value = to });
+        cmd.Parameters.Add(new NpgsqlParameter("status", NpgsqlDbType.Integer) { Value = (object?)status ?? DBNull.Value });
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = (object?)barberId ?? DBNull.Value });
 
         var results = new List<AppointmentDto>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -421,15 +422,15 @@ public sealed class BookingService : IBookingService
                 (@id, @barbershopId, @barberId, @serviceId, @customerId,
                  @appointmentTime, @endTime, @status, @notes, NOW())", conn);
 
-        cmd.Parameters.AddWithValue("id", id);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("serviceId", serviceId);
-        cmd.Parameters.AddWithValue("customerId", customerId);
-        cmd.Parameters.AddWithValue("appointmentTime", appointmentTime);
-        cmd.Parameters.AddWithValue("endTime", endTime);
-        cmd.Parameters.AddWithValue("status", 1); // Pending
-        cmd.Parameters.AddWithValue("notes", (object?)notes?.Trim() ?? DBNull.Value);
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = id });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("serviceId", NpgsqlDbType.Uuid) { Value = serviceId });
+        cmd.Parameters.Add(new NpgsqlParameter("customerId", NpgsqlDbType.Uuid) { Value = customerId });
+        cmd.Parameters.Add(new NpgsqlParameter("appointmentTime", NpgsqlDbType.TimestampTz) { Value = appointmentTime });
+        cmd.Parameters.Add(new NpgsqlParameter("endTime", NpgsqlDbType.TimestampTz) { Value = endTime });
+        cmd.Parameters.Add(new NpgsqlParameter("status", NpgsqlDbType.Integer) { Value = 1 }); // Pending
+        cmd.Parameters.Add(new NpgsqlParameter("notes", NpgsqlDbType.Text) { Value = (object?)notes?.Trim() ?? DBNull.Value });
 
         await cmd.ExecuteNonQueryAsync(ct);
         return id;
@@ -455,13 +456,13 @@ public sealed class BookingService : IBookingService
                 notes = @notes
             WHERE id = @id AND barbershop_id = @barbershopId", conn);
 
-        cmd.Parameters.AddWithValue("id", appointmentId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        cmd.Parameters.AddWithValue("barberId", barberId);
-        cmd.Parameters.AddWithValue("serviceId", serviceId);
-        cmd.Parameters.AddWithValue("appointmentTime", appointmentTime);
-        cmd.Parameters.AddWithValue("endTime", endTime);
-        cmd.Parameters.AddWithValue("notes", (object?)notes?.Trim() ?? DBNull.Value);
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = appointmentId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("serviceId", NpgsqlDbType.Uuid) { Value = serviceId });
+        cmd.Parameters.Add(new NpgsqlParameter("appointmentTime", NpgsqlDbType.TimestampTz) { Value = appointmentTime });
+        cmd.Parameters.Add(new NpgsqlParameter("endTime", NpgsqlDbType.TimestampTz) { Value = endTime });
+        cmd.Parameters.Add(new NpgsqlParameter("notes", NpgsqlDbType.Text) { Value = (object?)notes?.Trim() ?? DBNull.Value });
 
         await cmd.ExecuteNonQueryAsync(ct);
     }
@@ -478,9 +479,9 @@ public sealed class BookingService : IBookingService
             SET status = 3, notes = @notes
             WHERE id = @id AND barbershop_id = @barbershopId", conn);
 
-        cmd.Parameters.AddWithValue("id", appointmentId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        cmd.Parameters.AddWithValue("notes", (object?)notes?.Trim() ?? DBNull.Value);
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = appointmentId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("notes", NpgsqlDbType.Text) { Value = (object?)notes?.Trim() ?? DBNull.Value });
 
         await cmd.ExecuteNonQueryAsync(ct);
     }
@@ -498,10 +499,10 @@ public sealed class BookingService : IBookingService
             SET status = @status, notes = @notes
             WHERE id = @id AND barbershop_id = @barbershopId", conn);
 
-        cmd.Parameters.AddWithValue("id", appointmentId);
-        cmd.Parameters.AddWithValue("barbershopId", barbershopId);
-        cmd.Parameters.AddWithValue("status", status);
-        cmd.Parameters.AddWithValue("notes", (object?)notes?.Trim() ?? DBNull.Value);
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = appointmentId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("status", NpgsqlDbType.Integer) { Value = status });
+        cmd.Parameters.Add(new NpgsqlParameter("notes", NpgsqlDbType.Text) { Value = (object?)notes?.Trim() ?? DBNull.Value });
 
         await cmd.ExecuteNonQueryAsync(ct);
     }
