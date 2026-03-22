@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Diagnostics;
 using Npgsql;
 using System.Threading.RateLimiting;
 using BarberFlow.API.Endpoints;
+// Application service interfaces — concrete implementations registered in later tasks (T03–T08)
+using BarberFlow.Application.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -77,6 +79,23 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             });
     });
+
+    // Public booking endpoints: 5 requests per minute per IP (REQ-RL-01 / REQ-PUB-04).
+    options.AddPolicy("PublicBooking", context =>
+    {
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"public:{ip}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
 });
 
 var configuredCorsOrigins = builder.Configuration
@@ -117,6 +136,19 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// ── Application Service Layer (DI seams) ─────────────────────────────────────
+// Concrete implementations are introduced in later tasks. Each registration is
+// marked with the task that provides the implementation so the TODOs are
+// traceable in the backlog.
+//
+builder.Services.AddSingleton<IWorkingHoursService>(_ => new WorkingHoursService(connectionString));
+builder.Services.AddScoped<ITimeOffService>(_ => new TimeOffService(connectionString));
+builder.Services.AddScoped<IBookingRulesService>(_ => new BookingRulesService(connectionString));
+builder.Services.AddScoped<IAvailabilityService>(sp =>
+    new AvailabilityService(connectionString, sp.GetRequiredService<IBookingRulesService>()));
+builder.Services.AddScoped<IBookingService>(_ => new BookingService(connectionString));
+// ─────────────────────────────────────────────────────────────────────────────
 
 var app = builder.Build();
 
@@ -195,7 +227,15 @@ app.MapAuthEndpoints(connectionString, issuer!, audience!, key!, jwtSection)
    .MapServicesEndpoints(connectionString)
    .MapBarbersEndpoints(connectionString)
    .MapCustomersEndpoints(connectionString)
-   .MapAppointmentsEndpoints(connectionString);
+   .MapAppointmentsEndpoints(connectionString)
+   .MapWorkingHoursEndpoints()
+   .MapTimeOffEndpoints(connectionString)
+   .MapBookingRulesEndpoints();
+
+// Public booking endpoints — no authentication required (T10).
+// The group is mapped under /public so all child routes resolve as /public/{slug}/*.
+app.MapGroup("/public")
+   .MapPublicEndpoints(connectionString);
 
 app.Run();
 

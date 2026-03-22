@@ -20,11 +20,15 @@ export default function LoginPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [login, { isLoading }] = useLoginMutation();
 
+  const role = session?.role ?? null;
+
   useEffect(() => {
     if (!isSessionLoading && isAuthenticated) {
-      router.replace(APP_ROUTES.Dashboard);
+      const destination =
+        role === "Barber" ? APP_ROUTES.BarberSchedule : APP_ROUTES.Dashboard;
+      router.replace(destination);
     }
-  }, [isAuthenticated, isSessionLoading, router]);
+  }, [isAuthenticated, isSessionLoading, role, router]);
 
   function getApiErrorMessage(error: unknown) {
     if (
@@ -57,14 +61,18 @@ export default function LoginPage() {
     }
 
     try {
-      await login({ email: email.trim(), password }).unwrap();
+      const result = await login({ email: email.trim(), password }).unwrap();
       setFeedback(Auth.Login.Success);
       showToast({
         title: Common.Toasts.LoggedInTitle,
         description: Auth.Login.Success,
         variant: "success",
       });
-      router.push(APP_ROUTES.Dashboard);
+      const destination =
+        result.user.role === "Barber"
+          ? APP_ROUTES.BarberSchedule
+          : APP_ROUTES.Dashboard;
+      router.push(destination);
     } catch (error) {
       const message = getApiErrorMessage(error) ?? Auth.Login.Error;
       setFeedback(message);
