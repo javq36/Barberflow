@@ -6,6 +6,7 @@ using Npgsql;
 using NpgsqlTypes;
 using BarberFlow.API.Constants;
 using BarberFlow.API.Contracts;
+using BarberFlow.Application.Helpers;
 using BarberFlow.Domain.Enums;
 
 namespace BarberFlow.API.Endpoints;
@@ -62,7 +63,8 @@ internal static class AuthEndpoints
                 insertCmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = userId });
                 insertCmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = request.Name.Trim() });
                 insertCmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = request.Email.Trim().ToLowerInvariant() });
-                insertCmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = (object?)request.Phone?.Trim() ?? DBNull.Value });
+                var normalizedOwnerPhone = PhoneNormalizer.Normalize(request.Phone);
+                insertCmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = (object?)normalizedOwnerPhone ?? DBNull.Value });
                 insertCmd.Parameters.Add(new NpgsqlParameter("role", NpgsqlDbType.Integer) { Value = (int)UserRole.Owner });
                 insertCmd.Parameters.Add(new NpgsqlParameter("passwordHash", NpgsqlDbType.Text) { Value = passwordHash });
 

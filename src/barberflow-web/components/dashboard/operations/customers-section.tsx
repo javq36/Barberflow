@@ -15,6 +15,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { isValidPhoneNumber, type Value } from "react-phone-number-input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { RoleWorkspaceShell } from "@/components/dashboard/operations/role-workspace-shell";
 import { LoadingButton } from "@/components/ui/loading-button";
 import {
@@ -42,12 +44,6 @@ type CustomerFormErrors = {
   name?: string;
   phone?: string;
 };
-
-const COLOMBIA_PHONE_MAX_LENGTH = 10;
-
-function normalizePhone(value: string) {
-  return value.replace(/\D/g, "");
-}
 
 export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
   const router = useRouter();
@@ -223,10 +219,9 @@ export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
       errors.name = ClientsV2.Messages.NameRequired;
     }
 
-    const normalizedPhone = normalizePhone(phone);
-    if (!normalizedPhone) {
+    if (!phone) {
       errors.phone = ClientsV2.Messages.PhoneRequired;
-    } else if (normalizedPhone.length !== COLOMBIA_PHONE_MAX_LENGTH) {
+    } else if (!isValidPhoneNumber(phone)) {
       errors.phone = ClientsV2.Messages.PhoneInvalid;
     }
 
@@ -238,11 +233,7 @@ export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
 
     try {
       const normalizedName = customerName.trim();
-      const normalizedPhone = normalizePhone(customerPhone);
-      const validationErrors = validateCustomer(
-        normalizedName,
-        normalizedPhone,
-      );
+      const validationErrors = validateCustomer(normalizedName, customerPhone);
       if (validationErrors.name || validationErrors.phone) {
         setCreateCustomerErrors(validationErrors);
         showToast({
@@ -261,7 +252,7 @@ export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
       await createCustomer({
         name: normalizedName,
         email: customerEmail.trim() || undefined,
-        phone: normalizedPhone,
+        phone: customerPhone, // already E.164 from PhoneInput
         notes: customerNotes.trim() || undefined,
         isActive: true,
       }).unwrap();
@@ -294,11 +285,8 @@ export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
 
     try {
       const normalizedName = (editingCustomer.name ?? "").trim();
-      const normalizedPhone = normalizePhone(editingCustomer.phone ?? "");
-      const validationErrors = validateCustomer(
-        normalizedName,
-        normalizedPhone,
-      );
+      const editPhone = editingCustomer.phone ?? "";
+      const validationErrors = validateCustomer(normalizedName, editPhone);
       if (validationErrors.name || validationErrors.phone) {
         setEditCustomerErrors(validationErrors);
         showToast({
@@ -318,7 +306,7 @@ export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
         id: editingCustomer.id,
         name: normalizedName,
         email: editingCustomer.email?.trim() || undefined,
-        phone: normalizedPhone,
+        phone: editPhone, // already E.164 from PhoneInput
         notes: editingCustomer.notes?.trim() || undefined,
         isActive: editingCustomer.isActive,
       }).unwrap();
@@ -789,20 +777,10 @@ export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
                     {ClientsV2.Modal.LabelPhone}
                     <span className="ml-1 text-red-400">*</span>
                   </label>
-                  <input
-                    className={`h-11 w-full rounded border bg-[#121212] px-3 text-sm text-slate-100 placeholder:text-slate-500 ${
-                      createCustomerErrors.phone
-                        ? "border-red-500"
-                        : "border-slate-700"
-                    }`}
-                    value={customerPhone}
-                    onChange={(event) => {
-                      setCustomerPhone(
-                        normalizePhone(event.target.value).slice(
-                          0,
-                          COLOMBIA_PHONE_MAX_LENGTH,
-                        ),
-                      );
+                  <PhoneInput
+                    value={customerPhone as Value}
+                    onChange={(v) => {
+                      setCustomerPhone(v ?? "");
                       if (createCustomerErrors.phone) {
                         setCreateCustomerErrors((current) => ({
                           ...current,
@@ -810,9 +788,13 @@ export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
                         }));
                       }
                     }}
+                    className={`flex h-11 items-center rounded border bg-[#121212] px-3 text-sm text-slate-100 ${
+                      createCustomerErrors.phone
+                        ? "border-red-500"
+                        : "border-slate-700"
+                    }`}
+                    inputClassName="text-sm text-slate-100 placeholder:text-slate-500 bg-transparent outline-none flex-1"
                     placeholder={Admin.Fields.Phone}
-                    inputMode="numeric"
-                    required
                   />
                   {createCustomerErrors.phone ? (
                     <p className="text-xs text-red-400">
@@ -921,20 +903,12 @@ export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
                     {ClientsV2.Modal.LabelPhone}
                     <span className="ml-1 text-red-400">*</span>
                   </label>
-                  <input
-                    className={`h-11 w-full rounded border bg-[#121212] px-3 text-sm text-slate-100 ${
-                      editCustomerErrors.phone
-                        ? "border-red-500"
-                        : "border-slate-700"
-                    }`}
-                    value={editingCustomer.phone ?? ""}
-                    onChange={(event) => {
+                  <PhoneInput
+                    value={(editingCustomer.phone ?? "") as Value}
+                    onChange={(v) => {
                       setEditingCustomer({
                         ...editingCustomer,
-                        phone: normalizePhone(event.target.value).slice(
-                          0,
-                          COLOMBIA_PHONE_MAX_LENGTH,
-                        ),
+                        phone: v ?? "",
                       });
                       if (editCustomerErrors.phone) {
                         setEditCustomerErrors((current) => ({
@@ -943,9 +917,13 @@ export function CustomersSection({ canOperate, role }: CustomersSectionProps) {
                         }));
                       }
                     }}
+                    className={`flex h-11 items-center rounded border bg-[#121212] px-3 text-sm text-slate-100 ${
+                      editCustomerErrors.phone
+                        ? "border-red-500"
+                        : "border-slate-700"
+                    }`}
+                    inputClassName="text-sm text-slate-100 bg-transparent outline-none flex-1"
                     placeholder={Admin.Fields.Phone}
-                    inputMode="numeric"
-                    required
                   />
                   {editCustomerErrors.phone ? (
                     <p className="text-xs text-red-400">

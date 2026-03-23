@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { User, Phone, ChevronLeft } from "lucide-react";
+import { User, ChevronLeft } from "lucide-react";
+import { isValidPhoneNumber, type Value } from "react-phone-number-input";
 import { cn } from "@/lib/utils";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Texts } from "@/lib/content/texts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -18,8 +20,6 @@ type ContactStepProps = {
 
 // ─── Validation helpers ───────────────────────────────────────────────────────
 
-const PHONE_REGEX = /^\+?[\d\s\-]{8,}$/;
-
 const { Validation } = Texts.Booking.ContactStep;
 
 function validateName(value: string): string | null {
@@ -29,10 +29,8 @@ function validateName(value: string): string | null {
 }
 
 function validatePhone(value: string): string | null {
-  if (!value.trim()) return Validation.PhoneRequired;
-  const digitsOnly = value.replace(/\D/g, "");
-  if (digitsOnly.length < 8) return Validation.PhoneMinDigits;
-  if (!PHONE_REGEX.test(value.trim())) return Validation.PhoneInvalid;
+  if (!value) return Validation.PhoneRequired;
+  if (!isValidPhoneNumber(value)) return Validation.PhoneInvalid;
   return null;
 }
 
@@ -174,18 +172,39 @@ export function ContactStep({
           onBlur={() => setNameTouched(true)}
         />
 
-        <Field
-          id="customer-phone"
-          label={CS.PhoneLabel}
-          type="tel"
-          value={customerPhone}
-          placeholder={CS.PhonePlaceholder}
-          icon={<Phone className="h-4 w-4" />}
-          error={phoneError}
-          touched={phoneTouched}
-          onChange={onChangePhone}
-          onBlur={() => setPhoneTouched(true)}
-        />
+        {/* Phone field with country selector */}
+        <div className="space-y-1.5">
+          <label
+            htmlFor="customer-phone"
+            className="block text-sm font-semibold"
+            style={{ color: "var(--bf-text-strong)" }}
+          >
+            {CS.PhoneLabel}
+          </label>
+
+          <PhoneInput
+            id="customer-phone"
+            value={customerPhone as Value}
+            onChange={(v) => onChangePhone(v ?? "")}
+            onBlur={() => setPhoneTouched(true)}
+            hasError={phoneTouched && phoneError !== null}
+            className={cn(
+              "flex w-full items-center rounded-xl border bg-transparent py-3 pl-3.5 pr-4 text-sm transition-all duration-150",
+              "focus-within:ring-2 focus-within:ring-offset-0",
+              phoneTouched && phoneError !== null
+                ? "border-[var(--bf-status-error-fg)] [--tw-ring-color:var(--bf-status-error-fg)]"
+                : "border-[var(--bf-border-soft)] [--tw-ring-color:var(--bf-brand-copper)]",
+            )}
+            inputClassName="text-sm text-[var(--bf-text-body)] placeholder:text-[var(--bf-text-soft)] bg-transparent outline-none"
+            placeholder={CS.PhonePlaceholder}
+          />
+
+          {phoneTouched && phoneError !== null && (
+            <p className="text-xs" style={{ color: "var(--bf-status-error-fg)" }}>
+              {phoneError}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Privacy note */}
