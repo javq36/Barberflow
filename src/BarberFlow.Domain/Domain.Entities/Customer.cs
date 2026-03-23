@@ -20,8 +20,9 @@ public class Customer
     /// <summary>
     /// Indica si el cliente consintió recibir notificaciones por WhatsApp.
     /// Solo se envían mensajes cuando este campo es <c>true</c>.
+    /// WhatsApp notifications are the core feature — defaults to true (opt-out model).
     /// </summary>
-    public bool OptInWhatsApp { get; set; } = false;
+    public bool OptInWhatsApp { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
