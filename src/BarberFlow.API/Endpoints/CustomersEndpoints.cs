@@ -3,6 +3,7 @@ using Npgsql;
 using NpgsqlTypes;
 using BarberFlow.API.Constants;
 using BarberFlow.API.Contracts;
+using BarberFlow.Application.Helpers;
 
 namespace BarberFlow.API.Endpoints;
 
@@ -23,18 +24,16 @@ internal static class CustomersEndpoints
                 return error!;
             }
 
-            var normalizedPhone = string.IsNullOrWhiteSpace(request.Phone)
-                ? string.Empty
-                : new string(request.Phone.Where(char.IsDigit).ToArray());
+            var normalizedPhone = PhoneNormalizer.Normalize(request.Phone);
 
             if (!EndpointHelpers.IsValidName(request.Name))
             {
                 return Results.BadRequest(new { message = "Customer name is required and must not exceed 100 characters." });
             }
 
-            if (normalizedPhone.Length != 10)
+            if (string.IsNullOrWhiteSpace(normalizedPhone) || !normalizedPhone.StartsWith('+'))
             {
-                return Results.BadRequest(new { message = "Customer phone must contain exactly 10 digits." });
+                return Results.BadRequest(new { message = "Customer phone must be a valid international number (e.g. +573224760877)." });
             }
 
             var normalizedCustomerEmail = string.IsNullOrWhiteSpace(request.Email)
@@ -71,8 +70,8 @@ internal static class CustomersEndpoints
                 barbershopId,
                 name = request.Name.Trim(),
                 phone = normalizedPhone,
-                request.Email,
-                request.Notes,
+                email = normalizedCustomerEmail,
+                notes = request.Notes?.Trim(),
                 isActive = request.IsActive
             });
         }).RequireAuthorization();
@@ -136,18 +135,16 @@ internal static class CustomersEndpoints
                 return error!;
             }
 
-            var normalizedPhone = string.IsNullOrWhiteSpace(request.Phone)
-                ? string.Empty
-                : new string(request.Phone.Where(char.IsDigit).ToArray());
+            var normalizedPhone = PhoneNormalizer.Normalize(request.Phone);
 
             if (!EndpointHelpers.IsValidName(request.Name))
             {
                 return Results.BadRequest(new { message = "Customer name is required and must not exceed 100 characters." });
             }
 
-            if (normalizedPhone.Length != 10)
+            if (string.IsNullOrWhiteSpace(normalizedPhone) || !normalizedPhone.StartsWith('+'))
             {
-                return Results.BadRequest(new { message = "Customer phone must contain exactly 10 digits." });
+                return Results.BadRequest(new { message = "Customer phone must be a valid international number (e.g. +573224760877)." });
             }
 
             var normalizedCustomerEmail = string.IsNullOrWhiteSpace(request.Email)

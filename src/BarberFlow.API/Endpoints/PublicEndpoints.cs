@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Npgsql;
 using NpgsqlTypes;
 using BarberFlow.API.Contracts;
+using BarberFlow.Application.Helpers;
 using BarberFlow.Application.Services;
 
 namespace BarberFlow.API.Endpoints;
@@ -246,11 +247,12 @@ internal static class PublicEndpoints
             }
 
             // ── Find-or-create customer by phone ──────────────────────────────
+            var normalizedPhone = PhoneNormalizer.Normalize(request.CustomerPhone.Trim()) ?? request.CustomerPhone.Trim();
             var customerId = await UpsertCustomerByPhoneAsync(
                 connectionString,
                 shop.BarbershopId,
                 request.CustomerName.Trim(),
-                request.CustomerPhone.Trim(),
+                normalizedPhone,
                 ct);
 
             // ── Create the appointment via BookingService ──────────────────────

@@ -3,6 +3,7 @@ using Npgsql;
 using NpgsqlTypes;
 using BarberFlow.API.Constants;
 using BarberFlow.API.Contracts;
+using BarberFlow.Application.Helpers;
 using BarberFlow.Domain.Enums;
 
 namespace BarberFlow.API.Endpoints;
@@ -63,7 +64,7 @@ internal static class BarbersEndpoints
                 insertCmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
                 insertCmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = request.Name.Trim() });
                 insertCmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = (object?)normalizedEmail ?? DBNull.Value });
-                insertCmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = (object?)request.Phone?.Trim() ?? DBNull.Value });
+                insertCmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = (object?)PhoneNormalizer.Normalize(request.Phone) ?? DBNull.Value });
                 insertCmd.Parameters.Add(new NpgsqlParameter("active", NpgsqlDbType.Boolean) { Value = request.IsActive });
                 await insertCmd.ExecuteNonQueryAsync(ct);
             }
@@ -175,7 +176,7 @@ internal static class BarbersEndpoints
             cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
             cmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = request.Name.Trim() });
             cmd.Parameters.Add(new NpgsqlParameter("email", NpgsqlDbType.Text) { Value = (object?)normalizedEmail ?? DBNull.Value });
-            cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = (object?)request.Phone?.Trim() ?? DBNull.Value });
+            cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = (object?)PhoneNormalizer.Normalize(request.Phone) ?? DBNull.Value });
             cmd.Parameters.Add(new NpgsqlParameter("active", NpgsqlDbType.Boolean) { Value = request.IsActive });
 
             var affected = await cmd.ExecuteNonQueryAsync(ct);

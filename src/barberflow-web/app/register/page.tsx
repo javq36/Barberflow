@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { type Value } from "react-phone-number-input";
 import {
   useGetSessionQuery,
   useRegisterOwnerMutation,
 } from "@/lib/api/authApi";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
 import { useAppToast } from "@/lib/toast/toast-provider";
@@ -147,12 +149,11 @@ export default function RegisterPage() {
               <span className="dashboard-body-muted text-sm font-medium">
                 {Auth.Register.PhoneLabel}
               </span>
-              <input
-                type="tel"
-                className="w-full rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                autoComplete="tel"
+              <PhoneInput
+                value={phone as Value}
+                onChange={(v) => setPhone(v ?? "")}
+                className="flex w-full items-center rounded-xl border border-border bg-background/80 px-3 py-2.5 text-sm text-foreground"
+                inputClassName="text-sm text-foreground bg-transparent outline-none flex-1"
               />
             </label>
 
