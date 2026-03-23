@@ -9,9 +9,11 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics;
 using Npgsql;
 using System.Threading.RateLimiting;
+using BarberFlow.API;
 using BarberFlow.API.Endpoints;
 // Application service interfaces — concrete implementations registered in later tasks (T03–T08)
 using BarberFlow.Application.Services;
+using BarberFlow.Infrastructure.AI;
 using BarberFlow.Infrastructure.WhatsApp;
 
 
@@ -97,6 +99,24 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             });
     });
+
+    // WhatsApp webhook: IP-based outer guard (Twilio uses a small set of known IPs).
+    // Per-phone limiting (10 msg/min) is enforced inside the endpoint handler
+    // via WhatsAppPhoneRateLimiter (singleton ConcurrentDictionary) after form parsing.
+    options.AddPolicy("WhatsAppWebhook", context =>
+    {
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: $"whatsapp:ip:{ip}",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+                AutoReplenishment = true
+            });
+    });
 });
 
 var configuredCorsOrigins = builder.Configuration
@@ -155,6 +175,38 @@ builder.Services.AddHostedService(sp =>
         sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AppointmentReminderService>>(),
         connectionString,
         intervalMinutes: reminderIntervalMinutes));
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── AI / WhatsApp Booking ─────────────────────────────────────────────────────
+// Per-phone rate limiter — singleton so state is shared across all requests.
+builder.Services.AddSingleton<WhatsAppPhoneRateLimiter>();
+
+// ConnectionStringAccessor lets scoped services receive the connection string
+// without needing factory lambdas in every registration.
+builder.Services.AddSingleton(new ConnectionStringAccessor(connectionString));
+
+// OpenAI settings — bound from the "OpenAI" section of appsettings / env vars.
+builder.Services.Configure<OpenAiSettings>(builder.Configuration.GetSection("OpenAI"));
+
+// SystemPromptBuilder is stateless — singleton is safe and avoids repeated allocations.
+builder.Services.AddSingleton<SystemPromptBuilder>();
+
+// Scoped AI services — each request/background scope gets its own instance.
+builder.Services.AddScoped<ConversationService>(sp =>
+    new ConversationService(
+        connectionString,
+        sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<OpenAiSettings>>()));
+
+builder.Services.AddScoped<ToolExecutor>(sp =>
+    new ToolExecutor(
+        connectionString,
+        sp.GetRequiredService<IAvailabilityService>(),
+        sp.GetRequiredService<IBookingService>(),
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ToolExecutor>>()));
+
+builder.Services.AddScoped<AiBookingOrchestrator>();
+builder.Services.AddScoped<BarbershopResolver>(sp =>
+    new BarbershopResolver(connectionString));
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Application Service Layer (DI seams) ─────────────────────────────────────
@@ -258,6 +310,9 @@ app.MapAuthEndpoints(connectionString, issuer!, audience!, key!, jwtSection)
 // The group is mapped under /public so all child routes resolve as /public/{slug}/*.
 app.MapGroup("/public")
    .MapPublicEndpoints(connectionString);
+
+// WhatsApp AI booking webhook — no JWT auth (Twilio signature validation used instead).
+app.MapWhatsAppWebhookEndpoints();
 
 app.Run();
 
