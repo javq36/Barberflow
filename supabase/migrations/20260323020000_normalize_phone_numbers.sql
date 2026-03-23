@@ -19,7 +19,7 @@ SET status = 0,  -- Pending
     retry_count = 0,
     last_error = NULL,
     processed_at = NULL,
-    next_retry_at = NULL,
+    next_retry_at = NOW(),
     customer_phone = '+57' || customer_phone
 WHERE status = 3  -- Failed
   AND customer_phone !~ '^\+'
