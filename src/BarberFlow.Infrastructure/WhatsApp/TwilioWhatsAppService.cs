@@ -107,6 +107,42 @@ public sealed class TwilioWhatsAppService : IWhatsAppService
         }
     }
 
+    /// <inheritdoc />
+    public async Task SendTextAsync(string customerPhone, string text, CancellationToken ct)
+    {
+        if (!E164Regex.IsMatch(customerPhone))
+        {
+            throw new ArgumentException("Customer phone is not valid E.164 format.", nameof(customerPhone));
+        }
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ArgumentException("Message text cannot be empty.", nameof(text));
+        }
+
+        var fromWhatsApp = FormatWhatsAppNumber(_settings.FromNumber);
+        var toWhatsApp = FormatWhatsAppNumber(customerPhone);
+
+        try
+        {
+            await MessageResource.CreateAsync(
+                to: new PhoneNumber(toWhatsApp),
+                from: new PhoneNumber(fromWhatsApp),
+                body: text);
+
+            _logger.LogInformation("WhatsApp free-form message sent.");
+        }
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send WhatsApp free-form message.");
+            throw;
+        }
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     /// <summary>
