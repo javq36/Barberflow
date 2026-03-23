@@ -103,7 +103,7 @@ internal static class BarbershopsEndpoints
         {
             if (!EndpointHelpers.CanManageBarbershopProfile(user))
             {
-                return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+                return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
             }
 
             if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
@@ -142,7 +142,7 @@ internal static class BarbershopsEndpoints
         {
             if (!EndpointHelpers.CanManageBarbershopProfile(user))
             {
-                return Results.Problem(title: ApiConstants.Messages.OwnerOnlyAction, statusCode: StatusCodes.Status403Forbidden);
+                return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
             }
 
             if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
