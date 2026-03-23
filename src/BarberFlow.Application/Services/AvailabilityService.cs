@@ -38,6 +38,47 @@ public sealed class AvailabilityService : IAvailabilityService
             return Array.Empty<SlotDto>();
         }
 
+        return await ComputeSlotsAsync(conn, barbershopId, barberId, context.DurationMinutes, context.Block!, date, timezone, isPublic, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<SlotDto>> GetAvailableSlotsAsync(
+        Guid barbershopId,
+        Guid barberId,
+        int totalDurationMinutes,
+        DateOnly date,
+        string timezone,
+        bool isPublic,
+        CancellationToken ct)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        var workingBlock = await GetWorkingBlockAsync(conn, barberId, date, ct);
+        if (workingBlock is null)
+        {
+            return Array.Empty<SlotDto>();
+        }
+
+        if (await IsTimeOffDayAsync(conn, barberId, date, ct))
+        {
+            return Array.Empty<SlotDto>();
+        }
+
+        return await ComputeSlotsAsync(conn, barbershopId, barberId, totalDurationMinutes, workingBlock, date, timezone, isPublic, ct);
+    }
+
+    private async Task<IReadOnlyList<SlotDto>> ComputeSlotsAsync(
+        NpgsqlConnection conn,
+        Guid barbershopId,
+        Guid barberId,
+        int durationMinutes,
+        WorkingBlock block,
+        DateOnly date,
+        string timezone,
+        bool isPublic,
+        CancellationToken ct)
+    {
         var rules = await _bookingRules.GetByBarbershopIdAsync(barbershopId, ct)
                     ?? BuildDefaultRules(barbershopId);
 
@@ -47,11 +88,11 @@ public sealed class AvailabilityService : IAvailabilityService
         }
 
         var tz = TimeZoneInfo.FindSystemTimeZoneById(timezone);
-        var busyRanges = await LoadBusyRangesAsync(conn, barbershopId, barberId, date, context.Block!, tz, ct);
+        var busyRanges = await LoadBusyRangesAsync(conn, barbershopId, barberId, date, block, tz, ct);
 
         return GenerateSlots(
-            date, tz, context.Block!,
-            context.DurationMinutes, rules.SlotDurationMinutes,
+            date, tz, block,
+            durationMinutes, rules.SlotDurationMinutes,
             isPublic ? rules.BufferMinutes : SlotBufferMinutes.None,
             isPublic ? rules.MinNoticeHours * 60 : 0,
             DateTimeOffset.UtcNow,

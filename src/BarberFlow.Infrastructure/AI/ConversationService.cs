@@ -99,6 +99,109 @@ public sealed class ConversationService
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    // ─── Analytics ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Upserts the <c>conversation_analytics</c> row for the given conversation.
+    /// Increments <c>messages_count</c>, accumulates <c>total_response_ms</c>,
+    /// and marks <c>updated_at</c> to NOW().
+    /// Creates the row on first call; subsequent calls do an incremental update.
+    /// </summary>
+    public async Task UpsertAnalyticsAsync(
+        Guid barbershopId,
+        string phone,
+        long responseMs,
+        CancellationToken ct)
+    {
+        var conversationId = await GetConversationIdAsync(barbershopId, phone, ct);
+        if (conversationId is null)
+        {
+            return;
+        }
+
+        await WriteAnalyticsRowAsync(conversationId.Value, barbershopId, responseMs, ct);
+    }
+
+    /// <summary>
+    /// Full analytics upsert with tools-used and booking-completed tracking.
+    /// Called by the orchestrator after each AI turn.
+    /// </summary>
+    public async Task UpsertAnalyticsAsync(
+        Guid barbershopId,
+        string phone,
+        IReadOnlyList<string> toolsUsed,
+        bool bookingCompleted,
+        long responseMs,
+        CancellationToken ct)
+    {
+        var conversationId = await GetConversationIdAsync(barbershopId, phone, ct);
+        if (conversationId is null)
+        {
+            return;
+        }
+
+        await WriteAnalyticsRowAsync(conversationId.Value, barbershopId, responseMs, toolsUsed, bookingCompleted, ct);
+    }
+
+    private async Task<Guid?> GetConversationIdAsync(Guid barbershopId, string phone, CancellationToken ct)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            SELECT id FROM whatsapp_conversations
+            WHERE barbershop_id = @barbershopId AND phone = @phone
+            LIMIT 1", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = phone });
+
+        var result = await cmd.ExecuteScalarAsync(ct);
+        return result is Guid g ? g : null;
+    }
+
+    private async Task WriteAnalyticsRowAsync(
+        Guid conversationId, Guid barbershopId, long responseMs, CancellationToken ct)
+    {
+        await WriteAnalyticsRowAsync(conversationId, barbershopId, responseMs, Array.Empty<string>(), false, ct);
+    }
+
+    private async Task WriteAnalyticsRowAsync(
+        Guid conversationId,
+        Guid barbershopId,
+        long responseMs,
+        IReadOnlyList<string> toolsUsed,
+        bool bookingCompleted,
+        CancellationToken ct)
+    {
+        var toolsArray = toolsUsed.ToArray();
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            INSERT INTO conversation_analytics
+                (id, conversation_id, barbershop_id, messages_count, tools_used,
+                 booking_completed, total_response_ms, updated_at)
+            VALUES
+                (gen_random_uuid(), @conversationId, @barbershopId, 1, @tools,
+                 @bookingCompleted, @responseMs, NOW())
+            ON CONFLICT (conversation_id) DO UPDATE SET
+                messages_count    = conversation_analytics.messages_count + 1,
+                tools_used        = array_cat(conversation_analytics.tools_used, @tools),
+                booking_completed = conversation_analytics.booking_completed OR @bookingCompleted,
+                total_response_ms = conversation_analytics.total_response_ms + @responseMs,
+                updated_at        = NOW()", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("conversationId", NpgsqlDbType.Uuid) { Value = conversationId });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("tools", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = toolsArray });
+        cmd.Parameters.Add(new NpgsqlParameter("bookingCompleted", NpgsqlDbType.Boolean) { Value = bookingCompleted });
+        cmd.Parameters.Add(new NpgsqlParameter("responseMs", NpgsqlDbType.Bigint) { Value = responseMs });
+
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     // ─── Reset ────────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -107,6 +210,57 @@ public sealed class ConversationService
     /// </summary>
     public static bool ShouldReset(DateTimeOffset lastMessageAt)
         => DateTimeOffset.UtcNow - lastMessageAt > TimeSpan.FromMinutes(30);
+
+    /// <summary>
+    /// Clears the conversation history and pending context for the given phone number.
+    /// Used for manual resets (keyword-triggered).
+    /// Sets <c>messages</c> to <c>[]</c>, <c>context</c> to <c>{}</c>, and
+    /// updates <c>last_message_at</c> to NOW().
+    /// No-op if no conversation row exists yet.
+    /// </summary>
+    public async Task ResetAsync(Guid barbershopId, string phone, CancellationToken ct)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            UPDATE whatsapp_conversations
+            SET
+                messages        = '[]'::jsonb,
+                context         = '{}'::jsonb,
+                last_message_at = NOW()
+            WHERE barbershop_id = @barbershopId AND phone = @phone", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = phone });
+
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Clears only the pending context (sets <c>context</c> to <c>{}</c>) and updates
+    /// <c>last_message_at</c>, but KEEPS the message history intact.
+    /// Used for inactivity auto-resets (30 min) so history is preserved for context
+    /// while any in-progress booking state is discarded.
+    /// No-op if no conversation row exists yet.
+    /// </summary>
+    public async Task ResetContextAsync(Guid barbershopId, string phone, CancellationToken ct)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            UPDATE whatsapp_conversations
+            SET
+                context         = '{}'::jsonb,
+                last_message_at = NOW()
+            WHERE barbershop_id = @barbershopId AND phone = @phone", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = phone });
+
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
