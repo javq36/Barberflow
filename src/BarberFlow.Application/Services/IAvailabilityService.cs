@@ -29,6 +29,27 @@ public interface IAvailabilityService
         string timezone,
         bool isPublic,
         CancellationToken ct);
+
+    /// <summary>
+    /// Returns available time slots using an explicit total duration in minutes.
+    /// Used for multi-service bookings where the caller pre-computes the combined duration.
+    /// </summary>
+    /// <param name="barbershopId">Barbershop tenant identifier.</param>
+    /// <param name="barberId">Target barber identifier.</param>
+    /// <param name="totalDurationMinutes">Combined duration of all services in minutes.</param>
+    /// <param name="date">The requested booking date.</param>
+    /// <param name="timezone">IANA timezone identifier for the barbershop.</param>
+    /// <param name="isPublic">When <see langword="true"/>, applies the public buffer between slots.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Read-only list of computed slots sorted by start time.</returns>
+    Task<IReadOnlyList<SlotDto>> GetAvailableSlotsAsync(
+        Guid barbershopId,
+        Guid barberId,
+        int totalDurationMinutes,
+        DateOnly date,
+        string timezone,
+        bool isPublic,
+        CancellationToken ct);
 }
 
 /// <summary>Represents a single bookable time slot.</summary>

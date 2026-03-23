@@ -38,4 +38,21 @@ public sealed class OpenAiSettings
     /// Por defecto: 20.
     /// </summary>
     public int MaxConversationMessages { get; init; } = 20;
+
+    /// <summary>
+    /// Habilita la transcripción de audio vía Whisper.
+    /// Cuando es <see langword="false"/>, los mensajes de voz reciben la respuesta de
+    /// medio no soportado sin invocar la API de Whisper.
+    /// Variable de entorno: <c>OpenAI__WhisperEnabled</c>.
+    /// Por defecto: <see langword="true"/>.
+    /// </summary>
+    public bool WhisperEnabled { get; init; } = true;
+
+    /// <summary>
+    /// Tamaño máximo permitido para archivos de audio (en bytes).
+    /// Los audios que superen este límite son rechazados antes de enviarse a Whisper.
+    /// Variable de entorno: <c>OpenAI__MaxAudioSizeBytes</c>.
+    /// Por defecto: 10 MB.
+    /// </summary>
+    public int MaxAudioSizeBytes { get; init; } = 10_485_760;
 }

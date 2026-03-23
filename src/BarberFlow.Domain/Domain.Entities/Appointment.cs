@@ -32,6 +32,12 @@ public class Appointment
     /// </summary>
     public DateTime? ReminderSentAt { get; set; }
 
+    /// <summary>
+    /// Marca de tiempo en que se envió el mensaje de solicitud de feedback.
+    /// <c>null</c> indica que aún no se ha enviado la solicitud.
+    /// </summary>
+    public DateTimeOffset? FeedbackRequestedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Barbershop? Barbershop { get; set; }
