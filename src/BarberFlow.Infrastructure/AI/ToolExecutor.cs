@@ -53,7 +53,7 @@ public sealed class ToolExecutor
                 "get_services" => await GetServicesAsync(barbershopId, ct),
                 "get_barbers" => await GetBarbersAsync(barbershopId, ct),
                 "check_availability" => await CheckAvailabilityAsync(barbershopId, args, timezone, ct),
-                "book_appointment" => await BookAppointmentAsync(barbershopId, customerPhone, args, ct),
+                "book_appointment" => await BookAppointmentAsync(barbershopId, customerPhone, args, timezone, ct),
                 "get_my_appointments" => await GetMyAppointmentsAsync(barbershopId, customerPhone, ct),
                 "cancel_appointment" => await CancelAppointmentAsync(barbershopId, args, ct),
                 _ => ErrorJson($"Herramienta desconocida: {toolName}")
@@ -144,16 +144,24 @@ public sealed class ToolExecutor
         var slots = await _availability.GetAvailableSlotsAsync(
             barbershopId, barberId, serviceId, date, timezone, isPublic: true, ct);
 
+        // Convert UTC slots to barbershop local time so OpenAI presents human-readable
+        // local times to the customer (not UTC times).
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(timezone);
         var available = slots
             .Where(s => s.Available)
-            .Select(s => new { start = s.Start.ToString("o"), end = s.End.ToString("o") })
+            .Select(s => new
+            {
+                start = TimeZoneInfo.ConvertTimeFromUtc(s.Start.UtcDateTime, tz).ToString("HH:mm"),
+                end   = TimeZoneInfo.ConvertTimeFromUtc(s.End.UtcDateTime,   tz).ToString("HH:mm")
+            })
             .ToList();
 
-        return JsonSerializer.Serialize(new { date = date.ToString("yyyy-MM-dd"), availableSlots = available }, Json);
+        return JsonSerializer.Serialize(
+            new { date = date.ToString("yyyy-MM-dd"), timezone, availableSlots = available }, Json);
     }
 
     private async Task<string> BookAppointmentAsync(
-        Guid barbershopId, string customerPhone, JsonElement args, CancellationToken ct)
+        Guid barbershopId, string customerPhone, JsonElement args, string timezone, CancellationToken ct)
     {
         if (!args.TryGetProperty("barber_id", out var barberIdEl) ||
             !Guid.TryParse(barberIdEl.GetString(), out var barberId))
@@ -173,8 +181,20 @@ public sealed class ToolExecutor
             return ErrorJson("slot_start inválido. Usá formato ISO 8601.");
         }
 
+        var slotStartStr = slotStartEl.GetString();
+
         // Npgsql 9 requires offset 0 (UTC) for TIMESTAMPTZ columns.
-        // OpenAI may return the local timezone offset (e.g. -05:00 for Colombia).
+        // OpenAI sends local time without offset (e.g. "2026-03-24T15:00:00").
+        // If there is no explicit offset and the string doesn't end with 'Z',
+        // treat the value as barbershop local time and attach the correct offset.
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(timezone);
+        if (slotStart.Offset == TimeSpan.Zero && !slotStartStr!.EndsWith("Z", StringComparison.OrdinalIgnoreCase))
+        {
+            // It's ambiguous — assume barbershop local
+            var localDt = new DateTimeOffset(slotStart.DateTime, tz.GetUtcOffset(slotStart.DateTime));
+            slotStart = localDt;
+        }
+
         var slotStartUtc = slotStart.ToUniversalTime();
 
         var customerName = args.TryGetProperty("customer_name", out var nameEl)
