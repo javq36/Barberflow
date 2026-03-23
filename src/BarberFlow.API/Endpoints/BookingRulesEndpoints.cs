@@ -22,9 +22,7 @@ internal static class BookingRulesEndpoints
             {
                 if (!EndpointHelpers.IsOwner(user))
                 {
-                    return Results.Problem(
-                        title: ApiConstants.Messages.OwnerOnlyAction,
-                        statusCode: StatusCodes.Status403Forbidden);
+                    return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
                 }
 
                 if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
@@ -61,9 +59,7 @@ internal static class BookingRulesEndpoints
             {
                 if (!EndpointHelpers.IsOwner(user))
                 {
-                    return Results.Problem(
-                        title: ApiConstants.Messages.OwnerOnlyAction,
-                        statusCode: StatusCodes.Status403Forbidden);
+                    return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
                 }
 
                 if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
@@ -75,7 +71,7 @@ internal static class BookingRulesEndpoints
                 {
                     return Results.BadRequest(new
                     {
-                        error = "slot_duration_minutes must be 15, 30, 45, or 60."
+                        message = "slot_duration_minutes must be 15, 30, 45, or 60."
                     });
                 }
 
@@ -83,7 +79,7 @@ internal static class BookingRulesEndpoints
                 {
                     return Results.BadRequest(new
                     {
-                        error = "max_days_in_advance must be at least 1."
+                        message = "max_days_in_advance must be at least 1."
                     });
                 }
 
@@ -91,7 +87,7 @@ internal static class BookingRulesEndpoints
                 {
                     return Results.BadRequest(new
                     {
-                        error = "min_notice_hours must be 0 or greater."
+                        message = "min_notice_hours must be 0 or greater."
                     });
                 }
 
@@ -99,7 +95,7 @@ internal static class BookingRulesEndpoints
                 {
                     return Results.BadRequest(new
                     {
-                        error = "buffer_minutes must be 0 or greater."
+                        message = "buffer_minutes must be 0 or greater."
                     });
                 }
 

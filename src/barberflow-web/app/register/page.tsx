@@ -13,6 +13,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
 import { useAppToast } from "@/lib/toast/toast-provider";
+import { getApiErrorMessage } from "@/lib/api/error";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -34,22 +35,6 @@ export default function RegisterPage() {
       router.replace(APP_ROUTES.Dashboard);
     }
   }, [isAuthenticated, isSessionLoading, router]);
-
-  function getApiErrorMessage(error: unknown) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "data" in error &&
-      error.data &&
-      typeof error.data === "object" &&
-      "message" in error.data &&
-      typeof error.data.message === "string"
-    ) {
-      return error.data.message;
-    }
-
-    return null;
-  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

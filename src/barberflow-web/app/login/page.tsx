@@ -8,6 +8,7 @@ import { LoadingButton } from "@/components/ui/loading-button";
 import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
 import { useAppToast } from "@/lib/toast/toast-provider";
+import { getApiErrorMessage } from "@/lib/api/error";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,22 +30,6 @@ export default function LoginPage() {
       router.replace(destination);
     }
   }, [isAuthenticated, isSessionLoading, role, router]);
-
-  function getApiErrorMessage(error: unknown) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "data" in error &&
-      error.data &&
-      typeof error.data === "object" &&
-      "message" in error.data &&
-      typeof error.data.message === "string"
-    ) {
-      return error.data.message;
-    }
-
-    return null;
-  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -10,6 +10,7 @@ import {
   type PublicBookingResponse,
 } from "@/lib/api/public-api";
 import { Texts } from "@/lib/content/texts";
+import { getApiErrorMessage } from "@/lib/api/error";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -356,7 +357,7 @@ export function ConfirmationStep({
                 {CS.ErrorTitle}
               </p>
               <p className="mt-0.5 text-xs" style={{ color: "var(--bf-text-soft)" }}>
-                {CS.ErrorBody}
+                {getApiErrorMessage(error)}
               </p>
             </div>
           </div>

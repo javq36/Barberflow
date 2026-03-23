@@ -30,9 +30,7 @@ internal static class TimeOffEndpoints
 
             if (!isOwner && !isSameBarber)
             {
-                return Results.Problem(
-                    title: ApiConstants.Messages.OwnerOnlyAction,
-                    statusCode: StatusCodes.Status403Forbidden);
+                return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
             }
 
             var entries = await timeOffService.GetByBarberIdAsync(barbershopId, barberId, from, to, ct);
@@ -47,9 +45,7 @@ internal static class TimeOffEndpoints
         {
             if (!EndpointHelpers.IsOwner(user))
             {
-                return Results.Problem(
-                    title: ApiConstants.Messages.OwnerOnlyAction,
-                    statusCode: StatusCodes.Status403Forbidden);
+                return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
             }
 
             if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var claimError))
@@ -83,7 +79,7 @@ internal static class TimeOffEndpoints
                     new { message = "start_date must be today or future, and end_date must be >= start_date." }),
                 CreateTimeOffResult.Overlap => Results.Conflict(
                     new { message = "Time off overlaps with an existing entry for this barber." }),
-                _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError)
+                _ => Results.Json(new { message = "Error interno del servidor. Intentá de nuevo.", code = "INTERNAL_ERROR" }, statusCode: 500)
             };
         }).RequireAuthorization();
 
@@ -95,9 +91,7 @@ internal static class TimeOffEndpoints
         {
             if (!EndpointHelpers.IsOwner(user))
             {
-                return Results.Problem(
-                    title: ApiConstants.Messages.OwnerOnlyAction,
-                    statusCode: StatusCodes.Status403Forbidden);
+                return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
             }
 
             if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var claimError))
