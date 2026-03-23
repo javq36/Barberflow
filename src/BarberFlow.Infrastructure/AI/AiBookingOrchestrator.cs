@@ -39,9 +39,10 @@ public sealed class AiBookingOrchestrator
     }
 
     /// <summary>
-    /// Processes a user message through the OpenAI function-calling loop.
+    /// Processes a user message through the OpenAI function-calling loop (customer flow).
+    /// Uses the customer system prompt and customer tool set.
     /// </summary>
-    public async Task<OrchestratorResult> ProcessMessageAsync(
+    public Task<OrchestratorResult> ProcessMessageAsync(
         Guid barbershopId,
         string barbershopName,
         string customerPhone,
@@ -51,17 +52,40 @@ public sealed class AiBookingOrchestrator
         CancellationToken ct)
     {
         var systemPrompt = _promptBuilder.Build(barbershopName, timezone);
+        return ProcessMessageAsync(
+            barbershopId, customerPhone, timezone,
+            userMessage, history,
+            ToolDefinitions.CustomerTools, systemPrompt,
+            barberId: null,
+            ct);
+    }
+
+    /// <summary>
+    /// Processes a user message through the OpenAI function-calling loop with explicit tool set and prompt.
+    /// Used by the barber flow to inject role-specific tools and system prompt.
+    /// </summary>
+    public async Task<OrchestratorResult> ProcessMessageAsync(
+        Guid barbershopId,
+        string phone,
+        string timezone,
+        string userMessage,
+        List<ChatMessage> history,
+        IReadOnlyList<ChatTool> tools,
+        string systemPrompt,
+        Guid? barberId,
+        CancellationToken ct)
+    {
         var messages = BuildMessageList(systemPrompt, history, userMessage);
 
         var options = new ChatCompletionOptions();
-        foreach (var tool in ToolDefinitions.All)
+        foreach (var tool in tools)
         {
             options.Tools.Add(tool);
         }
 
         try
         {
-            var reply = await RunLoopAsync(messages, options, barbershopId, customerPhone, timezone, ct);
+            var reply = await RunLoopAsync(messages, options, barbershopId, phone, timezone, barberId, ct);
             return new OrchestratorResult(reply, messages);
         }
         catch (Exception ex)
@@ -78,8 +102,9 @@ public sealed class AiBookingOrchestrator
         List<ChatMessage> messages,
         ChatCompletionOptions options,
         Guid barbershopId,
-        string customerPhone,
+        string phone,
         string timezone,
+        Guid? barberId,
         CancellationToken ct)
     {
         for (var iteration = 0; iteration < _maxIterations; iteration++)
@@ -90,7 +115,7 @@ public sealed class AiBookingOrchestrator
             if (response.FinishReason == ChatFinishReason.ToolCalls)
             {
                 messages.Add(ChatMessage.CreateAssistantMessage(response.ToolCalls));
-                await AppendToolResultsAsync(messages, response.ToolCalls, barbershopId, customerPhone, timezone, ct);
+                await AppendToolResultsAsync(messages, response.ToolCalls, barbershopId, phone, timezone, barberId, ct);
                 continue;
             }
 
@@ -112,8 +137,9 @@ public sealed class AiBookingOrchestrator
         List<ChatMessage> messages,
         IEnumerable<ChatToolCall> toolCalls,
         Guid barbershopId,
-        string customerPhone,
+        string phone,
         string timezone,
+        Guid? barberId,
         CancellationToken ct)
     {
         foreach (var call in toolCalls)
@@ -125,7 +151,7 @@ public sealed class AiBookingOrchestrator
                 "Executing tool. Name={ToolName}", call.FunctionName);
 
             var result = await _toolExecutor.ExecuteAsync(
-                call.FunctionName, args, barbershopId, customerPhone, timezone, ct);
+                call.FunctionName, args, barbershopId, phone, timezone, barberId, ct);
 
             messages.Add(ChatMessage.CreateToolMessage(call.Id, result));
         }

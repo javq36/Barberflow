@@ -4,16 +4,16 @@ using OpenAI.Chat;
 namespace BarberFlow.Infrastructure.AI;
 
 /// <summary>
-/// Defines the 6 OpenAI function-calling tools available to the AI booking assistant.
-/// All tools are barbershop-scoped; the executor fills in <c>barbershop_id</c> from context.
+/// Defines OpenAI function-calling tools for the AI booking assistant.
+/// Customer and barber flows use separate tool sets to enforce role-based access.
 /// </summary>
 public static class ToolDefinitions
 {
     private static readonly JsonSerializerOptions JsonOptions =
         new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
-    /// <summary>All 6 tools as a read-only list ready to pass to <see cref="ChatCompletionOptions"/>.</summary>
-    public static readonly IReadOnlyList<ChatTool> All =
+    /// <summary>Tools available to customers (booking flow).</summary>
+    public static readonly IReadOnlyList<ChatTool> CustomerTools =
     [
         BuildGetServices(),
         BuildGetBarbers(),
@@ -21,6 +21,16 @@ public static class ToolDefinitions
         BuildBookAppointment(),
         BuildGetMyAppointments(),
         BuildCancelAppointment(),
+    ];
+
+    /// <summary>All 6 customer tools — preserves backward-compatibility alias.</summary>
+    public static readonly IReadOnlyList<ChatTool> All = CustomerTools;
+
+    /// <summary>Tools available to barbers (agenda management). Excludes all customer booking tools.</summary>
+    public static readonly IReadOnlyList<ChatTool> BarberTools =
+    [
+        BuildDelayAppointment(),
+        BuildGetMyAgenda(),
     ];
 
     private static ChatTool BuildGetServices() =>
@@ -80,6 +90,32 @@ public static class ToolDefinitions
                     appointment_id = new { type = "string", description = "UUID del turno a cancelar." }
                 },
                 required = new[] { "appointment_id" }
+            });
+
+    private static ChatTool BuildDelayAppointment() =>
+        CreateTool("delay_appointment",
+            "Retrasa la próxima cita del peluquero por la cantidad de minutos indicada (máximo 60).",
+            new
+            {
+                type = "object",
+                properties = new
+                {
+                    minutes = new { type = "integer", description = "Minutos de retraso (1-60).", maximum = 60 }
+                },
+                required = new[] { "minutes" }
+            });
+
+    private static ChatTool BuildGetMyAgenda() =>
+        CreateTool("get_my_agenda",
+            "Devuelve la agenda del peluquero para una fecha (por defecto hoy).",
+            new
+            {
+                type = "object",
+                properties = new
+                {
+                    date = new { type = "string", description = "Fecha en formato YYYY-MM-DD (opcional, por defecto hoy)." }
+                },
+                required = Array.Empty<string>()
             });
 
     private static ChatTool CreateTool(string name, string description, object parameters)

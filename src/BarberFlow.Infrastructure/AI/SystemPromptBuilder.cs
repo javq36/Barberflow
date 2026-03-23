@@ -42,6 +42,36 @@ public sealed class SystemPromptBuilder
             """;
     }
 
+    /// <summary>
+    /// Builds a system prompt in Spanish for a barber managing their own appointments.
+    /// </summary>
+    /// <param name="barbershopName">Display name of the barbershop.</param>
+    /// <param name="timezone">IANA timezone identifier (e.g. "America/Argentina/Buenos_Aires").</param>
+    /// <param name="barberName">Name of the barber receiving the messages.</param>
+    /// <returns>System prompt string ready to pass to OpenAI as a system message.</returns>
+    public string BuildBarber(string barbershopName, string timezone, string barberName)
+    {
+        var tz = ResolveTimeZone(timezone);
+        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        var todayStr = now.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-AR"));
+        var timeStr = now.ToString("HH:mm");
+
+        return $"""
+            Sos el asistente de agenda de {barbershopName}. Ayudás a {barberName} a gestionar sus citas.
+            Hoy es {todayStr} y la hora local es {timeStr} ({tz.Id}).
+
+            ## Acciones disponibles
+            - Ver agenda del día o de una fecha (get_my_agenda)
+            - Consultar próxima cita (get_my_agenda)
+            - Retrasar la próxima cita (delay_appointment)
+
+            ## Reglas
+            - Respondé siempre en español, con mensajes cortos (máximo 3 oraciones).
+            - El retraso máximo permitido es 60 minutos.
+            - Si no podés completar una tarea, explicá brevemente el motivo.
+            """;
+    }
+
     private static TimeZoneInfo ResolveTimeZone(string timezone)
     {
         if (string.IsNullOrWhiteSpace(timezone))

@@ -175,6 +175,22 @@ builder.Services.AddHostedService(sp =>
         sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AppointmentReminderService>>(),
         connectionString,
         intervalMinutes: reminderIntervalMinutes));
+
+var barberAlertMinutesBefore = builder.Configuration.GetValue<int?>("WhatsApp:BarberAlertMinutesBefore") ?? 10;
+builder.Services.AddHostedService(sp =>
+    new BarberAlertService(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<BarberAlertService>>(),
+        connectionString,
+        minutesBefore: barberAlertMinutesBefore));
+
+var dailyAgendaHour = builder.Configuration.GetValue<int?>("WhatsApp:DailyAgendaHour") ?? 8;
+builder.Services.AddHostedService(sp =>
+    new DailyAgendaService(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DailyAgendaService>>(),
+        connectionString,
+        dailyAgendaHour: dailyAgendaHour));
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── AI / WhatsApp Booking ─────────────────────────────────────────────────────
@@ -202,6 +218,7 @@ builder.Services.AddScoped<ToolExecutor>(sp =>
         connectionString,
         sp.GetRequiredService<IAvailabilityService>(),
         sp.GetRequiredService<IBookingService>(),
+        sp.GetRequiredService<IWhatsAppOutboxService>(),
         sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ToolExecutor>>()));
 
 builder.Services.AddScoped<AiBookingOrchestrator>();

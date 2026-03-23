@@ -506,7 +506,9 @@ internal static class WhatsAppWebhookEndpoints
             return;
         }
 
-        var reply = await RunAiTurnAsync(sp, identity.BarbershopId.Value, phone, messageText, loggerFactory);
+        var reply = await RunAiTurnAsync(
+            sp, identity.BarbershopId.Value, phone, messageText,
+            identity.Role, identity.UserId, loggerFactory);
         await whatsApp.SendTextAsync(phone, reply, CancellationToken.None);
     }
 
@@ -515,6 +517,8 @@ internal static class WhatsAppWebhookEndpoints
         Guid barbershopId,
         string phone,
         string messageText,
+        string? role,
+        Guid? userId,
         ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger("WhatsAppWebhook.Processing");
@@ -529,30 +533,73 @@ internal static class WhatsAppWebhookEndpoints
             ? ConversationHistorySerializer.Deserialize(record.Messages)
             : new List<ChatMessage>();
 
-        var context = record is not null
-            ? record.Context
-            : new Dictionary<string, object>();
+        var context = record is not null ? record.Context : new Dictionary<string, object>();
 
-        string reply;
+        var (reply, updatedHistory) = await RunOrchestratorAsync(
+            sp, connString, barbershopId, phone, timezone, barbershopName,
+            messageText, history, role, userId, logger);
+
+        var serialized = ConversationHistorySerializer.Serialize(updatedHistory);
+        await conversationSvc.SaveAsync(barbershopId, phone, serialized, context, CancellationToken.None);
+
+        return reply;
+    }
+
+    private static async Task<(string reply, List<ChatMessage> history)> RunOrchestratorAsync(
+        IServiceProvider sp,
+        string connString,
+        Guid barbershopId,
+        string phone,
+        string timezone,
+        string barbershopName,
+        string messageText,
+        List<ChatMessage> history,
+        string? role,
+        Guid? userId,
+        ILogger logger)
+    {
         try
         {
             var orchestrator = sp.GetRequiredService<AiBookingOrchestrator>();
-            var result = await orchestrator.ProcessMessageAsync(
-                barbershopId, barbershopName, phone, timezone,
-                messageText, history, CancellationToken.None);
-            reply = result.Reply;
-            history = result.UpdatedHistory;
+            var promptBuilder = sp.GetRequiredService<BarberFlow.Infrastructure.AI.SystemPromptBuilder>();
+
+            OrchestratorResult result;
+            if (string.Equals(role, "barber", StringComparison.OrdinalIgnoreCase) && userId.HasValue)
+            {
+                var barberName = await GetBarberNameAsync(connString, userId.Value);
+                var barberPrompt = promptBuilder.BuildBarber(barbershopName, timezone, barberName);
+                result = await orchestrator.ProcessMessageAsync(
+                    barbershopId, phone, timezone, messageText, history,
+                    BarberFlow.Infrastructure.AI.ToolDefinitions.BarberTools, barberPrompt,
+                    barberId: userId.Value, CancellationToken.None);
+            }
+            else
+            {
+                result = await orchestrator.ProcessMessageAsync(
+                    barbershopId, barbershopName, phone, timezone,
+                    messageText, history, CancellationToken.None);
+            }
+
+            return (result.Reply, result.UpdatedHistory);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "AI orchestrator failed.");
-            reply = "Lo siento, tuve un problema. Intentá de nuevo en un momento.";
+            return ("Lo siento, tuve un problema. Intentá de nuevo en un momento.", history);
         }
+    }
 
-        var serialized = ConversationHistorySerializer.Serialize(history);
-        await conversationSvc.SaveAsync(barbershopId, phone, serialized, context, CancellationToken.None);
+    private static async Task<string> GetBarberNameAsync(string connString, Guid userId)
+    {
+        await using var conn = new NpgsqlConnection(connString);
+        await conn.OpenAsync();
 
-        return reply;
+        await using var cmd = new NpgsqlCommand(
+            "SELECT name FROM users WHERE id = @id LIMIT 1", conn);
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = userId });
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result is string s && !string.IsNullOrWhiteSpace(s) ? s : "Peluquero";
     }
 
     /// <summary>
