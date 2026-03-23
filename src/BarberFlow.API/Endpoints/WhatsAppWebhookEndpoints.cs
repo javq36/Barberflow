@@ -523,6 +523,7 @@ internal static class WhatsAppWebhookEndpoints
     {
         var logger = loggerFactory.CreateLogger("WhatsAppWebhook.Processing");
         var connString = sp.GetRequiredService<ConnectionStringAccessor>().Value;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
 
         var (barbershopName, timezone) = await LoadBarbershopMetaAsync(connString, barbershopId);
 
@@ -535,17 +536,51 @@ internal static class WhatsAppWebhookEndpoints
 
         var context = record is not null ? record.Context : new Dictionary<string, object>();
 
-        var (reply, updatedHistory) = await RunOrchestratorAsync(
-            sp, connString, barbershopId, phone, timezone, barbershopName,
-            messageText, history, role, userId, logger);
+        // Check pending feedback state before running the AI turn.
+        var pendingFeedback = IsPendingFeedback(context);
+        var pendingFeedbackAppointmentId = ExtractPendingFeedbackAppointmentId(context);
 
-        var serialized = ConversationHistorySerializer.Serialize(updatedHistory);
+        var result = await RunOrchestratorAsync(
+            sp, connString, barbershopId, phone, timezone, barbershopName,
+            messageText, history, context, pendingFeedback, pendingFeedbackAppointmentId,
+            role, userId, logger);
+
+        sw.Stop();
+
+        // Persist conversation — context may have been mutated inside RunOrchestratorAsync.
+        var serialized = ConversationHistorySerializer.Serialize(result.UpdatedHistory);
         await conversationSvc.SaveAsync(barbershopId, phone, serialized, context, CancellationToken.None);
 
-        return reply;
+        // Update conversation analytics with full tool and booking data.
+        await conversationSvc.UpsertAnalyticsAsync(
+            barbershopId, phone,
+            result.ToolsUsed, result.BookingCompleted,
+            sw.ElapsedMilliseconds, CancellationToken.None);
+
+        return result.Reply;
     }
 
-    private static async Task<(string reply, List<ChatMessage> history)> RunOrchestratorAsync(
+    /// <summary>Returns true when the conversation context has a pending feedback flag.</summary>
+    private static bool IsPendingFeedback(Dictionary<string, object> context)
+        => context.TryGetValue("pending_feedback", out var v) && v is System.Text.Json.JsonElement je
+            ? je.ValueKind == System.Text.Json.JsonValueKind.True
+            : v is bool b && b;
+
+    /// <summary>
+    /// Extracts the pending feedback appointment ID from the conversation context, or null if absent.
+    /// </summary>
+    private static string? ExtractPendingFeedbackAppointmentId(Dictionary<string, object> context)
+    {
+        if (!context.TryGetValue("pending_feedback_appointment_id", out var raw))
+            return null;
+
+        if (raw is System.Text.Json.JsonElement el && el.ValueKind == System.Text.Json.JsonValueKind.String)
+            return el.GetString();
+
+        return raw as string;
+    }
+
+    private static async Task<OrchestratorResult> RunOrchestratorAsync(
         IServiceProvider sp,
         string connString,
         Guid barbershopId,
@@ -554,6 +589,9 @@ internal static class WhatsAppWebhookEndpoints
         string barbershopName,
         string messageText,
         List<ChatMessage> history,
+        Dictionary<string, object> context,
+        bool pendingFeedback,
+        string? pendingFeedbackAppointmentId,
         string? role,
         Guid? userId,
         ILogger logger)
@@ -563,30 +601,87 @@ internal static class WhatsAppWebhookEndpoints
             var orchestrator = sp.GetRequiredService<AiBookingOrchestrator>();
             var promptBuilder = sp.GetRequiredService<BarberFlow.Infrastructure.AI.SystemPromptBuilder>();
 
-            OrchestratorResult result;
             if (string.Equals(role, "barber", StringComparison.OrdinalIgnoreCase) && userId.HasValue)
             {
                 var barberName = await GetBarberNameAsync(connString, userId.Value);
                 var barberPrompt = promptBuilder.BuildBarber(barbershopName, timezone, barberName);
-                result = await orchestrator.ProcessMessageAsync(
+                return await orchestrator.ProcessMessageAsync(
                     barbershopId, phone, timezone, messageText, history,
                     BarberFlow.Infrastructure.AI.ToolDefinitions.BarberTools, barberPrompt,
                     barberId: userId.Value, CancellationToken.None);
             }
-            else
-            {
-                result = await orchestrator.ProcessMessageAsync(
-                    barbershopId, barbershopName, phone, timezone,
-                    messageText, history, CancellationToken.None);
-            }
 
-            return (result.Reply, result.UpdatedHistory);
+            return await RunCustomerOrchestratorAsync(
+                sp, orchestrator, promptBuilder, connString, barbershopId, phone,
+                timezone, barbershopName, messageText, history, context,
+                pendingFeedback, pendingFeedbackAppointmentId);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "AI orchestrator failed.");
-            return ("Lo siento, tuve un problema. Intentá de nuevo en un momento.", history);
+            return new OrchestratorResult("Lo siento, tuve un problema. Intentá de nuevo en un momento.", history);
         }
+    }
+
+    private static async Task<OrchestratorResult> RunCustomerOrchestratorAsync(
+        IServiceProvider sp,
+        AiBookingOrchestrator orchestrator,
+        BarberFlow.Infrastructure.AI.SystemPromptBuilder promptBuilder,
+        string connString,
+        Guid barbershopId,
+        string phone,
+        string timezone,
+        string barbershopName,
+        string messageText,
+        List<ChatMessage> history,
+        Dictionary<string, object> context,
+        bool pendingFeedback,
+        string? pendingFeedbackAppointmentId)
+    {
+        var preferredBarberName = await LoadPreferredBarberNameAsync(connString, barbershopId, phone);
+        var systemPrompt = promptBuilder.Build(
+            barbershopName, timezone, preferredBarberName,
+            pendingFeedback, pendingFeedbackAppointmentId);
+
+        var result = await orchestrator.ProcessMessageAsync(
+            barbershopId, phone, timezone, messageText, history,
+            BarberFlow.Infrastructure.AI.ToolDefinitions.CustomerTools, systemPrompt,
+            barberId: null, CancellationToken.None);
+
+        // If submit_feedback was called successfully, clear the pending feedback context.
+        if (pendingFeedback && result.FeedbackSubmitted)
+        {
+            context.Remove("pending_feedback");
+            context.Remove("pending_feedback_appointment_id");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Loads the preferred barber name for the given customer phone + barbershop.
+    /// Returns null when the customer has no preferred barber or is not yet registered.
+    /// </summary>
+    private static async Task<string?> LoadPreferredBarberNameAsync(
+        string connString, Guid barbershopId, string phone)
+    {
+        await using var conn = new NpgsqlConnection(connString);
+        await conn.OpenAsync();
+
+        await using var cmd = new NpgsqlCommand(@"
+            SELECT u.name
+            FROM customers c
+            JOIN users u ON u.id = c.preferred_barber_id
+            WHERE c.barbershop_id = @barbershopId
+              AND c.phone = @phone
+              AND c.preferred_barber_id IS NOT NULL
+            LIMIT 1", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = phone });
+
+        var result = await cmd.ExecuteScalarAsync();
+        return result is string s && !string.IsNullOrWhiteSpace(s) ? s : null;
     }
 
     private static async Task<string> GetBarberNameAsync(string connString, Guid userId)

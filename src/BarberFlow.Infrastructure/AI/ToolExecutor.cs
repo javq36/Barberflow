@@ -61,6 +61,7 @@ public sealed class ToolExecutor
                 "book_appointment" => await BookAppointmentAsync(barbershopId, customerPhone, args, timezone, ct),
                 "get_my_appointments" => await GetMyAppointmentsAsync(barbershopId, customerPhone, ct),
                 "cancel_appointment" => await CancelAppointmentAsync(barbershopId, args, ct),
+                "submit_feedback" => await SubmitFeedbackAsync(barbershopId, customerPhone, args, ct),
                 "delay_appointment" when barberId.HasValue =>
                     await DelayAppointmentAsync(barbershopId, barberId.Value, args, timezone, ct),
                 "get_my_agenda" when barberId.HasValue =>
@@ -149,29 +150,18 @@ public sealed class ToolExecutor
     {
         if (!args.TryGetProperty("barber_id", out var barberIdEl) ||
             !Guid.TryParse(barberIdEl.GetString(), out var barberId))
-        {
             return ErrorJson("barber_id inválido.");
-        }
-
-        if (!args.TryGetProperty("service_id", out var serviceIdEl) ||
-            !Guid.TryParse(serviceIdEl.GetString(), out var serviceId))
-        {
-            return ErrorJson("service_id inválido.");
-        }
 
         if (!args.TryGetProperty("date", out var dateEl) ||
             !DateOnly.TryParse(dateEl.GetString(), out var date))
-        {
             return ErrorJson("date inválido. Usá formato YYYY-MM-DD.");
-        }
 
-        var slots = await _availability.GetAvailableSlotsAsync(
-            barbershopId, barberId, serviceId, date, timezone, isPublic: true, ct);
+        var slotsResult = await ResolveAvailableSlotsAsync(barbershopId, barberId, date, timezone, args, ct);
+        if (slotsResult.Error is not null)
+            return slotsResult.Error;
 
-        // Convert UTC slots to barbershop local time so OpenAI presents human-readable
-        // local times to the customer (not UTC times).
         var tz = TimeZoneInfo.FindSystemTimeZoneById(timezone);
-        var available = slots
+        var available = slotsResult.Slots!
             .Where(s => s.Available)
             .Select(s => new
             {
@@ -180,8 +170,69 @@ public sealed class ToolExecutor
             })
             .ToList();
 
+        var message = available.Count == 0
+            ? "No hay horarios disponibles para la duración combinada de los servicios solicitados."
+            : (string?)null;
+
         return JsonSerializer.Serialize(
-            new { date = date.ToString("yyyy-MM-dd"), timezone, availableSlots = available }, Json);
+            new { date = date.ToString("yyyy-MM-dd"), timezone, availableSlots = available, message }, Json);
+    }
+
+    private sealed record SlotResolutionResult(
+        IReadOnlyList<Application.Services.SlotDto>? Slots,
+        string? Error);
+
+    private async Task<SlotResolutionResult> ResolveAvailableSlotsAsync(
+        Guid barbershopId, Guid barberId, DateOnly date, string timezone, JsonElement args, CancellationToken ct)
+    {
+        // Multi-service: sum durations when service_ids array is provided.
+        // Falls back to single service_id for backward compatibility.
+        if (args.TryGetProperty("service_ids", out var serviceIdsEl) &&
+            serviceIdsEl.ValueKind == JsonValueKind.Array)
+        {
+            var totalMinutes = await SumServiceDurationsAsync(barbershopId, serviceIdsEl, ct);
+            if (totalMinutes <= 0)
+                return new SlotResolutionResult(null, ErrorJson("No se encontraron los servicios indicados."));
+
+            var slots = await _availability.GetAvailableSlotsAsync(
+                barbershopId, barberId, totalMinutes, date, timezone, isPublic: true, ct);
+            return new SlotResolutionResult(slots, null);
+        }
+
+        if (!args.TryGetProperty("service_id", out var serviceIdEl) ||
+            !Guid.TryParse(serviceIdEl.GetString(), out var serviceId))
+            return new SlotResolutionResult(null, ErrorJson("Debés proveer service_id o service_ids."));
+
+        var singleSlots = await _availability.GetAvailableSlotsAsync(
+            barbershopId, barberId, serviceId, date, timezone, isPublic: true, ct);
+        return new SlotResolutionResult(singleSlots, null);
+    }
+
+    private async Task<int> SumServiceDurationsAsync(
+        Guid barbershopId, JsonElement serviceIdsEl, CancellationToken ct)
+    {
+        var serviceIds = new List<Guid>();
+        foreach (var item in serviceIdsEl.EnumerateArray())
+        {
+            if (Guid.TryParse(item.GetString(), out var sid))
+                serviceIds.Add(sid);
+        }
+
+        if (serviceIds.Count == 0) return 0;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            SELECT COALESCE(SUM(duration_minutes), 0)
+            FROM services
+            WHERE id = ANY(@ids) AND barbershop_id = @barbershopId AND active = TRUE", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("ids", NpgsqlDbType.Array | NpgsqlDbType.Uuid) { Value = serviceIds.ToArray() });
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+
+        var result = await cmd.ExecuteScalarAsync(ct);
+        return result is null ? 0 : Convert.ToInt32(result);
     }
 
     private async Task<string> BookAppointmentAsync(
@@ -238,12 +289,29 @@ public sealed class ToolExecutor
                 : result.ErrorMessage ?? "No se pudo crear la reserva.");
         }
 
+        // Persist preferred barber for future conversation personalization.
+        await UpdatePreferredBarberAsync(customerId, barberId, ct);
+
         return JsonSerializer.Serialize(new
         {
             success = true,
             appointmentId = result.AppointmentId!.Value.ToString(),
             message = "Reserva creada exitosamente."
         }, Json);
+    }
+
+    private async Task UpdatePreferredBarberAsync(Guid customerId, Guid barberId, CancellationToken ct)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            UPDATE customers SET preferred_barber_id = @barberId WHERE id = @customerId", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("barberId", NpgsqlDbType.Uuid) { Value = barberId });
+        cmd.Parameters.Add(new NpgsqlParameter("customerId", NpgsqlDbType.Uuid) { Value = customerId });
+
+        await cmd.ExecuteNonQueryAsync(ct);
     }
 
     private async Task<string> GetMyAppointmentsAsync(
@@ -305,6 +373,49 @@ public sealed class ToolExecutor
         }
 
         return JsonSerializer.Serialize(new { success = true, message = "Turno cancelado exitosamente." }, Json);
+    }
+
+    private async Task<string> SubmitFeedbackAsync(
+        Guid barbershopId, string customerPhone, JsonElement args, CancellationToken ct)
+    {
+        if (!args.TryGetProperty("appointment_id", out var apptIdEl) ||
+            !Guid.TryParse(apptIdEl.GetString(), out var appointmentId))
+        {
+            return ErrorJson("appointment_id inválido.");
+        }
+
+        if (!args.TryGetProperty("rating", out var ratingEl) || !ratingEl.TryGetInt32(out var rating))
+            return ErrorJson("rating inválido.");
+
+        if (rating < 1 || rating > 5)
+            return ErrorJson("La calificación debe estar entre 1 y 5.");
+
+        var comment = args.TryGetProperty("comment", out var commentEl)
+            ? commentEl.GetString()
+            : null;
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            INSERT INTO appointment_feedback (id, appointment_id, rating, comment, created_at)
+            VALUES (gen_random_uuid(), @appointmentId, @rating, @comment, NOW())
+            ON CONFLICT (appointment_id) DO NOTHING", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("appointmentId", NpgsqlDbType.Uuid) { Value = appointmentId });
+        cmd.Parameters.Add(new NpgsqlParameter("rating", NpgsqlDbType.Integer) { Value = rating });
+        cmd.Parameters.Add(new NpgsqlParameter("comment", NpgsqlDbType.Text) { Value = (object?)comment ?? DBNull.Value });
+
+        await cmd.ExecuteNonQueryAsync(ct);
+
+        _logger.LogInformation(
+            "Feedback submitted. AppointmentId={AppointmentId} Rating={Rating}", appointmentId, rating);
+
+        return JsonSerializer.Serialize(new
+        {
+            success = true,
+            message = $"¡Gracias por tu calificación de {rating}/5! Tu opinión nos ayuda a mejorar."
+        }, Json);
     }
 
     // ─── Barber tools ──────────────────────────────────────────────────────────

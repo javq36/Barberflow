@@ -24,4 +24,7 @@ public static class WhatsAppTemplateName
 
     /// <summary>Resumen diario de agenda enviado al peluquero en la mañana.</summary>
     public const string BarberDailyAgenda = "barber_daily_agenda";
+
+    /// <summary>Solicitud de feedback enviada al cliente después de completada su cita.</summary>
+    public const string FeedbackRequest = "feedback_request";
 }

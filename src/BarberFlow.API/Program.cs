@@ -191,6 +191,14 @@ builder.Services.AddHostedService(sp =>
         sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<DailyAgendaService>>(),
         connectionString,
         dailyAgendaHour: dailyAgendaHour));
+
+var feedbackDelayMinutes = builder.Configuration.GetValue<int?>("WhatsApp:FeedbackDelayMinutes") ?? 30;
+builder.Services.AddHostedService(sp =>
+    new FeedbackRequestService(
+        sp.GetRequiredService<IServiceScopeFactory>(),
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<FeedbackRequestService>>(),
+        connectionString,
+        delayMinutes: feedbackDelayMinutes));
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── AI / WhatsApp Booking ─────────────────────────────────────────────────────

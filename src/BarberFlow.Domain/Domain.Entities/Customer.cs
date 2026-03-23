@@ -24,6 +24,12 @@ public class Customer
     /// </summary>
     public bool OptInWhatsApp { get; set; } = true;
 
+    /// <summary>
+    /// ID del peluquero preferido del cliente (último con quien se atendió).
+    /// <c>null</c> indica que no hay preferencia registrada aún.
+    /// </summary>
+    public Guid? PreferredBarberId { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Barbershop? Barbershop { get; set; }
