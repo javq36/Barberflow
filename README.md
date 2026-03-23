@@ -385,26 +385,62 @@ Detailed process:
 
 ## Roadmap
 
-### WhatsApp Phase 2: Bidirectional Messaging with Buttons
+### WhatsApp Integration Roadmap
 
-- Webhook endpoint for incoming messages from Twilio.
-- Conversation state machine: customers confirm, cancel, or reschedule via Quick Reply buttons.
-- Twilio Content Templates with interactive button support.
-- `whatsapp_conversations` table to track conversation state.
-- **Requires**: Twilio paid account (interactive buttons not available in sandbox).
+#### ✅ Phase 1 — Outbound Notifications (COMPLETED)
 
-### WhatsApp Phase 3: Advanced Features
+- Appointment confirmation on booking
+- 24h reminder via background service
+- Cancellation notification
+- Outbox pattern for reliable delivery
+- E.164 phone normalization
+- International phone input with country flag selector
 
-- Full appointment booking via WhatsApp (no web app required).
-- Re-engagement campaigns for dormant customers.
-- Post-appointment feedback collection.
-- WhatsApp Flows (native Meta form experience).
+#### 🔲 Phase 2A — AI Booking MVP (~2 weeks)
+
+**Prerequisite**: Twilio paid account + OpenAI API key
+
+Core: Customers can book, check availability, and cancel appointments via WhatsApp using natural language (Spanish).
+
+Architecture: OpenAI GPT-4o-mini with Function Calling pattern — AI interprets natural language and calls BarberFlow functions (`check_availability`, `book_appointment`, etc.). The AI NEVER invents availability — it calls the existing `AvailabilityService` for ground truth.
+
+Components:
+
+- `POST /webhook/whatsapp` — Twilio webhook endpoint with signature validation
+- `whatsapp_conversations` table — conversation history + context (JSONB)
+- `AiBookingOrchestrator` — OpenAI function calling dispatch loop (max 5 iterations)
+- `ConversationService` — load/save conversation history
+- `ToolDefinitions` — 6 tools: `get_services`, `get_barbers`, `check_availability`, `book_appointment`, `get_my_appointments`, `cancel_appointment`
+- System prompt builder (date/timezone aware, barbershop-scoped)
+- Async reply pattern: 200 OK immediate → process in background → reply via outbox
+- `SendTextAsync` added to `IWhatsAppService` for direct text replies
+
+Estimated cost: ~$15–17/month for 300 appointments (OpenAI ~$0.40 + Twilio ~$15)
+
+#### 🔲 Phase 2B — Audio + UX Polish (~1 week)
+
+- Whisper API integration for voice note transcription
+- Conversation auto-reset after 30min inactivity
+- Rate limiting on webhook endpoint
+- Twilio Content Templates with Quick Reply buttons for reminders
+
+#### 🔲 Phase 3A — Barber Commands (~1 week)
+
+- Barber identification by phone number (lookup in `users` table)
+- Separate system prompt for barber role
+- `delay_appointment` tool — barber sends "+15" or "voy atrasado 15 min"
+- Auto-notify affected customers of delays via outbox
+- 10-minute pre-appointment alert for barber
+- Daily agenda summary message (morning)
+
+#### 🔲 Phase 3B — Advanced Features (post-validation)
+
+- Multi-service booking in single conversation
+- Preferred barber memory across sessions
+- Post-appointment feedback collection
+- Conversation analytics dashboard
 
 ### Other Pending
 
-- Error handling improvements in frontend (proper error feedback to users on booking failures).
-- E2E test coverage for WhatsApp notification flow.
-- Filtering and search improvements for larger datasets.
-- Normalize appointment datetime responses with explicit timezone/UTC format.
-- Replace ad-hoc confirmations with consistent dialog patterns.
-- Define multi-branch owner model as next architecture increment.
+- Error handling in frontend (proper error feedback to users)
+- E2E tests for WhatsApp flows
