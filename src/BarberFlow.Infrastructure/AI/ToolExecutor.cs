@@ -173,6 +173,10 @@ public sealed class ToolExecutor
             return ErrorJson("slot_start inválido. Usá formato ISO 8601.");
         }
 
+        // Npgsql 9 requires offset 0 (UTC) for TIMESTAMPTZ columns.
+        // OpenAI may return the local timezone offset (e.g. -05:00 for Colombia).
+        var slotStartUtc = slotStart.ToUniversalTime();
+
         var customerName = args.TryGetProperty("customer_name", out var nameEl)
             ? nameEl.GetString() ?? "Cliente"
             : "Cliente";
@@ -180,7 +184,7 @@ public sealed class ToolExecutor
         var normalizedPhone = PhoneNormalizer.Normalize(customerPhone) ?? customerPhone;
         var customerId = await UpsertCustomerByPhoneAsync(barbershopId, customerName, normalizedPhone, ct);
 
-        var command = new CreateAppointmentCommand(barberId, serviceId, customerId, slotStart, null);
+        var command = new CreateAppointmentCommand(barberId, serviceId, customerId, slotStartUtc, null);
         var result = await _booking.CreateAppointmentAsync(barbershopId, command, ct);
 
         if (!result.IsSuccess)

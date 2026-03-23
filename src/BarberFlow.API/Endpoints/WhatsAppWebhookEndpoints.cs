@@ -46,7 +46,7 @@ internal static class WhatsAppWebhookEndpoints
         var logger = loggerFactory.CreateLogger("WhatsAppWebhook");
 
         var (earlyExit, phone, body) =
-            ValidateAndExtractMessage(context, twilioOptions.Value.AuthToken, phoneLimiter, logger);
+            ValidateAndExtractMessage(context, twilioOptions.Value.AuthToken, twilioOptions.Value.UseSandbox, phoneLimiter, logger);
 
         // earlyExit is set when there is no phone (malformed, invalid sig, rate-limited).
         // A non-null phone with a null body means a media message: still needs a background reply.
@@ -72,11 +72,12 @@ internal static class WhatsAppWebhookEndpoints
     private static (IResult? earlyExit, string? phone, string? body) ValidateAndExtractMessage(
         HttpContext context,
         string authToken,
+        bool useSandbox,
         WhatsAppPhoneRateLimiter phoneLimiter,
         ILogger logger)
     {
-        // 1. Validate Twilio signature — always required, never skipped.
-        if (!ValidateSignature(context.Request, authToken, logger))
+        // 1. Validate Twilio signature — skipped in sandbox mode, enforced in production.
+        if (!ValidateSignature(context.Request, authToken, useSandbox, logger))
         {
             return (Results.Unauthorized(), null, null);
         }
@@ -227,8 +228,15 @@ internal static class WhatsAppWebhookEndpoints
     // ─── Signature validation ─────────────────────────────────────────────────
 
     private static bool ValidateSignature(
-        HttpRequest request, string authToken, ILogger logger)
+        HttpRequest request, string authToken, bool useSandbox, ILogger logger)
     {
+        // Sandbox mode: skip signature validation for local development.
+        if (useSandbox)
+        {
+            logger.LogWarning("Twilio signature validation skipped — sandbox mode");
+            return true;
+        }
+
         // AuthToken MUST be configured — never skip validation.
         if (string.IsNullOrWhiteSpace(authToken))
         {
