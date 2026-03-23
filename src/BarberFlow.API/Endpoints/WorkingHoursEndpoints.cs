@@ -29,9 +29,7 @@ internal static class WorkingHoursEndpoints
 
                 if (!isOwner && !isSameBarber)
                 {
-                    return Results.Problem(
-                        title: ApiConstants.Messages.OwnerOnlyAction,
-                        statusCode: StatusCodes.Status403Forbidden);
+                    return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
                 }
 
                 var hours = await workingHoursService.GetByBarberIdAsync(barbershopId, barberId, ct);
@@ -53,9 +51,7 @@ internal static class WorkingHoursEndpoints
             {
                 if (!EndpointHelpers.IsOwner(user))
                 {
-                    return Results.Problem(
-                        title: ApiConstants.Messages.OwnerOnlyAction,
-                        statusCode: StatusCodes.Status403Forbidden);
+                    return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
                 }
 
                 if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))
@@ -65,23 +61,23 @@ internal static class WorkingHoursEndpoints
 
                 if (request.DayOfWeek < 0 || request.DayOfWeek > 6)
                 {
-                    return Results.BadRequest(new { error = "day_of_week must be between 0 and 6." });
+                    return Results.BadRequest(new { message = "day_of_week must be between 0 and 6." });
                 }
 
                 if (string.IsNullOrWhiteSpace(request.StartTime) || string.IsNullOrWhiteSpace(request.EndTime))
                 {
-                    return Results.BadRequest(new { error = "start_time and end_time are required in HH:mm format." });
+                    return Results.BadRequest(new { message = "start_time and end_time are required in HH:mm format." });
                 }
 
                 if (!TimeSpan.TryParse(request.StartTime, out var start) ||
                     !TimeSpan.TryParse(request.EndTime, out var end))
                 {
-                    return Results.BadRequest(new { error = "start_time and end_time must be in HH:mm format." });
+                    return Results.BadRequest(new { message = "start_time and end_time must be in HH:mm format." });
                 }
 
                 if (end <= start)
                 {
-                    return Results.BadRequest(new { error = "end_time must be after start_time." });
+                    return Results.BadRequest(new { message = "end_time must be after start_time." });
                 }
 
                 WorkingHourDto result;
@@ -94,13 +90,11 @@ internal static class WorkingHoursEndpoints
                 }
                 catch (KeyNotFoundException)
                 {
-                    return Results.Problem(
-                        title: "Barber not found in this barbershop.",
-                        statusCode: StatusCodes.Status403Forbidden);
+                    return Results.Json(new { message = "Barbero no encontrado en esta barbería." }, statusCode: 403);
                 }
                 catch (ArgumentException ex)
                 {
-                    return Results.BadRequest(new { error = ex.Message });
+                    return Results.BadRequest(new { message = ex.Message });
                 }
 
                 var response = new WorkingHourResponse(
@@ -123,9 +117,7 @@ internal static class WorkingHoursEndpoints
             {
                 if (!EndpointHelpers.IsOwner(user))
                 {
-                    return Results.Problem(
-                        title: ApiConstants.Messages.OwnerOnlyAction,
-                        statusCode: StatusCodes.Status403Forbidden);
+                    return Results.Json(new { message = "Solo el dueño puede realizar esta acción." }, statusCode: 403);
                 }
 
                 if (!EndpointHelpers.TryGetBarbershopId(user, out var barbershopId, out var error))

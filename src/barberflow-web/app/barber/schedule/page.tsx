@@ -21,6 +21,7 @@ import { LoadingButton } from "@/components/ui/loading-button";
 import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
 import { useAppToast } from "@/lib/toast/toast-provider";
+import { getApiErrorMessage } from "@/lib/api/error";
 
 // ─── Status constants ──────────────────────────────────────────────────────────
 
@@ -75,21 +76,6 @@ function formatTimeRange(start: Date, end: Date): string {
 function parseApiDateTime(value: string): Date {
   const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/.test(value);
   return new Date(hasTimezone ? value : `${value}Z`);
-}
-
-function getApiErrorMessage(error: unknown): string | null {
-  if (
-    error &&
-    typeof error === "object" &&
-    "data" in error &&
-    error.data &&
-    typeof error.data === "object" &&
-    "message" in error.data &&
-    typeof error.data.message === "string"
-  ) {
-    return error.data.message;
-  }
-  return null;
 }
 
 // ─── Status badge ──────────────────────────────────────────────────────────────

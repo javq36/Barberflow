@@ -56,6 +56,7 @@ import { APP_ROUTES } from "@/lib/config/app";
 import { Texts } from "@/lib/content/texts";
 import { useAppToast } from "@/lib/toast/toast-provider";
 import { AppRole, hasPermission } from "@/lib/auth/permissions";
+import { getApiErrorMessage } from "@/lib/api/error";
 
 type AdminRole = AppRole;
 
@@ -117,22 +118,6 @@ function AccordionSection({
       <div className="p-4 sm:p-6">{children}</div>
     </details>
   );
-}
-
-function getApiErrorMessage(error: unknown): string | null {
-  if (
-    error &&
-    typeof error === "object" &&
-    "data" in error &&
-    error.data &&
-    typeof error.data === "object" &&
-    "message" in error.data &&
-    typeof error.data.message === "string"
-  ) {
-    return error.data.message;
-  }
-
-  return null;
 }
 
 export function AdminShell({ role, barbershopId }: AdminShellProps) {

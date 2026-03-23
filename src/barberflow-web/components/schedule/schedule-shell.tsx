@@ -40,6 +40,7 @@ import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useLogoutMutation } from "@/lib/api/authApi";
 import { useAppToast } from "@/lib/toast/toast-provider";
 import { AppRole } from "@/lib/auth/permissions";
+import { getApiErrorMessage } from "@/lib/api/error";
 
 type ScheduleShellProps = {
   role: AppRole;
@@ -167,21 +168,6 @@ function parseApiDateTime(value: string) {
   return new Date(hasTimezone ? value : `${value}Z`);
 }
 
-function getApiErrorMessage(error: unknown): string | null {
-  if (
-    error &&
-    typeof error === "object" &&
-    "data" in error &&
-    error.data &&
-    typeof error.data === "object" &&
-    "message" in error.data &&
-    typeof error.data.message === "string"
-  ) {
-    return error.data.message;
-  }
-
-  return null;
-}
 
 function buildIsoDateTime(selectedDate: Date, hour: string) {
   const [hoursRaw, minutesRaw] = hour.split(":");

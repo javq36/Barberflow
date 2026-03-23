@@ -285,7 +285,8 @@ app.UseExceptionHandler(errorApp =>
 
         await context.Response.WriteAsJsonAsync(new
         {
-            message = "Unexpected server error.",
+            message = "Error interno del servidor. Intentá de nuevo.",
+            code = "INTERNAL_ERROR",
             traceId = context.TraceIdentifier
         });
     });
@@ -300,11 +301,19 @@ app.UseStatusCodePages(async statusContext =>
     }
 
     response.ContentType = "application/json";
-    await response.WriteAsJsonAsync(new
+
+    var (message, code) = response.StatusCode switch
     {
-        message = $"Request failed with status code {response.StatusCode}.",
-        traceId = statusContext.HttpContext.TraceIdentifier
-    });
+        StatusCodes.Status401Unauthorized =>
+            ("No estás autenticado. Iniciá sesión.", "UNAUTHORIZED"),
+        StatusCodes.Status404NotFound =>
+            ("Recurso no encontrado.", "NOT_FOUND"),
+        StatusCodes.Status429TooManyRequests =>
+            ("Demasiadas solicitudes. Esperá un momento e intentá de nuevo.", "RATE_LIMITED"),
+        _ => ("Error inesperado.", "UNEXPECTED_ERROR")
+    };
+
+    await response.WriteAsJsonAsync(new { message, code });
 });
 
 app.Use(async (context, next) =>
