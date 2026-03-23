@@ -19,6 +19,7 @@
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-phone-number-input": "^3.4.16",
     "react-redux": "^9.2.0",
     "shadcn": "^4.0.0",
     "tailwind-merge": "^3.5.0",
