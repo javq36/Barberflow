@@ -59,10 +59,25 @@ public sealed class ToolExecutor
                 _ => ErrorJson($"Herramienta desconocida: {toolName}")
             };
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("overlap") || ex.Message.Contains("conflict") || ex.Message.Contains("available"))
+        {
+            _logger.LogWarning(ex, "Scheduling conflict. Tool={ToolName}", toolName);
+            return ErrorJson("Ese horario ya no está disponible, por favor elegí otro.");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Resource not found. Tool={ToolName}", toolName);
+            return ErrorJson("No encontré ese servicio o barbero.");
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument. Tool={ToolName}", toolName);
+            return ErrorJson("La fecha o el dato ingresado no es válido.");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Tool execution failed. Tool={ToolName}", toolName);
-            return ErrorJson("Error interno al ejecutar la herramienta. Intentá de nuevo.");
+            return ErrorJson("Hubo un problema al procesar tu solicitud, intentá de nuevo");
         }
     }
 

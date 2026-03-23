@@ -19,9 +19,9 @@ public sealed class AiBookingOrchestrator
     private readonly string _model;
 
     private const string FallbackError =
-        "No pude completar tu solicitud. Intentalo de nuevo.";
+        "No pude completar la operación, escribinos directamente";
     private const string ApiError =
-        "Servicio temporalmente no disponible. Por favor intentá más tarde.";
+        "El servicio tardó demasiado, intentá en un momento.";
 
     public AiBookingOrchestrator(
         IOptions<OpenAiSettings> settings,
@@ -104,7 +104,7 @@ public sealed class AiBookingOrchestrator
             break;
         }
 
-        _logger.LogWarning("Max tool iterations reached. Model={Model}", _model);
+        _logger.LogWarning("Max tool iterations ({Max}) reached. Model={Model}", _maxIterations, _model);
         return FallbackError;
     }
 

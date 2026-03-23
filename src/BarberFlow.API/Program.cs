@@ -205,8 +205,13 @@ builder.Services.AddScoped<ToolExecutor>(sp =>
         sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ToolExecutor>>()));
 
 builder.Services.AddScoped<AiBookingOrchestrator>();
+builder.Services.AddScoped<WhisperTranscriptionService>();
 builder.Services.AddScoped<BarbershopResolver>(sp =>
     new BarbershopResolver(connectionString));
+
+// IHttpClientFactory — used by WhatsApp webhook to download Twilio media (audio files)
+// in memory without writing to disk.
+builder.Services.AddHttpClient();
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Application Service Layer (DI seams) ─────────────────────────────────────

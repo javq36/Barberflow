@@ -108,6 +108,57 @@ public sealed class ConversationService
     public static bool ShouldReset(DateTimeOffset lastMessageAt)
         => DateTimeOffset.UtcNow - lastMessageAt > TimeSpan.FromMinutes(30);
 
+    /// <summary>
+    /// Clears the conversation history and pending context for the given phone number.
+    /// Used for manual resets (keyword-triggered).
+    /// Sets <c>messages</c> to <c>[]</c>, <c>context</c> to <c>{}</c>, and
+    /// updates <c>last_message_at</c> to NOW().
+    /// No-op if no conversation row exists yet.
+    /// </summary>
+    public async Task ResetAsync(Guid barbershopId, string phone, CancellationToken ct)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            UPDATE whatsapp_conversations
+            SET
+                messages        = '[]'::jsonb,
+                context         = '{}'::jsonb,
+                last_message_at = NOW()
+            WHERE barbershop_id = @barbershopId AND phone = @phone", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = phone });
+
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    /// Clears only the pending context (sets <c>context</c> to <c>{}</c>) and updates
+    /// <c>last_message_at</c>, but KEEPS the message history intact.
+    /// Used for inactivity auto-resets (30 min) so history is preserved for context
+    /// while any in-progress booking state is discarded.
+    /// No-op if no conversation row exists yet.
+    /// </summary>
+    public async Task ResetContextAsync(Guid barbershopId, string phone, CancellationToken ct)
+    {
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        await using var cmd = new NpgsqlCommand(@"
+            UPDATE whatsapp_conversations
+            SET
+                context         = '{}'::jsonb,
+                last_message_at = NOW()
+            WHERE barbershop_id = @barbershopId AND phone = @phone", conn);
+
+        cmd.Parameters.Add(new NpgsqlParameter("barbershopId", NpgsqlDbType.Uuid) { Value = barbershopId });
+        cmd.Parameters.Add(new NpgsqlParameter("phone", NpgsqlDbType.Text) { Value = phone });
+
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
     private List<JsonElement> TrimMessages(List<JsonElement> messages)
