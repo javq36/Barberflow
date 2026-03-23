@@ -2,7 +2,7 @@
 -- Supports Phase 1 of the whatsapp-phase1 SDD change.
 --
 -- 1. whatsapp_outbox     — durable outbox for at-least-once WhatsApp delivery via Twilio
--- 2. customers.opt_in_whatsapp — consent gate; default FALSE (opt-out by default)
+-- 2. customers.opt_in_whatsapp — consent gate; default TRUE (opt-in by default, WhatsApp is core feature)
 -- 3. appointments.reminder_sent_at — deduplication guard for 24h reminder worker
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_outbox_barbershop
 -- ─────────────────────────────────────────────────────────────────────────────
 
 ALTER TABLE customers
-    ADD COLUMN IF NOT EXISTS opt_in_whatsapp BOOLEAN NOT NULL DEFAULT FALSE;
+    ADD COLUMN IF NOT EXISTS opt_in_whatsapp BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 3. appointments.reminder_sent_at
